@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ps-web-tools</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 0; padding: 0; }
+    header { background: #333; color: #fff; padding: 1rem; text-align: center; }
+    header h1 { margin: 0; font-size: 1.5rem; }
+    header p { margin: 0.25rem 0 0; font-size: 1rem; }
+    .tools-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; padding: 1rem; }
+    .tool-card { border: 1px solid #ccc; border-radius: 6px; padding: 1rem; text-align: center; }
+    .tool-card img { width: 48px; height: 48px; margin-bottom: 0.5rem; }
+    .tool-card h2 { margin: 0.5rem 0 0.5rem; font-size: 1.25rem; }
+    .tool-card a { color: inherit; text-decoration: none; }
+    .tool-card a:hover { text-decoration: underline; }
+    footer { text-align: center; padding: 0.5rem; font-size: 0.8rem; color: #666; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>ps-web-tools</h1>
+    <p>My static HTML/CSS/JS toolkit</p>
+  </header>
+
+  <main>
+    <section class="tools-grid">
+      <article class="tool-card">
+        <img src="https://www.nytimes.com/games-assets/v2/metadata/wordle-apple-touch-icon.png?v=v2506061303" alt="Wordle Solver icon">
+        <h2><a href="/wordle-solver/">Wordle Solver</a></h2>
+        <p>Algorithmic assistant for your daily Wordle puzzle.</p>
+      </article>
+      <!-- Add more tools here -->
+    </section>
+  </main>
+
+  <footer>
+    <p>&copy; 2025 John Paul Ellis</p>
+  </footer>
+</body>
+</html>

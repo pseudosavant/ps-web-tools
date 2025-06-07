@@ -1,0 +1,19 @@
+{
+  "name": "Wordle Solver",
+  "short_name": "Wordle Solver",
+  "description": "Advanced Wordle puzzle solver with information theory optimization",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#e3e3e1",
+  "theme_color": "#6AAA64",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "https://www.nytimes.com/games-assets/v2/metadata/wordle-apple-touch-icon.png?v=v2506061303",
+      "type": "image/png"
+    }
+  ],
+  "categories": ["games", "utilities"],
+  "scope": "/",
+  "prefer_related_applications": false
+}
