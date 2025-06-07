@@ -35,7 +35,7 @@ function debounce(func, wait, immediate) {
 async function loadWordList() {
     try {
         showLoading(true);
-        const response = await fetch("https://cdn.statically.io/gh/seanpatlan/wordle-words/main/valid-words.csv");
+        const response = await fetch("./valid-words.csv");
         const text = await response.text();
         WORD_LIST = text.split('\n')
             .filter(word => word.length === 5)
@@ -49,7 +49,7 @@ async function loadWordList() {
         console.log(`Loaded ${WORD_LIST.length} words`);
     } catch (error) {
         showLoading(false);
-        showError('Failed to load word list. Please check your internet connection.');
+        showError('Failed to load word list. Please ensure valid-words.csv is in the same directory.');
         console.error('Error loading word list:', error);
     }
 }
