@@ -8,22 +8,23 @@
     <title>Data URI PWA</title>
     <link rel="stylesheet" href="style.css" />
     <link rel="manifest" href="manifest.json">
+    <meta name="license" content="MIT">
   </head>
   <body>
     <h1>
       Create Data URIs
     </h1>
-    <div class="sources drop">
+    <div class="sources drop" aria-label="Source selection area">
       <h2>
         Sources
       </h2>
       <ul>
         <li>
-          <div class="drop-widget">Drop Here 🎯</div>
+          <div class="drop-widget" tabindex="0" aria-label="Drop file here">Drop Here 🎯</div>
         </li>
         <li>
-          <label for="local">Local file <button type="button">Open file</button></label>
-          <input type="file" id="local" class="local" />
+          <label for="local">Local file <button type="button" aria-label="Open file" tabindex="0">Open file</button></label>
+          <input type="file" id="local" class="local" tabindex="0" />
         </li>
         <li>
           <label for="remote">Remote URL (URL must support <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS" target="_BLANK" >CORS</a>)</label>
@@ -32,6 +33,7 @@
             id="remote"
             class="remote"
             placeholder="e.g. https://www.website.com"
+            tabindex="0"
           />
         </li>
         <li>
@@ -42,40 +44,36 @@
             class="text"
             placeholder="Paste text here"
             autocorrect="off"
+            tabindex="0"
           />
-          <button class="btn-paste" name="Paste text from clipboard">📋</button>
+          <button class="btn-paste" name="Paste text from clipboard" aria-label="Paste text from clipboard" tabindex="0">📋</button>
         </li>
       </ul>
     </div>
-    <div class="output">
+    <div class="output" aria-label="Output area">
       <h2>
         Output
       </h2>
-      <a href="" class="data-uri" target="">Data URI</a>
-      <button type="button" class="copy">Copy Data URI</button>
+      <a href="" class="data-uri" target="" aria-label="Data URI link">Data URI</a>
+      <button type="button" class="copy" aria-label="Copy Data URI" tabindex="0">Copy Data URI</button>
+      <span class="copy-message" aria-live="polite" style="display:none;"></span>
       <h3>
         Preview
       </h3>
-      <div class="preview" sandbox></div>
+      <div class="preview" sandbox>
+        <span class="preview-placeholder" style="color:#888;">No preview available. Select or drop a file above.</span>
+      </div>
     </div>
     <footer>
       <p>
         This simple web app will create a data URI of the contents of any local
         file, text, or CORS-enabled remote URL. <br />
         All processing is done on the client – no information is ever sent to a
-        server. <br />You may
-        <a href="https://glitch.com/edit/#!/data-uri-pwa" target="_BLANK"
-          >inspect the source on Glitch</a
-        >
-        if you'd like.
+        server.
       </p>
-      <p>&copy; 2020 Paul Ellis</p>
+      <p>&copy; 2025 Paul Ellis</p>
     </footer>
-    <p>
-      License:
-      <a href="https://opensource.org/licenses/MIT" target="_BLANK">MIT</a>
-    </p>
-    <button type="button" class="install">Install</button>
+    <button type="button" class="install" aria-label="Install app" tabindex="0">Install</button>
     <script src="script.js" defer></script>
   </body>
 </html>

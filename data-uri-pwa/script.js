@@ -17,16 +17,21 @@
     const file = $local.files[0];
     updateFile(file);
   }
-  $local.find("button").on("click", e => {
-    $local.find("button").parentNode.click();
+  $local.parentNode.querySelector("button").addEventListener("click", e => {
+    $local.click();
   });
 
   async function updateRemote(e) {
     const url = $(".remote").value;
-    const res = await fetch(url);
-    const blob = await res.blob();
-
-    updateFile(blob);
+    if (!url) return;
+    try {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error("Network response was not ok");
+      const blob = await res.blob();
+      updateFile(blob);
+    } catch (err) {
+      alert("Failed to fetch remote file: " + err.message);
+    }
   }
 
   function updateText(e) {
@@ -61,6 +66,7 @@
     };
   })();
   $drop.on("dragover", dragover);
+  $drop.on("dragleave", () => $drop.classList.remove("dropover"));
 
   function updateFile(file) {
     const reader = new FileReader();
@@ -80,6 +86,11 @@
 
     const $preview = $(".preview");
     $preview.innerHTML = "";
+
+    // Hide preview placeholder if present
+    if ($preview.querySelector('.preview-placeholder')) {
+      $preview.querySelector('.preview-placeholder').style.display = 'none';
+    }
 
     const baseType = type.split("/")[0];
 
@@ -103,26 +114,54 @@
       default:
         const $iframe = $("<iframe/>");
         $iframe.src = uri;
+        $iframe.onload = () => resizeIframe($iframe);
         $preview.append($iframe);
-
-        resizeIframe($iframe);
         break;
     }
   }
 
   function resizeIframe(iframe) {
-    iframe.width = iframe.contentWindow.document.body.scrollWidth;
-    iframe.height = iframe.contentWindow.document.body.scrollHeight;
+    try {
+      const doc = iframe.contentDocument || iframe.contentWindow.document;
+      iframe.width = doc.body.scrollWidth;
+      iframe.height = doc.body.scrollHeight;
+    } catch (e) {
+      // Ignore cross-origin errors
+    }
   }
 
+  // Improved copy-to-clipboard logic with visual feedback
   function copyDataURI(e) {
     const uri = $dataURI.href;
-    e.clipboardData.setData("text", uri);
-    console.log("copied");
-    e.preventDefault();
+    if (e && e.clipboardData) {
+      e.clipboardData.setData("text/plain", uri);
+      e.preventDefault();
+      showCopySuccess();
+    }
   }
   $(document).on("copy", copyDataURI, false);
-  $(".copy").on("click", () => document.execCommand("copy"), false);
+  $(".copy").on("click", () => {
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText($dataURI.href).then(showCopySuccess);
+    } else {
+      document.execCommand("copy");
+      showCopySuccess();
+    }
+  }, false);
+
+  function showCopySuccess() {
+    const btn = $(".copy");
+    const msg = document.querySelector('.copy-message');
+    btn.classList.add('copy-success');
+    if (msg) {
+      msg.textContent = "Copied!";
+      msg.style.display = "inline";
+    }
+    setTimeout(() => {
+      btn.classList.remove('copy-success');
+      if (msg) msg.style.display = "none";
+    }, 1200);
+  }
 
   async function pasteText(e) {
     const data = await navigator.clipboard.readText();
@@ -215,4 +254,23 @@
 
     return addSugar(el);
   }
+
+  // Show preview placeholder if no preview content
+  function showPreviewPlaceholder() {
+    const $preview = $(".preview");
+    if ($preview && $preview.children.length === 0) {
+      let placeholder = $preview.querySelector('.preview-placeholder');
+      if (!placeholder) {
+        placeholder = document.createElement('span');
+        placeholder.className = 'preview-placeholder';
+        placeholder.style.color = '#888';
+        placeholder.textContent = 'No preview available. Select or drop a file above.';
+        $preview.appendChild(placeholder);
+      }
+      placeholder.style.display = '';
+    }
+  }
+
+  // Call showPreviewPlaceholder on load
+  document.addEventListener("DOMContentLoaded", showPreviewPlaceholder);
 })(this);

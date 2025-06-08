@@ -34,4 +34,4 @@ Drag in `assets`, like images or music, to add them to your project
 Made by [Glitch](https://glitch.com/)
 -------------------
 
-\ ゜o゜)ノ
+License: MIT
