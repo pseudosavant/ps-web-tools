@@ -10,7 +10,7 @@
     if (!ZIPCodes) ZIPCodes = await ZIPCodesReq.then(r => r.json());
 
     const cityState = ZIPCodes[ZIPCode];
-    if (!cityState) throw new Error(`ZIP ${ZIPCode} not found`)
+    if (!cityState) console.warning(`ZIP ${ZIPCode} not found`);
     cityState.ZIPCode = ZIPCode;
     return cityState;
   }
