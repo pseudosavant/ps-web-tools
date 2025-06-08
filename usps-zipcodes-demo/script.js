@@ -7,7 +7,7 @@
 
   async function ZIPLookup(ZIPCode) {
     if (!ZIPCodesReq) ZIPCodesReq = fetch(zipCodesJsonURL);
-    if (!ZIPCodes) ZIPCodes = await ZIPCodesReq.json();
+    if (!ZIPCodes) ZIPCodes = await ZIPCodesReq.then(r => r.json());
 
     const cityState = ZIPCodes[ZIPCode];
     if (!cityState) throw new Error(`ZIP ${ZIPCode} not found`)
