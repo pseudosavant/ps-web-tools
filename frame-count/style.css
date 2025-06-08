@@ -3,30 +3,185 @@
   margin: 0;
 }
 
+html, body {
+  height: 100%;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  font-family: "Segoe UI", Calibri, Arial, Helvetica, sans-serif;
+  box-sizing: border-box;
+}
+
 html {
-  background: black;
+  background: linear-gradient(135deg, #232526 0%, #414345 100%);
   color: white;
 }
 
 body {
-  display: flex;
-  align-items: center;
-  justify-content: center;
   height: 100vh;
   width: 100vw;
+  min-height: 100vh;
+  min-width: 100vw;
+  display: flex;
+  align-items: stretch;
+  justify-content: stretch;
+  overflow: hidden;
 }
 
-.frame-count, .timestamp {
+.container {
+  background: rgba(20, 20, 20, 0.85);
+  box-shadow: 0 6px 32px 0 rgba(0,0,0,0.25);
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: stretch;
+  box-sizing: border-box;
+  width: 100vw;
+  height: 100vh;
+  max-width: none;
+  min-height: 0;
+  margin: 0;
+}
+
+.fps-graph {
+  width: 100vw;
+  height: 28vh;
+  min-height: 120px;
+  max-height: 35vh;
   display: block;
-  font-family: "Segoe UI", Calibri, sans-serif;
-  font-size: 10vw;
-  text-align: center;
+  margin: 0 0 0 0;
+  background: transparent;
+  box-shadow: 0 2px 12px 0 rgba(0,0,0,0.10);
+  flex: 0 0 auto;
 }
 
-.frame-count::before {
-  content: "Frame: ";
+.stats-row {
+  display: flex;
+  flex-direction: row;
+  justify-content: stretch;
+  align-items: stretch;
+  width: 100%;
+  height: 100%;
+  flex: 1 1 0;
+  gap: 0;
+  overflow: auto; /* Enable scrolling if needed */
 }
 
-.timestamp::before {
-  content: "Timestamp: ";
+.stats-main {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  flex: 2 1 0;
+  padding: 3vw 2vw 3vw 4vw;
+  gap: 0.5em;
+  min-width: 0;
+}
+
+.stats-secondary {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: center;
+  flex: 1 1 0;
+  padding: 3vw 4vw 3vw 2vw;
+  gap: 0.5em;
+  min-width: 0;
+}
+
+.stats-secondary > * {
+  font-size: 2vw;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  font-family: inherit;
+  text-align: right;
+  word-break: break-word;
+  margin: 0;
+}
+
+.frame-count, .timestamp, .fps {
+  font-size: 7vw;
+  font-weight: bold;
+  font-family: inherit;
+  text-align: left;
+  word-break: break-word;
+}
+
+.delta, .fps-stats, .elapsed {
+  font-size: 2vw;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  font-family: inherit;
+  text-align: right;
+  word-break: break-word;
+}
+
+/* Remove all ::before label styles for stats */
+.frame-count::before,
+.timestamp::before,
+.fps::before,
+.delta::before,
+.fps-stats::before,
+.elapsed::before,
+.fps-min::before,
+.fps-max::before,
+.fps-mean::before,
+.fps-median::before {
+  content: none;
+}
+
+.fps-stats {
+  margin-bottom: 1em;
+}
+
+.container > *:last-child {
+  margin-bottom: 0;
+}
+
+/* Stat label/value color split */
+.stat-label {
+  color: #aaa;
+  font-weight: 400;
+  font-size: 0.9em;
+  font-family: inherit;
+  margin-right: 0.3em;
+  display: inline;
+}
+
+.stat-value {
+  color: #fff;
+  font-weight: 500;
+  font-size: 1em;
+  font-family: inherit;
+  display: inline;
+}
+
+/* Responsive: mobile */
+@media (max-width: 600px) {
+  .stats-row {
+    flex-direction: column;
+    gap: 2vw;
+  }
+  .stats-main,
+  .stats-secondary {
+    align-items: center;
+    justify-content: center;
+    flex: none;
+    padding: 4vw 4vw 2vw 4vw;
+    gap: 0.5em;
+  }
+  .frame-count, .timestamp, .fps,
+  .stats-secondary > *,
+  .delta, .fps-stats, .elapsed,
+  .fps-min, .fps-max, .fps-mean, .fps-median {
+    font-size: 7vw;
+    text-align: center;
+  }
+  .stat-label,
+  .stat-value {
+    display: inline;
+    text-align: center;
+    font-size: 1em;
+  }
 }
