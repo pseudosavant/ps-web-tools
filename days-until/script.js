@@ -20,7 +20,6 @@ const infoBetweenDates = (date1, date2) => {
     const years = yearsLeft(d1, d2);
     
     const data = {
-      days,
       weekdays,
       weeks: weeks.toFixed(0),
       months: months.toFixed(0),
@@ -145,15 +144,22 @@ const infoBetweenDates = (date1, date2) => {
   }
   
   const getDayFromHTML = () => {
-    const $container = document.querySelector('.container');
+  // Updated for new layout: find .header-text and .days for info
+  const nameElem = document.querySelector('.header-text');
+  const dateInput = document.querySelector('#date');
+  let name = nameElem ? nameElem.textContent.replace(/^Days Until\s*/i, '') : '';
+  let date = dateInput ? resetTime(new Date(dateInput.value)) : null;
 
-    const day = {
-      name: $container.dataset.name,
-      date: resetTime(yyyymmddToDate($container.dataset.date))
-    };
-    
-    return day;
+  // Fallback: try to get from .days data attribute if you add one
+  if (!name && document.title.includes('{what}')) {
+    name = 'Important Day';
   }
+  if (!date || isNaN(date.getTime())) {
+    // fallback to today
+    date = resetTime(new Date());
+  }
+  return { name, date };
+}
   
   const getDefaultColors = () => {
     const color = {
@@ -214,13 +220,40 @@ const infoBetweenDates = (date1, date2) => {
     setColor(id, color);
   }
   
-  const updateDateName = (name, year) => {
-    document.querySelector('title').innerText   = document.querySelector('title').innerText.replace('{what}', name).replace('{when}', year);
-    document.querySelector('.header').innerText = document.querySelector('.header').innerText.replace('{what}', name);  
+  const updateDateName = (name, date) => {
+    document.querySelector('title').innerText = `Days until ${name} ${formatLongDate(date)}`;
+    const whatElem = document.querySelector('.countdown-what');
+    const whenElem = document.querySelector('.countdown-when');
+    if (whatElem) whatElem.innerText = name;
+    if (whenElem) whenElem.innerText = formatLongDate(date);
+  }
+  
+  function formatLongDate(date) {
+    // e.g. Monday, October 31st, 2026
+    const d = new Date(date);
+    const days = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+    const months = [
+      "January","February","March","April","May","June",
+      "July","August","September","October","November","December"
+    ];
+    const dayName = days[d.getDay()];
+    const monthName = months[d.getMonth()];
+    const dayNum = d.getDate();
+    const year = d.getFullYear();
+    const ordinal = (n) => {
+      if (n > 3 && n < 21) return 'th';
+      switch (n % 10) {
+        case 1: return 'st';
+        case 2: return 'nd';
+        case 3: return 'rd';
+        default: return 'th';
+      }
+    };
+    return `${dayName}, ${monthName} ${dayNum}${ordinal(dayNum)}, ${year}`;
   }
   
   const updateDaysLeft = (daysLeft) => {
-    document.querySelector('.days').innerHTML = daysLeft;
+    document.querySelector('.days').innerHTML = `${daysLeft} days until`;
     document.querySelector('.days').style.setProperty('right', '0'); // Overrides `right` CSS and causes it to slide in to the left
   }
   
@@ -228,11 +261,9 @@ const infoBetweenDates = (date1, date2) => {
     const info = infoBetweenDates(startDate, endDate);
     const entries = Object.entries(info);
     
-    let html = '';
-    entries.forEach((entry) => {
-      const [key, value] = entry;
-      html += `${key}: ${value}<br>`;
-    });
+    const html = entries
+      .map(([key, value]) => `${key}: ${value}`)
+      .join(' | ');
 
     document.querySelector('.extra').innerHTML = html;
   };
@@ -240,12 +271,12 @@ const infoBetweenDates = (date1, date2) => {
   const update = (day) => {
     const start = day.date;
     const end = new Date();
-    updateDateName(day.name, start.getFullYear());
+    updateDateName(day.name, start);
     updateDaysLeft(daysLeft(start, end));
     updateExtras(start, end);
     populateDate(start);
     populateName(day.name);
-    
+
     const info = infoBetweenDates(day.date, new Date());
     console.log(info);
     

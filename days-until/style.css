@@ -1,114 +1,271 @@
 *, *::before, *::after { 
   box-sizing: border-box;
-  overflow: hidden;
-  overflow-y: auto;
-  user-select: none;
-  
-  transition: all 250ms ease-in-out;
+  user-select: none;  
 }
 
-html {
-  --headerColor: #FFAAAA;
-  --headerFontColor: #FFFFFF;
-  --bodyColor: #FAFAFA;
-  --bodyFontColor: #000000;
-  
-  background-color: var(--bodyColor);
+:root {
+  --theme-hue: 200;
+  --primary-color: hsl(var(--theme-hue, 0), 80%, 40%);
+  --box-shadow: 1px 3px 5px rgba(0,0,0,0.2);
+  --drop-shadow: drop-shadow(0px 1px 2px rgba(0,0,0,0.1));
 }
 
-html, body {
-  font-family: 'Segoe UI', Calibri, Arial, Helvetica, sans-serif;
-  font-size: calc(2vh);
+body, html {
+  background: linear-gradient(135deg, hsl(var(--theme-hue, 0), 100%, 95%) 0%, hsl(var(--theme-hue, 0), 100%, 88%) 100%);
+  min-height: 100vh;
   margin: 0;
   padding: 0;
+  font-family: 'Inter', 'Segoe UI', Arial, sans-serif;
+  color: #222;
+  user-select: none;
 }
 
-.container {
-  text-align: center;
+body {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  animation: fadeIn 1s ease;
 }
 
-.header {
-  font-size: 2rem;
-  font-weight: bold;
-  line-height: 5rem;
-  
-  color: var(--headerFontColor);
-  padding: 1rem;
-  
-  background-color: var(--headerColor);  
-  min-height: 6rem;  
+.main-bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  background: linear-gradient(120deg, #f8fafc 0%, #ffe0e9 100%);
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+.main-wrapper {
+  position: relative;
+  z-index: 1;
+  max-width: 900px;
+  margin: 3vh auto 0 auto;
+  padding: 0 1rem;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.countdown-gear {
+  position: fixed;
+  top: 1.2rem;
+  right: 1.2rem;
+  z-index: 100;
+  filter: var(--drop-shadow);
+}
+
+.config-toggle {
+  background: none;
+  border: none;
+  color: var(--primary-color);
+  font-size: 2.2em;
+  cursor: pointer;
+  padding: 0.2em 0.25em;
+  transition: color 0.2s, transform 0.2s;
+}
+
+.config-toggle:focus, .config-toggle:hover {
+  color: var(--primary-color);
+  outline: none;
+}
+
+.countdown-main {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.countdown-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.7em;
+  margin-top: 0;
+  padding: 2.5em;
 }
 
 .days {
-  color: var(--bodyFontColor);
-  position: relative;
+  color: var(--primary-color);
+  font-size: clamp(2.8rem, 7vw, 4.5rem);
+  font-weight: 800;
+  margin: 0 0 0.2em 0;
+  letter-spacing: -0.04em;
+  line-height: 1.1;
   text-align: center;
-  font-size: min(16rem, 40vw);
-  right: -200%;
+  order: 1;
+  overflow: hidden;
 }
 
 .extra {
-  color: var(--bodyFontColor);
-  opacity: 0.25;
-  margin-bottom: 1rem;
+  color: var(--primary-color);
+  font-size: 1.1rem;
+  margin-top: 1.5rem;
+  margin-bottom: 0.5rem;
+  opacity: 0.85;
+  text-align: center;
+  line-height: 1.7;
+  font-weight: 400;
+  letter-spacing: 0.01em;
+  order: 4;
 }
 
-body:hover .extra {
-  opacity: 1;
-}
-
-form {
-  font-size: 12px;
-  opacity: 0.01;
-  max-width: 320px;
-  
-  margin: 0 auto;
-  
-  color: #444;
-  background-color: rgba(255,255,255,0.9);
-  border: 1px solid rgb(224,224,224);
-  border-radius: 5px;
-  padding: 1em;
-}
-
-form h3 {
-  font-size: 1.25em;
-  margin-top: 0;
-}
-
-form p {
-  margin-bottom: 0;
-}
-
-form:hover, form:focus-within {
-  opacity: 1;
-}
-
-form .item {
-  position: relative;
-  width: 100%;
-  height: 2.75em;
-  margin-bottom: 0.5em;
-}
-
-form label, form input {
+.countdown-what {
+  font-size: 3rem;
+  font-weight: 700;
+  color: #fff;
+  background: var(--primary-color);
+  border-radius: 2em;
+  padding: 3rem 4.2rem;
+  margin: 0.2em 0 0.2em 0;
+  text-align: center;
   display: inline-block;
+  order: 2;
+}
+
+.countdown-when {
+  font-size: 1.35rem;
+  font-weight: 600;
+  color: var(--primary-color);
+  background: none;
+  border-radius: 0;
+  padding: 0.1em 0;
+  margin: 0.2em 0 0.2em 0;
+  text-align: center;
+  display: block;
+  order: 3;
+}
+
+.countdown-form {
   position: absolute;
+  top: 1.2rem;
+  right: 4.2rem;
+  display: none;
+  flex-direction: column;
+  gap: 0.7rem;
+  background: #fff;
+  border-radius: 1.2rem;
+  padding: 1.2rem 1.2rem 1.2rem 1.2rem;
+  min-width: 240px;
+  z-index: 200;
+  align-items: flex-start;
+  justify-content: flex-start;
+  border: none;
+  transition: opacity 0.2s;
 }
 
-form label {
-  left: 0;
-  width: 35%;
+.countdown-form.open {
+  display: flex;
+  animation: fadeIn 0.3s;
+  box-shadow: var(--box-shadow);
 }
 
-form input {
-  right: 0;
-  width: 64%;
-  border: 1px solid rgb(192,192,192);
-  padding: 0.25em 0.5em;
-  height: 100%;
+.countdown-form h3 {
+  font-size: 1.1em;
+  margin: 0 0 0.7em 0;
+  color: var(--primary-color);
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  font-weight: 700;
 }
 
-form input[type=color] {
-  padding: 0;
+.options-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  margin-bottom: 0.2em;
+  width: 100%;
+}
+
+.options-row label {
+  flex: 0 0 2.2em;
+  justify-content: flex-end;
+  color: var(--primary-color);
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  font-size: 1.2em;
+  margin-right: 0.2em;
+}
+
+.options-row input[type="text"],
+.options-row input[type="date"] {
+  flex: 1 1 auto;
+  border: 1px solid #ddd;
+  padding: 0.35em 0.6em;
+  border-radius: 0.5em;
+  font-size: 1em;
+  background: #f8fafc;
+  color: #222;
+  min-width: 0;
+}
+
+.options-row input[type="range"] {
+  width: 100%;
+  accent-color: var(--primary-color);
+}
+
+.form-actions {
+  display: flex;
+  gap: 0.7em;
+  justify-content: flex-end;
+  margin-top: 0.7em;
+  width: 100%;
+}
+
+.form-actions button {
+  background: var(--primary-color);
+  color: #fff;
+  border: none;
+  border-radius: 0.7em;
+  padding: 0.5em 1.2em;
+  font-size: 1em;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  box-shadow: var(--box-shadow);
+}
+
+.form-actions button:hover, .form-actions button:focus {
+  background: var(--primary-color);
+  transform: translateY(-2px) scale(1.03);
+}
+
+@media (max-width: 600px) {
+  .countdown-main {
+    padding: 0 0.2rem;
+  }
+  .countdown-content {
+    min-width: 0;
+    padding: 1.2em 0.5em;
+  }
+  .countdown-what {
+    font-size: 1.2rem;
+    padding: 0.25em 1.2em;
+  }
+  .countdown-when {
+    font-size: 1rem;
+  }
+  .days {
+    font-size: 2.2rem;
+  }
+  .countdown-form {
+    right: 1.2rem;
+    min-width: 0;
+    padding: 0.7rem 0.5rem;
+  }
+}
+
+/* Fade in animation */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
