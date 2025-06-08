@@ -2,17 +2,15 @@
   "use strict";
 
   const zipCodesJsonURL = "https://cdn.statically.io/gh/pseudosavant/USPSZIPCodes/main/dist/ZIPCodes.json";
-  var ZIPCodes;
+  let ZIPCodes;
+  let ZIPCodesReq = fetch(zipCodesJsonURL);
 
   async function ZIPLookup(ZIPCode) {
-    // If no `ZIPCodes` object exists download it and call the callback async
-    if (!ZIPCodes) {
-      const req = await fetch(zipCodesJsonURL);
-      ZIPCodes = await req.json();
-    }
+    if (!ZIPCodesReq) ZIPCodesReq = fetch(zipCodesJsonURL);
+    if (!ZIPCodes) ZIPCodes = await ZIPCodesReq.json();
 
     const cityState = ZIPCodes[ZIPCode];
-    cityState.cached = true;
+    if (!cityState) throw new Error(`ZIP ${ZIPCode} not found`)
     cityState.ZIPCode = ZIPCode;
     return cityState;
   }
