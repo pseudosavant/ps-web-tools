@@ -17,7 +17,7 @@ function precache() {
       '/',
       '/icon.svg',
       'script.js',
-      '/style.css',
+      'style.css',
       '/index.html'
     ]);
   });
