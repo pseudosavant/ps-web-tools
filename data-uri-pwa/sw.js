@@ -16,7 +16,7 @@ function precache() {
     return cache.addAll([
       '/',
       '/icon.svg',
-      '/script.js',
+      'script.js',
       '/style.css',
       '/index.html'
     ]);
