@@ -1,9 +1,11 @@
 :root {
-  background-color: black;
+  --background-color: black;
+  background-color: var(--background-color);
   --logo-width: 25vmax;
   --logo-aspect-ratio: calc(107 / 210);
   --logo-height: calc(var(--logo-width) * var(--logo-aspect-ratio));
   --speed: 10s;
+  --logo-color: white; /* Default logo color */
 }
 
 .logo {
@@ -13,7 +15,7 @@
 }
 
 .logo svg {
-  fill: white;
+  fill: var(--logo-color);
 }
 
 .x, .y {
