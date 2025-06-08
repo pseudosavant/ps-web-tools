@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dollars and Cents MPGe Calculator</title>
+    <!-- Font Awesome 6.7 CDN -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.0/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
     <style>      
         * {
             box-sizing: border-box;
@@ -25,7 +27,7 @@
             padding: 1.5rem;
             background: white;
             border-radius: 0.75rem;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 4px 16px rgba(0,0,0,0.09), 0 1.5px 4px rgba(0,0,0,0.07);
             display: flex;
             flex-direction: column;
         }
@@ -33,13 +35,14 @@
             color: #333;
             text-align: left;
             margin-bottom: 1rem;
+            letter-spacing: 0.01em;
         }
         h2, h3 {
             color: #555;
             margin-top: 0.5rem;
             margin-bottom: 0.25rem;
             padding-bottom: 0rem;
-            border-bottom: 2px solid #eaeaea;
+            border-bottom: 2px solid #e0e0e0;
         }
         input[type="number"] {
             font-family: monospace;
@@ -51,6 +54,12 @@
             text-align: center;
             margin-right: 0.75rem;
             margin-bottom: 0.75rem;
+            background: #f9f9fb;
+            transition: border 0.2s, box-shadow 0.2s;
+        }
+        input[type="number"]:hover, input[type="range"]:hover {
+            border: 1.5px solid #b5d6f6;
+            background: #f4faff;
         }
         input[type="number"]::-webkit-inner-spin-button,
         input[type="number"]::-webkit-outer-spin-button {
@@ -77,19 +86,34 @@
             color: blue;
             margin-right: 0.5rem;
             text-wrap: nowrap;
+            border-radius: 0.25em;
+            padding: 0.15em 0.5em;
+            transition: background 0.15s, color 0.15s;
         }
-        .preset-text:hover {
-            text-decoration: underline;
+        .preset-text:hover, .preset-text:focus {
+            background: #e6f0fa;
+            color: #005fa3;
         }
         .results {
             background-color: #eaeaea;
             padding: 1rem;
             border-radius: 0.5rem;
             margin-top: 1.5rem;
+            border: 1px solid #e0e0e0;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.04);
         }
         #mpge-result, #miles-per-dollar, #dollars-per-mile {
             font-weight: bold;
             color: #333;
+            font-size: 1.1em;
+        }
+        .results h2 {
+            display: flex;
+            align-items: center;
+            gap: 0.5em;
+        }
+        .results h2 .fa-scale-balanced {
+            color: #0078d4;
         }
         ul {
             list-style-type: none;
@@ -98,90 +122,208 @@
             display: inline;
             margin-right: 0.5rem;
         }
+        .unit-label {
+            font-size: 0.95em;
+            color: #888;
+            margin-left: 0.25em;
+            margin-right: 1em;
+            white-space: nowrap;
+        }
+        .input-group {
+            display: flex;
+            align-items: center;
+            margin-bottom: 0.5rem;
+            flex-wrap: wrap;
+            background: #f8fafd;
+            border-radius: 0.5rem;
+            padding: 0.5rem 0.75rem;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+            margin-bottom: 0.75rem;
+            transition: box-shadow 0.2s;
+        }
+        .input-group:focus-within {
+            box-shadow: 0 2px 8px rgba(0,123,212,0.10);
+            background: #f0f6fb;
+        }
+        .input-icon {
+            color: #0078d4;
+            font-size: 1.15em;
+            margin-right: 0.5em;
+            min-width: 1.5em;
+            text-align: center;
+        }
+        .input-error {
+            color: #b00;
+            font-size: 0.9em;
+            margin-left: 0.5em;
+            min-width: 120px;
+        }
+        input:focus, .preset-text:focus {
+            outline: 2px solid #0078d4;
+            outline-offset: 2px;
+        }
         @media (max-width: 600px) {
             label {
                 flex-basis: 100%;
             }
+            .input-group {
+                flex-direction: column;
+                align-items: stretch;
+                padding: 0.5rem 0.25rem;
+            }
             input[type="range"], input[type="number"] {
                 flex-basis: 100%;
                 margin-right: 0;
+            }
+            .unit-label {
+                margin-left: 0;
+                margin-bottom: 0.25em;
             }
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>Dollars and Cents MPGe<super><a href="#explanation">*</a></super> Calculator</h1>
+        <h1>
+            <i class="fa-solid fa-gas-pump" style="color:#0078d4"></i>
+            Dollars and Cents MPGe<super><a href="#explanation">*</a></super> Calculator
+        </h1>
         <div class="ev-inputs">
-            <h2>EV Inputs</h2>
-            <div>
+            <h2><i class="fa-solid fa-bolt"></i> EV Inputs</h2>
+            <div class="input-group">
+                <span class="input-icon"><i class="fa-solid fa-road"></i></span>
                 <label for="miles-per-kw-number">Miles per Kilowatt:</label>
-                <input type="number" id="miles-per-kw-number" min="0.1" max="10.0" step="0.1" value="3.4">
-                <input type="range" id="miles-per-kw-slider" min="0.1" max="10.0" step="0.1" value="3.4">
+                <input type="number" id="miles-per-kw-number" name="miles-per-kw" min="0.1" max="10.0" step="0.1" value="3.4" aria-label="Miles per Kilowatt">
+                <span class="unit-label">mi/kWh</span>
+                <input type="range" id="miles-per-kw-slider" name="miles-per-kw" min="0.1" max="10.0" step="0.1" value="3.4" aria-label="Miles per Kilowatt">
+                <span id="miles-per-kw-error" class="input-error"></span>
             </div>
-            <div>
-                <label for="electricity-price-number">Electricity Price (cents per kW):</label>
-                <input type="number" id="electricity-price-number" min="1" max="100" step="1" value="13">
-                <input type="range" id="electricity-price-slider" min="1" max="100" step="1" value="13">
+            <div class="input-group">
+                <span class="input-icon"><i class="fa-solid fa-bolt"></i></span>
+                <label for="electricity-price-number">Electricity Price:</label>
+                <input type="number" id="electricity-price-number" name="electricity-price" min="1" max="100" step="1" value="13" aria-label="Electricity Price">
+                <span class="unit-label">¢/kWh</span>
+                <input type="range" id="electricity-price-slider" name="electricity-price" min="1" max="100" step="1" value="13" aria-label="Electricity Price">
+                <span id="electricity-price-error" class="input-error"></span>
             </div>
         </div>
         <div class="gas-inputs">
-            <h2>Gas Inputs</h2>
-            <div>
-                <label for="gas-price-number">Gas Price ($ per gallon):</label>
-                <input type="number" id="gas-price-number" min="1" max="20" step="0.01" value="3.80">
-                <input type="range" id="gas-price-slider" min="1" max="20" step="0.01" value="3.80">
+            <h2><i class="fa-solid fa-gas-pump"></i> Gas Inputs</h2>
+            <div class="input-group">
+                <span class="input-icon"><i class="fa-solid fa-dollar-sign"></i></span>
+                <label for="gas-price-number">Gas Price:</label>
+                <input type="number" id="gas-price-number" name="gas-price" min="1" max="20" step="0.01" value="3.80" aria-label="Gas Price">
+                <span class="unit-label">$ / gal</span>
+                <input type="range" id="gas-price-slider" name="gas-price" min="1" max="20" step="0.01" value="3.80" aria-label="Gas Price">
+                <span id="gas-price-error" class="input-error"></span>
             </div>
         </div>
         <div class="results">
-            <h2>EV vs Gas Comparison</h2>
-            <div>EV Equivalent Gas MPG by cost: <span id="mpge-result">0</span></div>
-            <div>EV miles per dollar: <span id="miles-per-dollar">0</span></div>
-            <div>EV price per mile: <span id="dollars-per-mile">0</span></div>
+            <h2><i class="fa-solid fa-scale-balanced"></i> EV vs Gas Comparison</h2>
+            <div><i class="fa-solid fa-gauge-high" style="color:#0078d4"></i> EV Equivalent Gas MPG by cost: <span id="mpge-result">0</span></div>
+            <div><i class="fa-solid fa-road" style="color:#0078d4"></i> EV miles per dollar: <span id="miles-per-dollar">0</span></div>
+            <div><i class="fa-solid fa-dollar-sign" style="color:#0078d4"></i> EV price per mile: <span id="dollars-per-mile">0</span></div>
         </div>
         <div class="presets">
-            <h2>Presets</h2>
-            <h3>Electricity Prices</h3>
+            <h2><i class="fa-solid fa-sliders"></i> Presets</h2>
+            <h3><i class="fa-solid fa-bolt"></i> Electricity Prices</h3>
             <ul>
-                <li class="preset-text">US National Average</li>
-                <li class="preset-text">California</li>
-                <li class="preset-text">Texas</li>
-                <li class="preset-text">Lowest Priced State</li>
-                <li class="preset-text">Highest Priced State</li>
+                <li class="preset-text" data-type="electricity-price" data-value="16">US National Average</li>
+                <li class="preset-text" data-type="electricity-price" data-value="27">California</li>
+                <li class="preset-text" data-type="electricity-price" data-value="13">Texas</li>
+                <li class="preset-text" data-type="electricity-price" data-value="10">Lowest Priced State</li>
+                <li class="preset-text" data-type="electricity-price" data-value="44">Highest Priced State</li>
             </ul>
-            <h3>Gas Prices</h3>
+            <h3><i class="fa-solid fa-gas-pump"></i> Gas Prices</h3>
             <ul>
-                <li class="preset-text">US National Average</li>
-                <li class="preset-text">California</li>
-                <li class="preset-text">Texas</li>
-                <li class="preset-text">Lowest Priced State</li>
-                <li class="preset-text">Highest Priced State</li>
+                <li class="preset-text" data-type="gas-price" data-value="3.50">US National Average</li>
+                <li class="preset-text" data-type="gas-price" data-value="5.00">California</li>
+                <li class="preset-text" data-type="gas-price" data-value="3.00">Texas</li>
+                <li class="preset-text" data-type="gas-price" data-value="2.80">Lowest Priced State</li>
+                <li class="preset-text" data-type="gas-price" data-value="5.50">Highest Priced State</li>
             </ul>
-            <h3>Common EVs</h3>
+            <h3><i class="fa-solid fa-car-side"></i> Common EVs</h3>
             <ul>
-                <li class="preset-text">Chevy Bolt</li>
-                <li class="preset-text">Ford F-150 Lightning</li>
-                <li class="preset-text">Ford Mustang Mach-E</li>
-                <li class="preset-text">Hyundai Ioniq 5</li>
-                <li class="preset-text">Kia EV6</li>
-                <li class="preset-text">Lucid Air Dream</li>
-                <li class="preset-text">Mercedes EQS 450+</li>
-                <li class="preset-text">Nissan Leaf SL+</li>
-                <li class="preset-text">Porsche Taycan</li>
-                <li class="preset-text">Rivian R1T</li>
-                <li class="preset-text">Tesla Model Y</li>
-                <li class="preset-text">Tesla Cybertruck</li>
-                <li class="preset-text">VW ID.4</li>
+                <li class="preset-text" data-type="miles-per-kw" data-value="3.9">Chevy Bolt</li>
+                <li class="preset-text" data-type="miles-per-kw" data-value="2.1">Ford F-150 Lightning</li>
+                <li class="preset-text" data-type="miles-per-kw" data-value="2.8">Ford Mustang Mach-E</li>
+                <li class="preset-text" data-type="miles-per-kw" data-value="3.6">Hyundai Ioniq 5</li>
+                <li class="preset-text" data-type="miles-per-kw" data-value="3.7">Kia EV6</li>
+                <li class="preset-text" data-type="miles-per-kw" data-value="4.6">Lucid Air Dream</li>
+                <li class="preset-text" data-type="miles-per-kw" data-value="3.4">Mercedes EQS 450+</li>
+                <li class="preset-text" data-type="miles-per-kw" data-value="3.7">Nissan Leaf SL+</li>
+                <li class="preset-text" data-type="miles-per-kw" data-value="2.4">Porsche Taycan</li>
+                <li class="preset-text" data-type="miles-per-kw" data-value="2.0">Rivian R1T</li>
+                <li class="preset-text" data-type="miles-per-kw" data-value="4.0">Tesla Model Y</li>
+                <li class="preset-text" data-type="miles-per-kw" data-value="2.4">Tesla Cybertruck</li>
+                <li class="preset-text" data-type="miles-per-kw" data-value="3.1">VW ID.4</li>
             </ul>
         </div>
         <div class="explanation" id="explanation">
-          <h2>What is Dollars and Cents MPGe?</h2>
+          <h2><i class="fa-solid fa-circle-question"></i> What is Dollars and Cents MPGe?</h2>
           <p>
             EV window stickers have MPGe figures, but they don't really relate to the price per mile that consumers face when choosing an EV or ICE vehcile. The dollars and cent MPGe calculator will tell you what gas MPG would be equivalent to the cost of driving an EV.
           </p>
         </div>
     </div>
     <script>
+      // --- Utility for URL state ---
+      function getStateFromInputs() {
+        return {
+          'miles-per-kw': document.getElementById('miles-per-kw-number').value,
+          'electricity-price': document.getElementById('electricity-price-number').value,
+          'gas-price': document.getElementById('gas-price-number').value
+        };
+      }
+      function setInputsFromState(state) {
+        if (state['miles-per-kw']) {
+          document.getElementById('miles-per-kw-number').value = state['miles-per-kw'];
+          document.getElementById('miles-per-kw-slider').value = state['miles-per-kw'];
+        }
+        if (state['electricity-price']) {
+          document.getElementById('electricity-price-number').value = state['electricity-price'];
+          document.getElementById('electricity-price-slider').value = state['electricity-price'];
+        }
+        if (state['gas-price']) {
+          document.getElementById('gas-price-number').value = state['gas-price'];
+          document.getElementById('gas-price-slider').value = state['gas-price'];
+        }
+      }
+      function updateUrlFromInputs() {
+        const state = getStateFromInputs();
+        const params = new URLSearchParams(state);
+        window.history.replaceState(null, '', '#' + params.toString());
+      }
+      function parseStateFromUrl() {
+        if (window.location.hash.length > 1) {
+          const params = new URLSearchParams(window.location.hash.substring(1));
+          return {
+            'miles-per-kw': params.get('miles-per-kw'),
+            'electricity-price': params.get('electricity-price'),
+            'gas-price': params.get('gas-price')
+          };
+        }
+        return {};
+      }
+
+      // --- Validation ---
+      function validateInput(id, min, max) {
+        const input = document.getElementById(id + '-number');
+        const error = document.getElementById(id + '-error');
+        let value = parseFloat(input.value);
+        if (isNaN(value)) {
+          error.textContent = 'Enter a number';
+          return false;
+        }
+        if (value < min || value > max) {
+          error.textContent = `Must be ${min}–${max}`;
+          return false;
+        }
+        error.textContent = '';
+        return true;
+      }
+
+      // Synchronize number and range inputs by name
       const syncInputs = (event) => {
         var target = event.target;
         var value = target.value;
@@ -190,16 +332,35 @@
 
         if (type === 'range') {
             var numberInput = document.querySelector(`input[type="number"][name="${name}"]`);
-            numberInput.value = value;
+            if (numberInput) numberInput.value = value;
         } else if (type === 'number') {
             var rangeInput = document.querySelector(`input[type="range"][name="${name}"]`);
-            rangeInput.value = value;
+            if (rangeInput) rangeInput.value = value;
         }
 
+        // Validate and update URL
+        let valid = true;
+        valid &= validateInput('miles-per-kw', 0.1, 10.0);
+        valid &= validateInput('electricity-price', 1, 100);
+        valid &= validateInput('gas-price', 1, 20);
+
+        updateUrlFromInputs();
         calculateMPGe();
       }
 
+      // Calculate and update results
       const calculateMPGe = () =>{
+        // Validate before calculating
+        let valid1 = validateInput('miles-per-kw', 0.1, 10.0);
+        let valid2 = validateInput('electricity-price', 1, 100);
+        let valid3 = validateInput('gas-price', 1, 20);
+        if (!(valid1 && valid2 && valid3)) {
+          document.getElementById('mpge-result').textContent = '—';
+          document.getElementById('miles-per-dollar').textContent = '—';
+          document.getElementById('dollars-per-mile').textContent = '—';
+          return;
+        }
+
         var milesPerKw = parseFloat(document.getElementById('miles-per-kw-number').value);
         var centsPerKw = parseFloat(document.getElementById('electricity-price-number').value);
         var gasPrice = parseFloat(document.getElementById('gas-price-number').value);
@@ -214,12 +375,45 @@
         document.getElementById('dollars-per-mile').textContent = dollarsPerMile.toFixed(2).toString();
       }
 
+      // Add event listeners to all inputs
       document.querySelectorAll('input[type="range"], input[type="number"]').forEach(function(input) {
         input.addEventListener('input', syncInputs);
+        input.addEventListener('blur', syncInputs);
       });
 
-      // Initial calculation on page load
-      window.addEventListener('DOMContentLoaded', calculateMPGe);
+      // Preset click handler
+      document.querySelectorAll('.preset-text').forEach(function(el) {
+        el.setAttribute('tabindex', '0');
+        el.setAttribute('role', 'button');
+        el.addEventListener('click', function() {
+          var type = el.getAttribute('data-type');
+          var value = el.getAttribute('data-value');
+          if (!type || !value) return;
+          var numberInput = document.querySelector(`input[type="number"][name="${type}"]`);
+          var rangeInput = document.querySelector(`input[type="range"][name="${type}"]`);
+          if (numberInput) numberInput.value = value;
+          if (rangeInput) rangeInput.value = value;
+          syncInputs({target: numberInput, type: 'number', name: type});
+        });
+        // Keyboard accessibility
+        el.addEventListener('keydown', function(e) {
+          if (e.key === 'Enter' || e.key === ' ') {
+            el.click();
+            e.preventDefault();
+          }
+        });
+      });
+
+      // On load: parse state from URL and apply
+      window.addEventListener('DOMContentLoaded', function() {
+        const state = parseStateFromUrl();
+        setInputsFromState(state);
+        // Validate and calculate
+        validateInput('miles-per-kw', 0.1, 10.0);
+        validateInput('electricity-price', 1, 100);
+        validateInput('gas-price', 1, 20);
+        calculateMPGe();
+      });
     </script>
 </body>
 </html>
