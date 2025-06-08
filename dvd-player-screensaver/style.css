@@ -1,0 +1,51 @@
+:root {
+  background-color: black;
+  --logo-width: 25vmax;
+  --logo-aspect-ratio: calc(107 / 210);
+  --logo-height: calc(var(--logo-width) * var(--logo-aspect-ratio));
+  --speed: 10s;
+}
+
+.logo {
+  width: var(--logo-width);
+  height: var(--logo-height);
+  cursor: pointer;
+}
+
+.logo svg {
+  fill: white;
+}
+
+.x, .y {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+.x {
+  animation: var(--speed) linear 0s infinite alternate screensaverx;
+}
+
+.y {
+  animation: calc(var(--speed) * 0.73) linear 0s infinite alternate screensavery;
+}
+
+@keyframes screensaverx {
+  from {
+    transform: translateX(0);
+  }
+  
+  to {
+    transform: translateX(calc(100vw - var(--logo-width)));
+  }
+}
+
+@keyframes screensavery {
+  from {
+    transform: translateY(0);
+  }
+  
+  to {
+    transform: translateY(calc(100vh - var(--logo-height)));
+  }
+}

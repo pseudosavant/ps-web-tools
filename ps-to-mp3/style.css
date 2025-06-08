@@ -1,0 +1,94 @@
+* {
+  box-sizing: border-box;
+}
+body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  margin: 0;
+  font-family: sans-serif;
+  padding: 1rem;
+}
+#file-picker {
+  margin: 0 0.5rem;
+  border-radius: 0.25rem;
+  border: 1px solid black;
+  padding: 0.5rem 0.25rem;
+}
+#drop-zone {
+  border: 2px dashed #ccc;
+  background-color: #F9F9F9;
+  padding: 1rem;
+  text-align: center;
+  width: 70vw;
+  min-height: 30vh;
+  max-height: 50vh;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+#drop-zone.dragover {
+  background-color: #f0f8ff;
+}
+#progress {
+  margin-top: 1.5rem;
+}
+#metadata {
+  margin-top: 1rem;
+  text-align: left;
+}
+#progress-bar {
+  width: 100%;
+  height: 1rem;
+  margin-top: 1rem;
+  border-radius: 0.2rem;
+  overflow: hidden;
+  background: #333;
+}
+
+/* WebKit (Chrome, Safari) */
+#progress-bar::-webkit-progress-value {
+  background: #6C6;
+  border-radius: 0.2rem;
+}
+
+#progress-text {
+  margin-top: 0.5rem;
+  font-size: 1rem;
+}
+
+pre {
+  white-space: pre-wrap; /* Allows text to wrap within <pre> */
+  word-wrap: break-word; /* Ensures long words break to fit */
+}
+
+@media (max-width: 600px) {
+  #drop-zone {
+    width: calc(100vw - 2rem);
+    height: auto;
+    margin: 0;
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  body {
+    background-color: #111;
+    color: #DDD;
+  }
+
+  #drop-zone {
+    border-color: #444;
+    background-color: #222;
+  }
+
+  #progress-bar {
+    background-color: #444;
+  }
+
+  #progress-text {
+    color: #DDD;
+  }
+}

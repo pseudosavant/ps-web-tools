@@ -1,0 +1,26 @@
+<svg
+  width="64"
+  height="64"
+  viewBox="0 0 64 64"
+  xmlns="http://www.w3.org/2000/svg"
+  style="background-color: #fff"
+>
+  <!-- Stylized audio wave (three arcs) -->
+  <path
+    d="M22 32
+       C22 25, 26 22, 30 22
+       S38 25, 38 32
+       S34 42, 30 42
+       S22 39, 22 32Z"
+    fill="none"
+    stroke="#000"
+    stroke-width="3"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+  <!-- Arrow (triangle) -->
+  <polygon
+    points="42,22 52,32 42,42"
+    fill="#000"
+  />
+</svg>

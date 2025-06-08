@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audio FFT Analyzer</title>
+    <link rel="icon" type="image/png" href="https://cdn.glitch.global/dee23285-b391-4f00-aa62-6e50223bb91e/icon.png?v=1736470378868">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Audio FFT Analyzer</h1>
+        <div class="controls">
+            <div class="primary-controls">
+                <button id="startButton">Start Microphone</button>
+                <button id="freezeButton" disabled>Freeze Display</button>
+                <select id="deviceSelect">
+                    <option value="">Loading devices...</option>
+                </select>
+            </div>
+
+            <div class="visualization-controls">
+                <div class="range-toggle">
+                    <label>
+                        <input type="radio" name="freqRange" value="full" checked> Full Range (20Hz - 20kHz)
+                    </label>
+                    <label>
+                        <input type="radio" name="freqRange" value="low"> Low Freq (20Hz - 500Hz)
+                    </label>
+                </div>
+
+                <div class="range-toggle">
+                    <label>
+                        <input type="checkbox" id="showReferenceLines" checked> Reference Lines
+                    </label>
+                    <label>
+                        <input type="checkbox" id="showNoteOverlay" checked> Musical Notes
+                    </label>
+                    <label>
+                        <input type="checkbox" id="showPeakHold" checked> Peak Hold
+                    </label>
+                    <label>
+                        <input type="checkbox" id="autoGain" checked> Auto-Gain
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <div class="visualizer-container">
+            <canvas id="visualizer"></canvas>
+            <div class="tooltip" id="tooltip"></div>
+            <div class="frequency-axis" id="freqAxis"></div>
+            <div class="db-axis" id="dbAxis"></div>
+        </div>
+        <div class="status" id="status">Ready to start</div>
+    </div>
+
+    <script type="module" src="main.js"></script>
+</body>
+</html>

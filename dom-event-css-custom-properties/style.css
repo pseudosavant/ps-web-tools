@@ -1,0 +1,93 @@
+*, *::before, *::after {
+  box-sizing: border-box;
+  font-family: Calibri, Arial, Helvetica, sans-serif;
+}
+
+.box {
+  /* Set "default" values to use until the event is fired */
+  --color-h: 180;
+  --color-s: 50;
+  --color-l: 50;
+  --offset-y: 300;
+  
+  position: relative;
+  width: 300px;
+  height: 300px;
+  border: 2px dashed black;
+  overflow-x: auto;
+  background-color:
+    hsla(
+      calc(var(--color-h) * 1deg),
+      calc(var(--color-s) * 1%),
+      calc(var(--color-l) * 1%),
+      calc(calc(var(--offset-y) / 300))
+    );
+  filter: blur(calc(0.25px * var(--blur)));
+  border-radius: calc(0.1px * var(--offset-x));
+}
+
+.box::after {
+  content: "Custom Properties:" attr(style);
+  color: #000;
+  display: block;
+  position: absolute;
+  top: 8rem;
+  left: 0;
+}
+
+.box::before {
+  content: 'Move your mouse, or single or double click';
+  position: absolute;
+  bottom: 0;
+  text-align: center;
+  width: 100%;
+  padding: 0.5rem 0;
+}
+
+.box .contextmenu {
+  --showMenu: var(--contextmenu, 0);
+
+  user-select: none;
+  overflow: hidden;
+  background: #CCC;
+  padding: calc(var(--showMenu) * 1em);
+  max-height: calc(var(--showMenu) * 100%);
+}
+
+.box .contextmenu h3 {
+  margin: 0;
+}
+
+.box .contextmenu ul {
+  margin-bottom: 0;
+}
+
+.box .contextmenu ul li {
+  cursor: pointer;
+}
+
+
+.color-h, .color-s, .color-l, .blur {
+  display: block;
+}
+
+.crossfade {
+  --level: 50;
+  
+  position: relative;
+  width: 300px;
+  height: 300px;
+  background-image: url('https://picsum.photos/id/237/300/300');
+}
+
+.crossfade::after {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: block;
+  content: '';
+  background-image: url('https://picsum.photos/id/593/300/300');
+  width: 300px;
+  height: 300px;
+  opacity: calc(var(--level) / 100);
+}

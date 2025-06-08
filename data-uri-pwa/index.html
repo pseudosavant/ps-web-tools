@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>Data URI PWA</title>
+    <link rel="stylesheet" href="/style.css" />
+    <link rel="icon" href="https://cdn.glitch.com/f6b6c656-0aa7-4ce1-8286-8c6351d423fe%2Ffavicon%20(1).png?v=1596671902439">
+    <link rel="manifest" href="/manifest.json">
+  </head>
+  <body>
+    <h1>
+      Create Data URIs
+    </h1>
+    <div class="sources drop">
+      <h2>
+        Sources
+      </h2>
+      <ul>
+        <li>
+          <div class="drop-widget">Drop Here 🎯</div>
+        </li>
+        <li>
+          <label for="local">Local file <button type="button">Open file</button></label>
+          <input type="file" id="local" class="local" />
+        </li>
+        <li>
+          <label for="remote">Remote URL (URL must support <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS" target="_BLANK" >CORS</a>)</label>
+          <input
+            type="url"
+            id="remote"
+            class="remote"
+            placeholder="e.g. https://www.website.com"
+          />
+        </li>
+        <li>
+          <label for="text">Text</label>
+          <input
+            type="text"
+            id="text"
+            class="text"
+            placeholder="Paste text here"
+            autocorrect="off"
+          />
+          <button class="btn-paste" name="Paste text from clipboard">📋</button>
+        </li>
+      </ul>
+    </div>
+    <div class="output">
+      <h2>
+        Output
+      </h2>
+      <a href="" class="data-uri" target="">Data URI</a>
+      <button type="button" class="copy">Copy Data URI</button>
+      <h3>
+        Preview
+      </h3>
+      <div class="preview" sandbox></div>
+    </div>
+    <footer>
+      <p>
+        This simple web app will create a data URI of the contents of any local
+        file, text, or CORS-enabled remote URL. <br />
+        All processing is done on the client – no information is ever sent to a
+        server. <br />You may
+        <a href="https://glitch.com/edit/#!/data-uri-pwa" target="_BLANK"
+          >inspect the source on Glitch</a
+        >
+        if you'd like.
+      </p>
+      <p>&copy; 2020 Paul Ellis</p>
+    </footer>
+    <p>
+      License:
+      <a href="https://opensource.org/licenses/MIT" target="_BLANK">MIT</a>
+    </p>
+    <button type="button" class="install">Install</button>
+    <script src="/script.js" defer></script>
+  </body>
+</html>

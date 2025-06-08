@@ -1,0 +1,32 @@
+* {
+  box-model: border-box;
+  margin: 0;
+}
+
+html {
+  background: black;
+  color: white;
+}
+
+body {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  width: 100vw;
+}
+
+.frame-count, .timestamp {
+  display: block;
+  font-family: "Segoe UI", Calibri, sans-serif;
+  font-size: 10vw;
+  text-align: center;
+}
+
+.frame-count::before {
+  content: "Frame: ";
+}
+
+.timestamp::before {
+  content: "Timestamp: ";
+}

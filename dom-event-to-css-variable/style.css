@@ -1,0 +1,30 @@
+.box {
+  --left: calc(var(--offset-x) * 1px);
+  --top:  calc(var(--offset-y) * 1px);
+  
+  width: 300px;
+  height: 300px;
+  border: 1px dashed black;
+  background-image:
+    linear-gradient(
+      to bottom right,
+      rebeccapurple 0%,
+      yellow 50%,
+      white 100%
+    );
+  background-position: var(--left) var(--top);
+  transition: background-position 500ms ease-in-out;
+}
+
+.box:after {
+  --last-left: calc(var(--last-click-x) * 1px);
+  --last-top:  calc(var(--last-click-y) * 1px);
+  
+  position: absolute;
+  content: attr(style);
+  margin: 0.5rem;
+  display: block;
+  left: var(--last-left);
+  top: var(--last-top);
+  transition: left 250ms ease-in-out, top 250ms ease-in-out;
+}

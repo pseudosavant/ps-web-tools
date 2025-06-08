@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dollars and Cents MPGe Calculator</title>
+    <style>      
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        body {
+            background-color: #f5f5f5;
+            color: #333;
+            line-height: 1.6;
+        }
+        a {
+          text-decoration: none;
+        }
+        .container {
+            max-width: 600px;
+            margin: 1rem auto;
+            padding: 1.5rem;
+            background: white;
+            border-radius: 0.75rem;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+        }
+        h1 {
+            color: #333;
+            text-align: left;
+            margin-bottom: 1rem;
+        }
+        h2, h3 {
+            color: #555;
+            margin-top: 0.5rem;
+            margin-bottom: 0.25rem;
+            padding-bottom: 0rem;
+            border-bottom: 2px solid #eaeaea;
+        }
+        input[type="number"] {
+            font-family: monospace;
+            -moz-appearance: textfield;
+            max-width: 6ch;
+            border: 1px solid #ddd;
+            border-radius: 0.25rem;
+            padding: 0.25rem;
+            text-align: center;
+            margin-right: 0.75rem;
+            margin-bottom: 0.75rem;
+        }
+        input[type="number"]::-webkit-inner-spin-button,
+        input[type="number"]::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        input[type="range"], input[type="number"] {
+            flex: 1;
+        }
+        .ev-inputs, .gas-inputs, .presets, .results {
+            margin-bottom: 0.5rem;
+        }
+        .ev-inputs div, .gas-inputs div {
+            display: flex;
+            align-items: center;
+        }
+        label {
+            flex: 0 0 220px;
+            margin-right: 0.5rem;
+            color: #666;
+        }
+        .preset-text {
+            cursor: pointer;
+            color: blue;
+            margin-right: 0.5rem;
+            text-wrap: nowrap;
+        }
+        .preset-text:hover {
+            text-decoration: underline;
+        }
+        .results {
+            background-color: #eaeaea;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            margin-top: 1.5rem;
+        }
+        #mpge-result, #miles-per-dollar, #dollars-per-mile {
+            font-weight: bold;
+            color: #333;
+        }
+        ul {
+            list-style-type: none;
+        }
+        li {
+            display: inline;
+            margin-right: 0.5rem;
+        }
+        @media (max-width: 600px) {
+            label {
+                flex-basis: 100%;
+            }
+            input[type="range"], input[type="number"] {
+                flex-basis: 100%;
+                margin-right: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Dollars and Cents MPGe<super><a href="#explanation">*</a></super> Calculator</h1>
+        <div class="ev-inputs">
+            <h2>EV Inputs</h2>
+            <div>
+                <label for="miles-per-kw-number">Miles per Kilowatt:</label>
+                <input type="number" id="miles-per-kw-number" min="0.1" max="10.0" step="0.1" value="3.4">
+                <input type="range" id="miles-per-kw-slider" min="0.1" max="10.0" step="0.1" value="3.4">
+            </div>
+            <div>
+                <label for="electricity-price-number">Electricity Price (cents per kW):</label>
+                <input type="number" id="electricity-price-number" min="1" max="100" step="1" value="13">
+                <input type="range" id="electricity-price-slider" min="1" max="100" step="1" value="13">
+            </div>
+        </div>
+        <div class="gas-inputs">
+            <h2>Gas Inputs</h2>
+            <div>
+                <label for="gas-price-number">Gas Price ($ per gallon):</label>
+                <input type="number" id="gas-price-number" min="1" max="20" step="0.01" value="3.80">
+                <input type="range" id="gas-price-slider" min="1" max="20" step="0.01" value="3.80">
+            </div>
+        </div>
+        <div class="results">
+            <h2>EV vs Gas Comparison</h2>
+            <div>EV Equivalent Gas MPG by cost: <span id="mpge-result">0</span></div>
+            <div>EV miles per dollar: <span id="miles-per-dollar">0</span></div>
+            <div>EV price per mile: <span id="dollars-per-mile">0</span></div>
+        </div>
+        <div class="presets">
+            <h2>Presets</h2>
+            <h3>Electricity Prices</h3>
+            <ul>
+                <li class="preset-text">US National Average</li>
+                <li class="preset-text">California</li>
+                <li class="preset-text">Texas</li>
+                <li class="preset-text">Lowest Priced State</li>
+                <li class="preset-text">Highest Priced State</li>
+            </ul>
+            <h3>Gas Prices</h3>
+            <ul>
+                <li class="preset-text">US National Average</li>
+                <li class="preset-text">California</li>
+                <li class="preset-text">Texas</li>
+                <li class="preset-text">Lowest Priced State</li>
+                <li class="preset-text">Highest Priced State</li>
+            </ul>
+            <h3>Common EVs</h3>
+            <ul>
+                <li class="preset-text">Chevy Bolt</li>
+                <li class="preset-text">Ford F-150 Lightning</li>
+                <li class="preset-text">Ford Mustang Mach-E</li>
+                <li class="preset-text">Hyundai Ioniq 5</li>
+                <li class="preset-text">Kia EV6</li>
+                <li class="preset-text">Lucid Air Dream</li>
+                <li class="preset-text">Mercedes EQS 450+</li>
+                <li class="preset-text">Nissan Leaf SL+</li>
+                <li class="preset-text">Porsche Taycan</li>
+                <li class="preset-text">Rivian R1T</li>
+                <li class="preset-text">Tesla Model Y</li>
+                <li class="preset-text">Tesla Cybertruck</li>
+                <li class="preset-text">VW ID.4</li>
+            </ul>
+        </div>
+        <div class="explanation" id="explanation">
+          <h2>What is Dollars and Cents MPGe?</h2>
+          <p>
+            EV window stickers have MPGe figures, but they don't really relate to the price per mile that consumers face when choosing an EV or ICE vehcile. The dollars and cent MPGe calculator will tell you what gas MPG would be equivalent to the cost of driving an EV.
+          </p>
+        </div>
+    </div>
+    <script>
+      const syncInputs = (event) => {
+        var target = event.target;
+        var value = target.value;
+        var type = target.type;
+        var name = target.name;
+
+        if (type === 'range') {
+            var numberInput = document.querySelector(`input[type="number"][name="${name}"]`);
+            numberInput.value = value;
+        } else if (type === 'number') {
+            var rangeInput = document.querySelector(`input[type="range"][name="${name}"]`);
+            rangeInput.value = value;
+        }
+
+        calculateMPGe();
+      }
+
+      const calculateMPGe = () =>{
+        var milesPerKw = parseFloat(document.getElementById('miles-per-kw-number').value);
+        var centsPerKw = parseFloat(document.getElementById('electricity-price-number').value);
+        var gasPrice = parseFloat(document.getElementById('gas-price-number').value);
+
+        var costPerMileElectric = centsPerKw / (100 * milesPerKw);
+        var mpGe = gasPrice / costPerMileElectric;
+        var milesPerDollar = milesPerKw * (100 / centsPerKw);
+        var dollarsPerMile = 1 / milesPerDollar;
+
+        document.getElementById('mpge-result').textContent = Math.round(mpGe).toString();
+        document.getElementById('miles-per-dollar').textContent = milesPerDollar.toFixed(2).toString();
+        document.getElementById('dollars-per-mile').textContent = dollarsPerMile.toFixed(2).toString();
+      }
+
+      document.querySelectorAll('input[type="range"], input[type="number"]').forEach(function(input) {
+        input.addEventListener('input', syncInputs);
+      });
+
+      // Initial calculation on page load
+      window.addEventListener('DOMContentLoaded', calculateMPGe);
+    </script>
+</body>
+</html>
