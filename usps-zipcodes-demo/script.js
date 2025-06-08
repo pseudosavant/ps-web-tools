@@ -1,58 +1,97 @@
-(function (global) {
-  "use strict";
+/* ZIP-code helper + demo
+   — single network fetch, shared by concurrent calls
+   — never mutates cached data
+   — proper “cached” flag
+   — robust logging & perf-timing                     */
+;(function () {
+  'use strict';
 
-  const zipCodesJsonURL = "https://cdn.statically.io/gh/pseudosavant/USPSZIPCodes/main/dist/ZIPCodes.json";
-  let ZIPCodes;
-  let ZIPCodesReq = fetch(zipCodesJsonURL);
+  const ZIP_CODES_URL =
+    'https://cdn.statically.io/gh/pseudosavant/USPSZIPCodes/main/dist/ZIPCodes.json';
 
-  async function ZIPLookup(ZIPCode) {
-    if (!ZIPCodesReq) ZIPCodesReq = fetch(zipCodesJsonURL);
-    if (!ZIPCodes) ZIPCodes = await ZIPCodesReq.then(r => r.json());
+  let zipCodes = null;       // parsed JSON, once ready
+  let zipCodesReq = null;    // Promise for the fetch in flight
 
-    const cityState = ZIPCodes[ZIPCode];
-    if (!cityState) console.warning(`ZIP ${ZIPCode} not found`);
-    cityState.ZIPCode = ZIPCode;
-    return cityState;
+  /**
+   * Look up city/state for a ZIP code.
+   * @param {string} code
+   * @returns {Promise<{city:string, state:string, ZIPCode:string, cached:boolean}|null>}
+   */
+  async function ZIPLookup(code) {
+    const wasCached = !!zipCodes;          // true after first successful load
+
+    // Kick off the fetch lazily and only once
+    if (!zipCodesReq) zipCodesReq = fetch(ZIP_CODES_URL);
+
+    // Wait for JSON only the first time
+    if (!zipCodes) {
+      const res = await zipCodesReq;
+      if (!res.ok) {
+        throw new Error(`ZIP data fetch failed: ${res.status} ${res.statusText}`);
+      }
+      zipCodes = await res.json();
+    }
+
+    const entry = zipCodes[code];
+    if (!entry) {
+      console.warn(`ZIP ${code} not found`);
+      return null;
+    }
+
+    // Clone so we don’t pollute the cache object
+    return { ...entry, ZIPCode: code, cached: wasCached };
   }
 
-  global.ZIPLookup = ZIPLookup;
+  // Global export that works in browsers, Workers, Node, ESM, etc.
+  globalThis.ZIPLookup = ZIPLookup;
+
+  /* ------------------------------------------------------------------ */
+  /* Demo / timing helpers                                              */
 
   async function main() {
-    // This should be uncached
-    log("Uncached lookups:");
-    performance.mark('uncached-check-start');
-    await check();
-    performance.mark('uncached-check-finish');
-    
-    const uncachedDuration = performance.measure('uncached-duration', 'uncached-check-start', 'uncached-check-finish').duration; 
-    log(`Uncached duration: ${uncachedDuration.toFixed(0)}ms`);
-    
-    // This should be cached
+    log('Uncached lookups:');
+    performance.mark('uncached-start');
+    await doChecks();
+    performance.mark('uncached-end');
+    performance.measure('uncached-duration', 'uncached-start', 'uncached-end');
+    const uncached = lastMeasure('uncached-duration');
+    log(`Uncached duration: ${uncached.toFixed(0)} ms`);
+
     await wait(2000);
-    log("Cached lookups:");
-    performance.mark('cached-check-start');
-    await check();
-    performance.mark('cached-check-finish');
-    
-    const cachedDuration = performance.measure('cached-duration', 'cached-check-start', 'cached-check-finish').duration; 
-    log(`Cached duration: ${cachedDuration.toFixed(0)}ms`);
+
+    log('Cached lookups:');
+    performance.mark('cached-start');
+    await doChecks();
+    performance.mark('cached-end');
+    performance.measure('cached-duration', 'cached-start', 'cached-end');
+    const cached = lastMeasure('cached-duration');
+    log(`Cached duration: ${cached.toFixed(0)} ms`);
   }
 
-  async function check() {
-    log(await ZIPLookup("00501"));
-    log(await ZIPLookup("90210"));
-    log(await ZIPLookup("92121"));
+  async function doChecks() {
+    log(await ZIPLookup('00501'));  // Holtsville NY
+    log(await ZIPLookup('90210'));  // Beverly Hills CA
+    log(await ZIPLookup('92121'));  // San Diego CA
   }
 
-  function wait(ms) {
-    return new Promise((resolve) => setTimeout(resolve, ms));
+  const wait = ms => new Promise(res => setTimeout(res, ms));
+
+  function log(msg) {
+    const target = document.querySelector('.console');
+    const out    = typeof msg === 'string' ? msg : JSON.stringify(msg);
+    if (target) {
+      const li = document.createElement('li');
+      li.textContent = out;
+      target.appendChild(li);
+    } else {
+      console.log(out);
+    }
   }
 
-  function log(m) {
-    document.querySelector(".console").innerHTML += `<li>${JSON.stringify(
-      m
-    )}</li>`;
+  function lastMeasure(name) {
+    const entries = performance.getEntriesByName(name);
+    return entries[entries.length - 1].duration;
   }
 
-  main();
-})(this);
+  main().catch(err => console.error(err));
+})();
