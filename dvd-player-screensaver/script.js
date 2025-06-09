@@ -1,50 +1,46 @@
 (() => {
-  // Set logo color and background color from URL parameters if present
+  /* --- colour overrides from URL params --- */
   const params = new URLSearchParams(window.location.search);
+  const root   = document.documentElement;
+
   const logoColor = params.get('logo-color');
-  if (logoColor) {
-    document.documentElement.style.setProperty('--logo-color', logoColor);
-  }
-  const backgroundColor = params.get('background-color');
-  if (backgroundColor) {
-    document.documentElement.style.setProperty('--background-color', backgroundColor);
-  }
+  if (logoColor) root.style.setProperty('--logo-color', logoColor);
 
-  const $el = document.documentElement;
-  $el.addEventListener('click', () => (!document.fullscreenElement ? $el.requestFullscreen() : document.exitFullscreen()), false);
+  const bgColor = params.get('background-color');
+  if (bgColor) root.style.setProperty('--background-color', bgColor);
 
-  // Color scheme options: [logoColor, backgroundColor]
-  const colorSchemes = [
-    ['white', 'black'],      // White on black
-    ['black', 'white'],      // Black on white
-    ['#ff69b4', 'black'],    // Neon pink on black (vaporwave)
-    ['yellow', '#0033cc'],   // Yellow on blue (classic DVD)
-    ['#39ff14', 'purple'],   // Lime green on purple (quirky)
-    ['red', 'white'],        // Red on white (bold)
-    ['cyan', 'navy'],        // Cyan on navy (modern)
-    ['orange', '#222'],      // Orange on dark gray (warm)
+  /* --- fullscreen on (left) click --- */
+  root.addEventListener('click', () =>
+    !document.fullscreenElement ? root.requestFullscreen()
+                                : document.exitFullscreen()
+  );
+
+  /* --- colour-scheme cycler on right-click --- */
+  const schemes = [
+    ['white', 'black'],
+    ['black', 'white'],
+    ['#ff69b4', 'black'],
+    ['yellow', '#0033cc'],
+    ['#39ff14', 'purple'],
+    ['red', 'white'],
+    ['cyan', 'navy'],
+    ['orange', '#222'],
   ];
-  let colorIndex = 0;
+  let idx = 0;
 
-  function applyColorScheme(index) {
-    const [logo, bg] = colorSchemes[index];
-
-    document.querySelectorAll('.logo svg').forEach(svg => {
-      svg.style.fill = '';
-      svg.style.background = '';
-      svg.style['-webkit-background-clip'] = '';
-      svg.style['-webkit-text-fill-color'] = '';
-      svg.style.filter = '';
-      svg.style.animation = '';
-    });
-    document.documentElement.style.setProperty('--logo-color', logo);
-    document.documentElement.style.setProperty('--background-color', bg);
+  function applyScheme([logo, bg]) {
+    root.style.setProperty('--logo-color', logo);
+    root.style.setProperty('--background-color', bg);
   }
 
-  // Right-click cycles color schemes
-  document.addEventListener('contextmenu', (e) => {
+  document.addEventListener('contextmenu', e => {
     e.preventDefault();
-    colorIndex = (colorIndex + 1) % colorSchemes.length;
-    applyColorScheme(colorIndex);
+    idx = (idx + 1) % schemes.length;
+    applyScheme(schemes[idx]);
   });
+
+  /* --- pause animations while tab is hidden --- */
+  document.addEventListener('visibilitychange', () =>
+    root.classList.toggle('paused', document.hidden)
+  );
 })();
