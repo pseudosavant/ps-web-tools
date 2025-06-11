@@ -445,10 +445,10 @@ function calculateOptimalGuesses() {
         showLoading(true);
     }
 
-    // Performance optimization: heavily limit for large sets
+    // ONLY use remaining words that match constraints - no strategic words from full list
     let candidatePool = [...gameState.remainingWords];
     
-    // For very large sets, only consider a subset to prevent hanging
+    // For very large sets, limit to top candidates but keep them all as valid answers
     if (gameState.remainingWords.length > 500) {
         const quickScored = gameState.remainingWords.map(word => ({
             word,
@@ -492,19 +492,16 @@ function calculateOptimalGuessesSync(candidatePool = null) {
         candidatePool = gameState.remainingWords.slice(0, 50);
     }
 
+    // Ensure all candidates are from remaining words (valid answers only)
+    candidatePool = candidatePool.filter(word => gameState.remainingWords.includes(word));
+
     const scored = candidatePool.map(word => ({
         word,
         score: calculateSimplifiedScore(word),
-        type: gameState.remainingWords.includes(word) ? 'answer' : 'strategic'
+        type: 'answer' // All candidates are now valid answers
     }));
 
-    scored.sort((a, b) => {
-        const scoreDiff = b.score - a.score;
-        if (Math.abs(scoreDiff) < 0.05) {
-            return a.type === 'answer' ? -1 : 1;
-        }
-        return scoreDiff;
-    });
+    scored.sort((a, b) => b.score - a.score);
 
     gameState.optimalGuesses = scored.slice(0, 10);
     showLoading(false);
@@ -512,6 +509,14 @@ function calculateOptimalGuessesSync(candidatePool = null) {
 
 // Initialize Web Worker when app starts
 async function initializeApp() {
+    // Check if we're in a test environment - don't initialize if so
+    if (window.location.pathname.includes('/test/') || 
+        document.title.includes('Test') ||
+        typeof initTestEnvironment === 'function') {
+        console.log('Test environment detected, skipping main app initialization');
+        return;
+    }
+
     setupEventListeners();
     updateWordHintsDisplay();
     
@@ -525,8 +530,17 @@ async function initializeApp() {
     analyzeWords();
 }
 
-// Start the app when page loads
-document.addEventListener('DOMContentLoaded', initializeApp);
+// Start the app when page loads - but only if not in test environment
+document.addEventListener('DOMContentLoaded', () => {
+    // Additional check to prevent initialization in test environment
+    if (window.location.pathname.includes('/test/') || 
+        document.title.includes('Test Suite')) {
+        console.log('Skipping main app initialization in test environment');
+        return;
+    }
+    
+    initializeApp();
+});
 
 // Simplified scoring for better performance
 function calculateSimplifiedScore(word) {
@@ -1054,10 +1068,11 @@ function hideShortcuts() {
 
 // Setup all event listeners
 function setupEventListeners() {
-    // Input change listeners
-    [...document.querySelectorAll('input[type="text"]')].forEach(
-        (input) => input.oninput = debouncedAnalyze
-    );
+    // Input change listeners - check if elements exist first
+    const textInputs = document.querySelectorAll('input[type="text"]');
+    if (textInputs.length > 0) {
+        textInputs.forEach((input) => input.oninput = debouncedAnalyze);
+    }
 
     // Single keydown handler for all inputs (navigation within sections)
     document.addEventListener('keydown', handleInputKeyDown);
@@ -1065,8 +1080,11 @@ function setupEventListeners() {
     // Global keyboard shortcuts
     document.addEventListener('keydown', handleGlobalShortcuts);
 
-    // Reset button
-    document.querySelector('.reset').onclick = resetInputs;
+    // Reset button - check if it exists
+    const resetButton = document.querySelector('.reset');
+    if (resetButton) {
+        resetButton.onclick = resetInputs;
+    }
 
     // Browser navigation
     window.onpopstate = (e) => {
@@ -1075,13 +1093,51 @@ function setupEventListeners() {
         analyzeWords();
     };
 
-    // Modal close
-    document.getElementById('shortcutsModal').addEventListener('click', (e) => {
-        if (e.target === e.currentTarget) {
-            hideShortcuts();
-        }
-    });
+    // Modal close - check if modal exists
+    const shortcutsModal = document.getElementById('shortcutsModal');
+    if (shortcutsModal) {
+        shortcutsModal.addEventListener('click', (e) => {
+            if (e.target === e.currentTarget) {
+                hideShortcuts();
+            }
+        });
+    }
 
     // Tab handling
     registerTabHandling();
 }
+
+// Initialize Web Worker when app starts
+async function initializeApp() {
+    // Check if we're in a test environment - don't initialize if so
+    if (window.location.pathname.includes('/test/') || 
+        document.title.includes('Test') ||
+        typeof initTestEnvironment === 'function') {
+        console.log('Test environment detected, skipping main app initialization');
+        return;
+    }
+
+    setupEventListeners();
+    updateWordHintsDisplay();
+    
+    // Initialize Web Worker for better performance
+    if (typeof Worker !== 'undefined') {
+        initializeWebWorker();
+    }
+    
+    await loadWordList();
+    restoreValuesFromUrl();
+    analyzeWords();
+}
+
+// Start the app when page loads - but only if not in test environment
+document.addEventListener('DOMContentLoaded', () => {
+    // Additional check to prevent initialization in test environment
+    if (window.location.pathname.includes('/test/') || 
+        document.title.includes('Test Suite')) {
+        console.log('Skipping main app initialization in test environment');
+        return;
+    }
+    
+    initializeApp();
+});

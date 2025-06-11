@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wordle Solver Tests</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 20px;
+            background: #f5f5f5;
+        }
+        .test-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .test-suite {
+            margin-bottom: 30px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            overflow: hidden;
+        }
+        .test-suite-header {
+            background: #6AAA64;
+            color: white;
+            padding: 12px 16px;
+            font-weight: bold;
+        }
+        .test-case {
+            padding: 8px 16px;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .test-case:last-child { border-bottom: none; }
+        .test-pass { background: #e8f5e8; }
+        .test-fail { background: #fde8e8; }
+        .test-status {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .pass { background: #4CAF50; color: white; }
+        .fail { background: #f44336; color: white; }
+        .summary {
+            background: #f0f0f0;
+            padding: 16px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            font-weight: bold;
+        }
+        .error-details {
+            font-size: 12px;
+            color: #666;
+            margin-top: 4px;
+            font-family: monospace;
+        }
+        .run-button {
+            background: #6AAA64;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-bottom: 20px;
+        }
+        .run-button:hover { background: #5a9954; }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>🧪 Wordle Solver Test Suite</h1>
+        <button class="run-button" onclick="runAllTests()">Run All Tests</button>
+        <div id="summary" class="summary">Click "Run All Tests" to start</div>
+        <div id="test-results"></div>
+    </div>
+
+    <!-- Load the main script with modifications for testing -->
+    <script src="test-utils.js"></script>
+    <script src="../script.js"></script>
+    <script src="word-filtering.test.js"></script>
+    <script src="pattern-generation.test.js"></script>
+    <script src="scoring.test.js"></script>
+    <script src="integration.test.js"></script>
+    <script src="test-runner.js"></script>
+</body>
+</html>
