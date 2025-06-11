@@ -1,53 +1,65 @@
 :root {
   --background-color: black;
   background-color: var(--background-color);
+
   --logo-width: 25vmax;
   --logo-aspect-ratio: calc(107 / 210);
   --logo-height: calc(var(--logo-width) * var(--logo-aspect-ratio));
+
   --speed: 10s;
-  --logo-color: white; /* Default logo color */
+  --logo-color: white;
 }
 
+/* logo itself */
 .logo {
   width: var(--logo-width);
   height: var(--logo-height);
-  cursor: pointer;
+  pointer-events: none;               /* no hit-testing every frame */
 }
 
 .logo svg {
   fill: var(--logo-color);
 }
 
-.x, .y {
+/* animation wrappers (one per axis) */
+.x,
+.y {
   position: absolute;
   top: 0;
   left: 0;
+  will-change: transform;             /* keep them on the compositor */
+  contain: layout;              /* isolate style/layout work   */
 }
 
 .x {
-  animation: var(--speed) linear 0s infinite alternate screensaverx;
+  animation: var(--speed) linear infinite alternate screensaverx;
 }
 
 .y {
-  animation: calc(var(--speed) * 0.73) linear 0s infinite alternate screensavery;
+  animation: calc(var(--speed) * 0.73) linear infinite alternate screensavery;
 }
 
+/* pause when the JS adds .paused to <html> */
+.paused .x,
+.paused .y {
+  animation-play-state: paused;
+}
+
+/* respect reduced-motion */
+@media (prefers-reduced-motion: reduce) {
+  .x,
+  .y {
+    animation: none;
+  }
+}
+
+/* GPU-friendly keyframes */
 @keyframes screensaverx {
-  from {
-    transform: translateX(0);
-  }
-  
-  to {
-    transform: translateX(calc(100vw - var(--logo-width)));
-  }
+  from { transform: translate3d(0, 0, 0); }
+  to   { transform: translate3d(calc(100vw - var(--logo-width)), 0, 0); }
 }
 
 @keyframes screensavery {
-  from {
-    transform: translateY(0);
-  }
-  
-  to {
-    transform: translateY(calc(100vh - var(--logo-height)));
-  }
+  from { transform: translate3d(0, 0, 0); }
+  to   { transform: translate3d(0, calc(100vh - var(--logo-height)), 0); }
 }
