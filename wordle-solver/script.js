@@ -11,6 +11,19 @@ let gameState = {
     hintsBlurred: true
 };
 
+// Performance optimization: Pattern cache and word frequency data
+const patternCache = new Map();
+const COMMON_WORDS = new Set(['about', 'above', 'abuse', 'actor', 'acute', 'admit', 'adopt', 'adult', 'after', 'again', 'agent', 'agree', 'ahead', 'alarm', 'album', 'alert', 'alien', 'align', 'alike', 'alive', 'allow', 'alone', 'along', 'alter', 'among', 'anger', 'angle', 'angry', 'apart', 'apple', 'apply', 'arena', 'argue', 'arise', 'array', 'aside', 'asset', 'audio', 'audit', 'avoid', 'awake', 'award', 'aware', 'badly', 'baker', 'bases', 'basic', 'beach', 'began', 'begin', 'being', 'below', 'bench', 'billy', 'birth', 'black', 'blame', 'blind', 'block', 'blood', 'board', 'boost', 'booth', 'bound', 'brain', 'brand', 'brass', 'brave', 'bread', 'break', 'breed', 'brief', 'bring', 'broad', 'broke', 'brown', 'build', 'built', 'buyer', 'cable', 'calif', 'carry', 'catch', 'cause', 'chain', 'chair', 'chaos', 'charm', 'chart', 'chase', 'cheap', 'check', 'chest', 'chief', 'child', 'china', 'chose', 'civil', 'claim', 'class', 'clean', 'clear', 'click', 'climb', 'clock', 'close', 'cloud', 'coach', 'coast', 'could', 'count', 'court', 'cover', 'craft', 'crash', 'crazy', 'cream', 'crime', 'cross', 'crowd', 'crown', 'crude', 'curve', 'cycle', 'daily', 'dance', 'dated', 'dealt', 'death', 'debut', 'delay', 'depth', 'doing', 'doubt', 'dozen', 'draft', 'drama', 'drank', 'dream', 'dress', 'drill', 'drink', 'drive', 'drove', 'dying', 'eager', 'early', 'earth', 'eight', 'elite', 'empty', 'enemy', 'enjoy', 'enter', 'entry', 'equal', 'error', 'event', 'every', 'exact', 'exist', 'extra', 'faith', 'false', 'fault', 'fiber', 'field', 'fifth', 'fifty', 'fight', 'final', 'first', 'fixed', 'flash', 'fleet', 'floor', 'fluid', 'focus', 'force', 'forth', 'forty', 'forum', 'found', 'frame', 'frank', 'fraud', 'fresh', 'front', 'fruit', 'fully', 'funny', 'giant', 'given', 'glass', 'globe', 'going', 'grace', 'grade', 'grand', 'grant', 'grass', 'grave', 'great', 'green', 'gross', 'group', 'grown', 'guard', 'guess', 'guest', 'guide', 'happy', 'harry', 'heart', 'heavy', 'hence', 'henry', 'horse', 'hotel', 'house', 'human', 'ideal', 'image', 'index', 'inner', 'input', 'issue', 'japan', 'jimmy', 'joint', 'jones', 'judge', 'known', 'label', 'large', 'laser', 'later', 'laugh', 'layer', 'learn', 'lease', 'least', 'leave', 'legal', 'level', 'lewis', 'light', 'limit', 'links', 'lives', 'local', 'loose', 'lower', 'lucky', 'lunch', 'lying', 'magic', 'major', 'maker', 'march', 'maria', 'match', 'maybe', 'mayor', 'meant', 'media', 'metal', 'might', 'minor', 'minus', 'mixed', 'model', 'money', 'month', 'moral', 'motor', 'mount', 'mouse', 'mouth', 'moved', 'movie', 'music', 'needs', 'never', 'newly', 'night', 'noise', 'north', 'noted', 'novel', 'nurse', 'occur', 'ocean', 'offer', 'often', 'order', 'other', 'ought', 'paint', 'panel', 'paper', 'party', 'peace', 'peter', 'phase', 'phone', 'photo', 'piano', 'piece', 'pilot', 'pitch', 'place', 'plain', 'plane', 'plant', 'plate', 'point', 'pound', 'power', 'press', 'price', 'pride', 'prime', 'print', 'prior', 'prize', 'proof', 'proud', 'prove', 'queen', 'quick', 'quiet', 'quite', 'radio', 'raise', 'range', 'rapid', 'ratio', 'reach', 'ready', 'realm', 'rebel', 'refer', 'relax', 'repay', 'reply', 'right', 'rigid', 'rival', 'river', 'robin', 'roger', 'roman', 'rough', 'round', 'route', 'royal', 'rural', 'scale', 'scene', 'scope', 'score', 'sense', 'serve', 'seven', 'shall', 'shape', 'share', 'sharp', 'sheet', 'shelf', 'shell', 'shift', 'shine', 'shirt', 'shock', 'shoot', 'short', 'shown', 'sides', 'sight', 'simon', 'sixth', 'sixty', 'sized', 'skill', 'sleep', 'slide', 'small', 'smart', 'smile', 'smith', 'smoke', 'snake', 'snow', 'solid', 'solve', 'sorry', 'sound', 'south', 'space', 'spare', 'speak', 'speed', 'spend', 'spent', 'split', 'spoke', 'sport', 'staff', 'stage', 'stake', 'stand', 'start', 'state', 'steam', 'steel', 'steep', 'steer', 'steve', 'stick', 'still', 'stock', 'stone', 'stood', 'store', 'storm', 'story', 'strip', 'stuck', 'study', 'stuff', 'style', 'sugar', 'suite', 'super', 'sweet', 'table', 'taken', 'taste', 'taxes', 'teach', 'teams', 'teeth', 'terry', 'texas', 'thank', 'theft', 'their', 'theme', 'there', 'these', 'thick', 'thing', 'think', 'third', 'those', 'three', 'threw', 'throw', 'thumb', 'tiger', 'tight', 'timer', 'tired', 'title', 'today', 'topic', 'total', 'touch', 'tough', 'tower', 'track', 'trade', 'train', 'treat', 'trend', 'trial', 'tribe', 'trick', 'tried', 'tries', 'truck', 'truly', 'trunk', 'trust', 'truth', 'twice', 'twin', 'twist', 'tyler', 'ultra', 'uncle', 'under', 'undue', 'union', 'unity', 'until', 'upper', 'upset', 'urban', 'usage', 'usual', 'valid', 'value', 'video', 'virus', 'visit', 'vital', 'vocal', 'voice', 'waste', 'watch', 'water', 'wave', 'ways', 'weird', 'welcome', 'western', 'wheel', 'where', 'which', 'while', 'white', 'whole', 'whose', 'woman', 'women', 'world', 'worry', 'worse', 'worst', 'worth', 'would', 'write', 'wrong', 'wrote', 'young', 'youth']);
+
+// English letter frequency for better scoring
+const ENGLISH_LETTER_FREQ = {
+    'e': 0.12702, 't': 0.09056, 'a': 0.08167, 'o': 0.07507, 'i': 0.06966,
+    'n': 0.06749, 's': 0.06327, 'h': 0.06094, 'r': 0.05987, 'd': 0.04253,
+    'l': 0.04025, 'c': 0.02782, 'u': 0.02758, 'm': 0.02406, 'w': 0.02360,
+    'f': 0.02228, 'g': 0.02015, 'y': 0.01974, 'p': 0.01929, 'b': 0.01292,
+    'v': 0.00978, 'k': 0.00772, 'j': 0.00153, 'x': 0.00150, 'q': 0.00095, 'z': 0.00074
+};
+
 // Utility functions
 const isTrue = (v) => v === true;
 const re = (expStr) => new RegExp(expStr, 'i');
@@ -35,22 +48,56 @@ function debounce(func, wait, immediate) {
 async function loadWordList() {
     try {
         showLoading(true);
-        const response = await fetch("./valid-words.csv");
-        const text = await response.text();
-        WORD_LIST = text.split('\n')
-            .filter(word => word.length === 5)
-            .map(word => word.toLowerCase().trim())
-            .filter(word => word.length === 5); // Double check after trim
+        console.log('Attempting to load word list from ./valid-words.csv');
         
+        const response = await fetch("./valid-words.csv");
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        const text = await response.text();
+        console.log(`Raw CSV text length: ${text.length}`);
+        console.log(`First 200 characters: ${text.substring(0, 200)}`);
+        
+        // More robust parsing - handle different line endings and formats
+        const words = text.split(/[\r\n]+/)
+            .map(word => word.toLowerCase().trim())
+            .filter(word => word.length === 5 && /^[a-z]+$/.test(word)); // Only alphabetic 5-letter words
+        
+        console.log(`Parsed ${words.length} valid words`);
+        console.log(`First 10 words: ${words.slice(0, 10).join(', ')}`);
+        
+        if (words.length === 0) {
+            throw new Error('No valid 5-letter words found in CSV file. Please check the file format.');
+        }
+        
+        WORD_LIST = words;
         gameState.remainingWords = [...WORD_LIST];
         showLoading(false);
         updateStats();
         updateDisplay();
-        console.log(`Loaded ${WORD_LIST.length} words`);
+        console.log(`Successfully loaded ${WORD_LIST.length} words`);
     } catch (error) {
         showLoading(false);
-        showError('Failed to load word list. Please ensure valid-words.csv is in the same directory.');
-        console.error('Error loading word list:', error);
+        console.error('Detailed error loading word list:', error);
+        
+        // Provide more specific error messages
+        let errorMessage = 'Failed to load word list. ';
+        if (error.message.includes('HTTP 404')) {
+            errorMessage += 'The file "valid-words.csv" was not found in the same directory as this HTML file.';
+        } else if (error.message.includes('No valid')) {
+            errorMessage += 'The CSV file was found but contains no valid 5-letter words. Please check the file format.';
+        } else {
+            errorMessage += `Error: ${error.message}`;
+        }
+        
+        showError(errorMessage);
+        
+        // Try to provide a fallback or helpful suggestion
+        console.log('Suggestion: Make sure "valid-words.csv" exists in the same folder as index.html');
+        console.log('The CSV should contain one word per line, like:');
+        console.log('arose\\nabout\\nadieu\\naudio\\n...');
     }
 }
 
@@ -188,7 +235,196 @@ function calculateLetterFrequency() {
     });
 }
 
-// Calculate optimal guesses using information theory
+// Enhanced word frequency scoring
+function getWordFrequency(word) {
+    if (COMMON_WORDS.has(word)) return 1.0;
+    return 0.5; // Less common words get lower weight
+}
+
+// Letter frequency scoring (was missing)
+function calculateLetterFrequencyScore(word) {
+    const uniqueLetters = new Set(word);
+    let score = 0;
+    
+    uniqueLetters.forEach(letter => {
+        score += ENGLISH_LETTER_FREQ[letter] || 0.01;
+    });
+    
+    return score;
+}
+
+// Position-based scoring (was missing)
+function calculatePositionScore(word) {
+    let score = 0;
+    
+    for (let i = 0; i < 5; i++) {
+        const letter = word[i];
+        const positionFreq = gameState.positionFrequency[i][letter] || 0;
+        const totalWordsInPosition = Object.values(gameState.positionFrequency[i])
+            .reduce((sum, count) => sum + count, 0);
+        
+        if (totalWordsInPosition > 0) {
+            score += positionFreq / totalWordsInPosition;
+        }
+    }
+    
+    return score / 5; // Average across positions
+}
+
+// Optimized pattern generation with caching
+function getResponsePatternOptimized(guess, answer) {
+    const key = `${guess}:${answer}`;
+    if (patternCache.has(key)) {
+        return patternCache.get(key);
+    }
+    
+    const pattern = getResponsePattern(guess, answer);
+    
+    // Limit cache size to prevent memory issues
+    if (patternCache.size > 10000) {
+        const firstKey = patternCache.keys().next().value;
+        patternCache.delete(firstKey);
+    }
+    
+    patternCache.set(key, pattern);
+    return pattern;
+}
+
+// Adaptive weights based on game state
+function getAdaptiveWeights(remainingWordsCount) {
+    if (remainingWordsCount > 50) {
+        // Early game: prioritize information gain
+        return { information: 0.7, speed: 0.1, risk: 0.1, frequency: 0.1 };
+    } else if (remainingWordsCount > 10) {
+        // Mid game: balance information and speed
+        return { information: 0.5, speed: 0.3, risk: 0.1, frequency: 0.1 };
+    } else {
+        // End game: prioritize solution speed and reduce risk
+        return { information: 0.3, speed: 0.5, risk: 0.2, frequency: 0.0 };
+    }
+}
+
+// Web Worker for heavy calculations
+let calculationWorker = null;
+
+function initializeWebWorker() {
+    const workerCode = `
+        // Worker code for heavy calculations
+        const ENGLISH_LETTER_FREQ = {
+            'e': 0.12702, 't': 0.09056, 'a': 0.08167, 'o': 0.07507, 'i': 0.06966,
+            'n': 0.06749, 's': 0.06327, 'h': 0.06094, 'r': 0.05987, 'd': 0.04253,
+            'l': 0.04025, 'c': 0.02782, 'u': 0.02758, 'm': 0.02406, 'w': 0.02360,
+            'f': 0.02228, 'g': 0.02015, 'y': 0.01974, 'p': 0.01929, 'b': 0.01292,
+            'v': 0.00978, 'k': 0.00772, 'j': 0.00153, 'x': 0.00150, 'q': 0.00095, 'z': 0.00074
+        };
+
+        function calculateLetterFrequencyScore(word) {
+            const uniqueLetters = new Set(word);
+            let score = 0;
+            uniqueLetters.forEach(letter => {
+                score += ENGLISH_LETTER_FREQ[letter] || 0.01;
+            });
+            return score;
+        }
+
+        function getResponsePattern(guess, answer) {
+            const pattern = ['gray', 'gray', 'gray', 'gray', 'gray'];
+            const answerChars = answer.split('');
+            const guessChars = guess.split('');
+            
+            // First pass: mark greens
+            for (let i = 0; i < 5; i++) {
+                if (guessChars[i] === answerChars[i]) {
+                    pattern[i] = 'green';
+                    answerChars[i] = null;
+                    guessChars[i] = null;
+                }
+            }
+            
+            // Second pass: mark yellows
+            for (let i = 0; i < 5; i++) {
+                if (guessChars[i] !== null) {
+                    const answerIndex = answerChars.indexOf(guessChars[i]);
+                    if (answerIndex !== -1) {
+                        pattern[i] = 'yellow';
+                        answerChars[answerIndex] = null;
+                    }
+                }
+            }
+            
+            return pattern;
+        }
+
+        function calculateExpectedInformation(guess, remainingWords) {
+            if (remainingWords.length <= 1) return 0;
+            
+            const outcomes = new Map();
+            
+            remainingWords.forEach(answer => {
+                const pattern = getResponsePattern(guess, answer);
+                const key = pattern.join('');
+                outcomes.set(key, (outcomes.get(key) || 0) + 1);
+            });
+
+            let expectedInfo = 0;
+            const totalWords = remainingWords.length;
+            
+            outcomes.forEach(count => {
+                const probability = count / totalWords;
+                if (probability > 0) {
+                    const information = -Math.log2(probability);
+                    expectedInfo += probability * information;
+                }
+            });
+
+            return expectedInfo;
+        }
+
+        self.onmessage = function(e) {
+            const { type, data } = e.data;
+            
+            if (type === 'calculateOptimalGuesses') {
+                const { candidatePool, remainingWords } = data;
+                
+                const scored = candidatePool.map(word => ({
+                    word,
+                    score: calculateLetterFrequencyScore(word) + 
+                           (remainingWords.length <= 100 ? calculateExpectedInformation(word, remainingWords) * 0.1 : 0),
+                    type: remainingWords.includes(word) ? 'answer' : 'strategic'
+                }));
+
+                scored.sort((a, b) => b.score - a.score);
+                
+                self.postMessage({
+                    type: 'optimalGuessesResult',
+                    data: scored.slice(0, 10)
+                });
+            }
+        };
+    `;
+
+    const blob = new Blob([workerCode], { type: 'application/javascript' });
+    calculationWorker = new Worker(URL.createObjectURL(blob));
+    
+    calculationWorker.onmessage = function(e) {
+        const { type, data } = e.data;
+        
+        if (type === 'optimalGuessesResult') {
+            gameState.optimalGuesses = data;
+            updateOptimalGuesses();
+            showLoading(false);
+        }
+    };
+    
+    calculationWorker.onerror = function(error) {
+        console.error('Worker error:', error);
+        showLoading(false);
+        // Fallback to main thread calculation
+        calculateOptimalGuessesSync();
+    };
+}
+
+// Enhanced optimal guess calculation with Web Worker support
 function calculateOptimalGuesses() {
     if (gameState.remainingWords.length === 0) {
         gameState.optimalGuesses = [];
@@ -204,34 +440,175 @@ function calculateOptimalGuesses() {
         return;
     }
 
-    // Get top words with highest frequency letters (like original code)
-    const chars = characterDistribution(gameState.remainingWords);
-    const maxChars = Math.max.apply(null, chars.map((c) => c[1]));
-    const topChars = chars.filter((char, i) => i < 8).reduce((acc, cv) => acc + cv[0], '');
-    const onlyTopChars = (s) => re(`[${topChars}]{5}`).test(s);
-    const topCharWords = gameState.remainingWords.filter(onlyTopChars);
+    // Show loading for heavy calculations
+    if (gameState.remainingWords.length > 100) {
+        showLoading(true);
+    }
 
-    // Combine with information theory for remaining words
-    const candidates = [...new Set([...topCharWords, ...gameState.remainingWords, ...WORD_LIST])];
-    const scored = candidates.slice(0, 100).map(word => ({ // Limit for performance
-        word,
-        score: calculateExpectedInformation(word),
-        type: gameState.remainingWords.includes(word) ? 'answer' : 'guess'
-    }));
+    // Performance optimization: heavily limit for large sets
+    let candidatePool = [...gameState.remainingWords];
+    
+    // For very large sets, only consider a subset to prevent hanging
+    if (gameState.remainingWords.length > 500) {
+        const quickScored = gameState.remainingWords.map(word => ({
+            word,
+            quickScore: calculateLetterFrequencyScore(word)
+        })).sort((a, b) => b.quickScore - a.quickScore);
+        
+        candidatePool = quickScored.slice(0, 50).map(item => item.word);
+    } else if (gameState.remainingWords.length > 200) {
+        const quickScored = gameState.remainingWords.map(word => ({
+            word,
+            quickScore: calculateLetterFrequencyScore(word) + calculatePositionScore(word)
+        })).sort((a, b) => b.quickScore - a.quickScore);
+        
+        candidatePool = quickScored.slice(0, 100).map(item => item.word);
+    }
+    
+    // Always limit total candidates to prevent performance issues
+    if (candidatePool.length > 100) {
+        candidatePool = candidatePool.slice(0, 100);
+    }
 
-    scored.sort((a, b) => b.score - a.score);
-    gameState.optimalGuesses = scored.slice(0, 10);
+    // Use Web Worker for heavy calculations
+    if (calculationWorker && gameState.remainingWords.length > 50) {
+        calculationWorker.postMessage({
+            type: 'calculateOptimalGuesses',
+            data: {
+                candidatePool,
+                remainingWords: gameState.remainingWords
+            }
+        });
+        return;
+    }
+
+    // Fallback to synchronous calculation for small sets
+    calculateOptimalGuessesSync(candidatePool);
 }
 
-// Calculate expected information gain for a guess
+// Synchronous calculation fallback
+function calculateOptimalGuessesSync(candidatePool = null) {
+    if (!candidatePool) {
+        candidatePool = gameState.remainingWords.slice(0, 50);
+    }
+
+    const scored = candidatePool.map(word => ({
+        word,
+        score: calculateSimplifiedScore(word),
+        type: gameState.remainingWords.includes(word) ? 'answer' : 'strategic'
+    }));
+
+    scored.sort((a, b) => {
+        const scoreDiff = b.score - a.score;
+        if (Math.abs(scoreDiff) < 0.05) {
+            return a.type === 'answer' ? -1 : 1;
+        }
+        return scoreDiff;
+    });
+
+    gameState.optimalGuesses = scored.slice(0, 10);
+    showLoading(false);
+}
+
+// Initialize Web Worker when app starts
+async function initializeApp() {
+    setupEventListeners();
+    updateWordHintsDisplay();
+    
+    // Initialize Web Worker for better performance
+    if (typeof Worker !== 'undefined') {
+        initializeWebWorker();
+    }
+    
+    await loadWordList();
+    restoreValuesFromUrl();
+    analyzeWords();
+}
+
+// Start the app when page loads
+document.addEventListener('DOMContentLoaded', initializeApp);
+
+// Simplified scoring for better performance
+function calculateSimplifiedScore(word) {
+    const remainingCount = gameState.remainingWords.length;
+    
+    // For large sets, use simple frequency-based scoring to avoid hanging
+    if (remainingCount > 200) {
+        return calculateLetterFrequencyScore(word) + calculatePositionScore(word);
+    }
+    
+    // For medium sets, use lightweight scoring
+    if (remainingCount > 50) {
+        const letterScore = calculateLetterFrequencyScore(word);
+        const positionScore = calculatePositionScore(word);
+        const commonBonus = COMMON_WORDS.has(word) ? 0.1 : 0;
+        return letterScore + positionScore + commonBonus;
+    }
+    
+    // Only use full advanced scoring for small sets
+    return calculateAdvancedScore(word);
+}
+
+// Multi-objective scoring function
+function calculateAdvancedScore(word) {
+    const weights = getAdaptiveWeights(gameState.remainingWords.length);
+    
+    const metrics = {
+        information: calculateExpectedInformation(word),
+        speed: calculateExpectedSolutionSteps(word),
+        risk: calculateWorstCaseScenario(word),
+        frequency: calculateLetterFrequencyScore(word)
+    };
+    
+    // Normalize information score (it can be quite high)
+    metrics.information = Math.min(metrics.information / 5, 1);
+    
+    // Calculate weighted combination
+    let score = 0;
+    Object.entries(metrics).forEach(([key, value]) => {
+        score += value * weights[key];
+    });
+    
+    // Add common word bonus
+    if (COMMON_WORDS.has(word)) {
+        score += 0.05;
+    }
+    
+    return score;
+}
+
+// Lightweight expected information calculation for performance
 function calculateExpectedInformation(guess) {
     if (gameState.remainingWords.length <= 1) return 0;
+    
+    // For large sets, use approximation to avoid expensive calculations
+    if (gameState.remainingWords.length > 100) {
+        // Sample subset for approximation
+        const sampleSize = Math.min(50, gameState.remainingWords.length);
+        const sample = gameState.remainingWords.slice(0, sampleSize);
+        
+        const outcomes = new Map();
+        sample.forEach(answer => {
+            const pattern = getResponsePatternOptimized(guess, answer);
+            const key = pattern.join('');
+            outcomes.set(key, (outcomes.get(key) || 0) + 1);
+        });
+        
+        let entropy = 0;
+        const total = sample.length;
+        outcomes.forEach(count => {
+            const prob = count / total;
+            entropy -= prob * Math.log2(prob);
+        });
+        
+        return entropy;
+    }
 
+    // Use full calculation only for smaller sets
     const outcomes = new Map();
     
-    // For each possible answer, determine the feedback pattern
     gameState.remainingWords.forEach(answer => {
-        const pattern = getResponsePattern(guess, answer);
+        const pattern = getResponsePatternOptimized(guess, answer);
         const key = pattern.join('');
         
         if (!outcomes.has(key)) {
@@ -240,17 +617,51 @@ function calculateExpectedInformation(guess) {
         outcomes.get(key).push(answer);
     });
 
-    // Calculate expected information (entropy reduction)
     let expectedInfo = 0;
     const totalWords = gameState.remainingWords.length;
     
     outcomes.forEach(group => {
         const probability = group.length / totalWords;
-        const information = -Math.log2(probability);
-        expectedInfo += probability * information;
+        if (probability > 0) {
+            const information = -Math.log2(probability);
+            expectedInfo += probability * information;
+        }
     });
 
     return expectedInfo;
+}
+
+// Simplified solution steps calculation
+function calculateExpectedSolutionSteps(guess) {
+    // Skip expensive variance calculation for large sets
+    if (gameState.remainingWords.length > 100) {
+        return 0.5; // Default neutral score
+    }
+    
+    const outcomes = new Map();
+    
+    gameState.remainingWords.forEach(answer => {
+        const pattern = getResponsePatternOptimized(guess, answer);
+        const key = pattern.join('');
+        outcomes.set(key, (outcomes.get(key) || 0) + 1);
+    });
+    
+    const sizes = Array.from(outcomes.values());
+    const maxSize = Math.max(...sizes);
+    const totalWords = gameState.remainingWords.length;
+    
+    // Simple heuristic: prefer guesses that don't leave large groups
+    return 1 - (maxSize / totalWords);
+}
+
+// Simplified risk calculation
+function calculateWorstCaseScenario(guess) {
+    // Skip for large sets to improve performance
+    if (gameState.remainingWords.length > 100) {
+        return 0.5; // Default neutral score
+    }
+    
+    return calculateExpectedSolutionSteps(guess); // Reuse the simpler calculation
 }
 
 // Get response pattern for a guess against an answer
@@ -323,92 +734,6 @@ function handleInputKeyDown(event) {
                 }
                 break;
         }
-    }
-}
-
-// Navigation and input handling
-function tabAdvance(amount = 1) {
-    const $inputs = [...document.querySelectorAll('input[type="text"]')];
-    const $focused = document.querySelector(':focus');
-    const position = $inputs.indexOf($focused);
-    
-    const desiredPosition = position + amount;
-    let $target;
-    
-    if (desiredPosition === $inputs.length) {
-        $target = $inputs[0];  
-    } else if (desiredPosition < 0) {
-        const lastIndex = $inputs.length - 1;
-        $target = $inputs[lastIndex];
-    } else {
-        $target = $inputs[desiredPosition];
-    }
-
-    $target.focus();
-    
-    if ($target.classList.contains('exactly')) {
-        $target.selectionStart = 0;
-        $target.selectionEnd = $target.value.length;
-    } else {
-        $target.selectionStart = $target.selectionEnd = $target.value.length;      
-    }
-}
-
-function registerTabHandling() {
-    [...document.querySelectorAll("input")].forEach((input) => {
-        input.onkeydown = (e) => {
-            if (e.key === "Enter" || e.key === "Tab") {
-                e.preventDefault();
-        
-                if (e.shiftKey) {
-                    tabAdvance(-1);
-                } else {
-                    tabAdvance(1);
-                }
-                
-                updateUrl();
-                restoreValuesFromUrl();
-            }
-        };
-    });
-}
-
-// URL state management
-function updateUrl() {
-    const values = getInputValues();
-    const query = values.map((value, idx) => `${idx}=${encodeURIComponent(value)}`).join('&');
-    const url = new URL(location);
-    url.search = query;
-    
-    history.pushState(values, null, url);
-}
-
-function restoreValuesFromUrl() {
-    const params = new URL(location).searchParams;
-    const entries = [...params.entries()];
-    const $inputs = [...document.querySelectorAll('input[type="text"]')];
-    
-    const arr = []
-    entries.forEach((entry) => {
-        const key = entry[0];
-        const value = decodeURIComponent(entry[1]);
-        arr[key] = value;
-    });
-    
-    restoreInputValues(arr);
-}
-
-function getInputValues() {
-    const $inputs = [...document.querySelectorAll('input[type="text"]')];
-    const values = $inputs.map(($el) => $el.value);
-    
-    return values;
-}
-
-function restoreInputValues(values) {
-    if (values && values.length > 0) {
-        const $inputs = [...document.querySelectorAll('input[type="text"]')];
-        values.forEach((value, idx) => $inputs[idx].value = value);
     }
 }
 
@@ -543,14 +868,6 @@ function updateHeatmap() {
     container.innerHTML = heatmapData.join('');
 }
 
-// Get color for heatmap based on intensity (no longer used)
-function getHeatmapColor(intensity) {
-    const red = Math.round(255 * intensity);
-    const green = Math.round(255 * (1 - intensity * 0.7));
-    const blue = Math.round(255 * (1 - intensity));
-    return `rgb(${red}, ${green}, ${blue})`;
-}
-
 // Update remaining words list
 function updateRemainingWords() {
     const container = document.getElementById('remainingWordsList');
@@ -571,6 +888,92 @@ function updateRemainingWords() {
         `<div style="text-align: center; padding: 10px; color: #666; font-style: italic;">
             ... and ${gameState.remainingWords.length - 50} more words
         </div>` : '');
+}
+
+// URL state management
+function updateUrl() {
+    const values = getInputValues();
+    const query = values.map((value, idx) => `${idx}=${encodeURIComponent(value)}`).join('&');
+    const url = new URL(location);
+    url.search = query;
+    
+    history.pushState(values, null, url);
+}
+
+function restoreValuesFromUrl() {
+    const params = new URL(location).searchParams;
+    const entries = [...params.entries()];
+    const $inputs = [...document.querySelectorAll('input[type="text"]')];
+    
+    const arr = []
+    entries.forEach((entry) => {
+        const key = entry[0];
+        const value = decodeURIComponent(entry[1]);
+        arr[key] = value;
+    });
+    
+    restoreInputValues(arr);
+}
+
+function getInputValues() {
+    const $inputs = [...document.querySelectorAll('input[type="text"]')];
+    const values = $inputs.map(($el) => $el.value);
+    
+    return values;
+}
+
+function restoreInputValues(values) {
+    if (values && values.length > 0) {
+        const $inputs = [...document.querySelectorAll('input[type="text"]')];
+        values.forEach((value, idx) => $inputs[idx].value = value);
+    }
+}
+
+// Navigation and input handling
+function tabAdvance(amount = 1) {
+    const $inputs = [...document.querySelectorAll('input[type="text"]')];
+    const $focused = document.querySelector(':focus');
+    const position = $inputs.indexOf($focused);
+    
+    const desiredPosition = position + amount;
+    let $target;
+    
+    if (desiredPosition === $inputs.length) {
+        $target = $inputs[0];  
+    } else if (desiredPosition < 0) {
+        const lastIndex = $inputs.length - 1;
+        $target = $inputs[lastIndex];
+    } else {
+        $target = $inputs[desiredPosition];
+    }
+
+    $target.focus();
+    
+    if ($target.classList.contains('exactly')) {
+        $target.selectionStart = 0;
+        $target.selectionEnd = $target.value.length;
+    } else {
+        $target.selectionStart = $target.selectionEnd = $target.value.length;      
+    }
+}
+
+function registerTabHandling() {
+    [...document.querySelectorAll("input")].forEach((input) => {
+        input.onkeydown = (e) => {
+            if (e.key === "Enter" || e.key === "Tab") {
+                e.preventDefault();
+        
+                if (e.shiftKey) {
+                    tabAdvance(-1);
+                } else {
+                    tabAdvance(1);
+                }
+                
+                updateUrl();
+                restoreValuesFromUrl();
+            }
+        };
+    });
 }
 
 // Global keyboard shortcuts
@@ -682,15 +1085,3 @@ function setupEventListeners() {
     // Tab handling
     registerTabHandling();
 }
-
-// Initialize the application
-async function initializeApp() {
-    setupEventListeners();
-    updateWordHintsDisplay(); // Set initial hints state
-    await loadWordList();
-    restoreValuesFromUrl();
-    analyzeWords();
-}
-
-// Start the app when page loads
-document.addEventListener('DOMContentLoaded', initializeApp);
