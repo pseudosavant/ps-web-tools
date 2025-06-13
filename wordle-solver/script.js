@@ -891,17 +891,12 @@ function updateRemainingWords() {
         return;
     }
 
-    const wordsToShow = gameState.remainingWords.slice(0, 50); // Limit display for performance
-    
-    container.innerHTML = wordsToShow.map(word => 
+    // Display all remaining words
+    container.innerHTML = gameState.remainingWords.map(word => 
         `<div class="word-item" onclick="selectGuess('${word}')">
             <span style="font-weight: bold;">${word.toUpperCase()}</span>
         </div>`
-    ).join('') + 
-    (gameState.remainingWords.length > 50 ? 
-        `<div style="text-align: center; padding: 10px; color: #666; font-style: italic;">
-            ... and ${gameState.remainingWords.length - 50} more words
-        </div>` : '');
+    ).join('');
 }
 
 // URL state management
