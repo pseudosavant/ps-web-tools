@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rich Text to Markdown Converter</title>
+    <meta name="description" content="Convert rich text content to clean Markdown format with automatic conversion and dark mode support">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/turndown/7.1.2/turndown.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.0/css/all.min.css">
+    <link rel="stylesheet" href="styles.css">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#0066cc">
+</head>
+<body>
+    <div class="container">
+        <h1><i class="fab fa-markdown"></i> Rich Text to Markdown Converter</h1>
+        
+        <div class="section">
+            <div class="button-group">
+                <button id="pasteBtn" class="success"><i class="fas fa-paste"></i> Paste from Clipboard</button>
+                <div class="conversion-controls">
+                    <button id="convertBtn"><i class="fas fa-exchange-alt"></i> Convert to Markdown</button>
+                    <div class="mode-switches">
+                        <div class="mode-switch">
+                            <label class="switch">
+                                <input type="checkbox" id="simpleModeToggle" checked>
+                                <span class="slider"></span>
+                            </label>
+                            <span>Simplified Mode</span>
+                        </div>
+                        <div class="mode-switch">
+                            <label class="switch">
+                                <input type="checkbox" id="jsonModeToggle">
+                                <span class="slider"></span>
+                            </label>
+                            <span>JSON Tables</span>
+                        </div>
+                    </div>
+                </div>
+                <button id="copyMarkdownBtn" class="secondary"><i class="fab fa-markdown"></i> Copy Markdown to Clipboard</button>
+                <button id="clearBtn" class="danger"><i class="fas fa-trash"></i> Clear All</button>
+            </div>
+            <h2><i class="fas fa-edit"></i> Input: Paste your rich text here (Ctrl/Cmd+V)</h2>
+            <div id="editor" contenteditable="true"></div>
+            <div id="copySuccess" class="success-message">Copied to clipboard!</div>
+            <div id="pasteError" class="error-message">Please use Ctrl/Cmd+V to paste content</div>
+        </div>
+
+        <div class="section">
+            <h2><i class="fas fa-file-code"></i> Output: Markdown</h2>
+            <div id="output"></div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
