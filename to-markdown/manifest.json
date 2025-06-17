@@ -9,12 +9,17 @@
   "orientation": "portrait-primary",
   "icons": [
     {
-      "src": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIj48cGF0aCBkPSJNNDY0IDMySDQ4QzIxLjUgMzIgMCA1My41IDAgODB2MzUyYzAgMjYuNSAyMS41IDQ4IDQ4IDQ4aDQxNmMyNi41IDAgNDgtMjEuNSA0OC00OFY4MGMwLTI2LjUtMjEuNS00OC00OC00OHpNMTk0IDI1NkwxMDUgMzQ3VjEyNWgzNG02OSAwdjE1NGwzNi0xMkwzMDMgMjU2aDF2MTE2aC0zNFoiIGZpbGw9IiMwMDY2Y2MiLz48L3N2Zz4=",
+      "src": "./icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "./icon.svg",
       "sizes": "192x192",
       "type": "image/svg+xml"
     },
     {
-      "src": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIj48cGF0aCBkPSJNNDY0IDMySDQ4QzIxLjUgMzIgMCA1My41IDAgODB2MzUyYzAgMjYuNSAyMS41IDQ4IDQ4IDQ4aDQxNmMyNi41IDAgNDgtMjEuNSA0OC00OFY4MGMwLTI2LjUtMjEuNS00OC00OC00OHpNMTk0IDI1NkwxMDUgMzQ3VjEyNWgzNG02OSAwdjE1NGwzNi0xMkwzMDMgMjU2aDF2MTE2aC0zNFoiIGZpbGw9IiMwMDY2Y2MiLz48L3N2Zz4=",
+      "src": "./icon.svg",
       "sizes": "512x512",
       "type": "image/svg+xml"
     }
