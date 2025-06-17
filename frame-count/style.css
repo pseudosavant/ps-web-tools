@@ -1,5 +1,18 @@
+:root {
+  --line-width: 1vw;
+  --line-color: #FFF; /* Existing: For bouncing line */
+  --line-color-background: transparent; /* Existing: For bouncing line */
+  --graph-line-color: #FF0000; 
+
+  /* Color Palette Variables */
+  --color-text-primary: #FFF;
+  --color-text-secondary: #AAA;
+  --color-background-page: #000; /* New: Single page background color */
+  --color-svg-grid: #333;
+}
+
 * {
-  box-model: border-box;
+  box-sizing: border-box;
   margin: 0;
 }
 
@@ -13,8 +26,8 @@ html, body {
 }
 
 html {
-  background: linear-gradient(135deg, #232526 0%, #414345 100%);
-  color: white;
+  background-color: var(--color-background-page); /* Changed from gradient to single color */
+  color: var(--color-text-primary);
 }
 
 body {
@@ -26,11 +39,11 @@ body {
   align-items: stretch;
   justify-content: stretch;
   overflow: hidden;
+  position: relative;
+  user-select: none; /* Added to prevent text selection */
 }
 
 .container {
-  background: rgba(20, 20, 20, 0.85);
-  box-shadow: 0 6px 32px 0 rgba(0,0,0,0.25);
   padding: 0;
   display: flex;
   flex-direction: column;
@@ -42,6 +55,36 @@ body {
   max-width: none;
   min-height: 0;
   margin: 0;
+  position: relative;
+}
+
+.container::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(to right,
+    var(--line-color) 0,          /* Line color and start */
+    var(--line-color) var(--line-width),        /* Line color and end (width of line) */
+    var(--line-color-background) var(--line-width),  /* Start of transparency after the line */
+    var(--line-color-background) 100vw  /* End of transparency */
+  );
+  background-repeat: no-repeat;
+  will-change: background-position-x; /* Updated: transform removed */
+  animation: bounceLineContainer 2s linear infinite alternate;
+  pointer-events: none;
+  mix-blend-mode: difference; /* Added for inversion effect */
+}
+
+@keyframes bounceLineContainer {
+  0% {
+    background-position-x: 0vw; /* 0vw will resolve to 0px, which is an integer */
+  }
+  100% {
+    background-position-x: round(down, calc(100vw - var(--line-width)), 1px); /* Changed step to 1px */
+  }
 }
 
 .fps-graph {
@@ -52,8 +95,19 @@ body {
   display: block;
   margin: 0 0 0 0;
   background: transparent;
-  box-shadow: 0 2px 12px 0 rgba(0,0,0,0.10);
   flex: 0 0 auto;
+}
+
+.fps-graph polyline { /* Added rule for polyline stroke */
+  stroke: var(--graph-line-color);
+}
+
+.fps-graph line { /* Added rule for grid line stroke */
+  stroke: var(--color-svg-grid);
+}
+
+.fps-graph text { /* Added rule for label fill color */
+  fill: var(--color-text-secondary);
 }
 
 .stats-row {
@@ -108,7 +162,7 @@ body {
   word-break: break-word;
 }
 
-.delta, .fps-stats, .elapsed {
+.delta, .fps-stats, .elapsed { /* .fps-stats and .elapsed are effectively unused selectors here but kept for structure */
   font-size: 2vw;
   font-weight: 500;
   letter-spacing: 0.02em;
@@ -122,16 +176,17 @@ body {
 .timestamp::before,
 .fps::before,
 .delta::before,
-.fps-stats::before,
-.elapsed::before,
-.fps-min::before,
-.fps-max::before,
-.fps-mean::before,
-.fps-median::before {
+.fps-stats::before, /* This class is not used anymore, can be removed or kept for future */
+.frame-time-min::before,
+.frame-time-max::before,
+.frame-time-mean::before,
+.frame-time-median::before,
+.frame-time-p1::before, 
+.frame-time-p99::before { 
   content: none;
 }
 
-.fps-stats {
+.fps-stats { /* This class is not used anymore for a specific element, can be removed or repurposed */
   margin-bottom: 1em;
 }
 
@@ -141,7 +196,7 @@ body {
 
 /* Stat label/value color split */
 .stat-label {
-  color: #aaa;
+  color: var(--color-text-secondary);
   font-weight: 400;
   font-size: 0.9em;
   font-family: inherit;
@@ -150,7 +205,7 @@ body {
 }
 
 .stat-value {
-  color: #fff;
+  color: var(--color-text-primary);
   font-weight: 500;
   font-size: 1em;
   font-family: inherit;
@@ -172,9 +227,10 @@ body {
     gap: 0.5em;
   }
   .frame-count, .timestamp, .fps,
-  .stats-secondary > *,
-  .delta, .fps-stats, .elapsed,
-  .fps-min, .fps-max, .fps-mean, .fps-median {
+  .stats-secondary > *, /* This will cover all new frame time stat elements */
+  .delta, /* .fps-stats, */ /* .elapsed, */ /* .fps-stats is no longer a specific element class, .elapsed removed */
+  /* Explicitly listing old FPS classes, new frame time classes covered by .stats-secondary > * */
+  .fps-min, .fps-max, .fps-mean, .fps-median { 
     font-size: 7vw;
     text-align: center;
   }
