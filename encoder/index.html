@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>String Encoder/Decoder & Hash Tool</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.0/css/all.min.css">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1><i class="fas fa-code"></i> String Encoder/Decoder & Hash Tool</h1>
+        </header>
+
+        <main>
+            <div class="tool-section">
+                <h2><i class="fas fa-exchange-alt"></i> Encoding & Decoding</h2>
+
+                <div class="input-section">
+                    <label for="input-text">Input Text:</label>
+                    <textarea id="input-text" placeholder="Enter text to encode/decode..."></textarea>
+                </div>                <div class="controls">
+                    <div class="operation-group">
+                        <span class="operation-label">Base64:</span>
+                        <button id="base64-encode" class="btn btn-primary" title="Encode text to Base64 format">
+                            <i class="fas fa-arrow-right"></i> Encode
+                        </button>
+                        <button id="base64-decode" class="btn btn-secondary" title="Decode Base64 text to plain text">
+                            <i class="fas fa-arrow-left"></i> Decode
+                        </button>
+                    </div>
+
+                    <div class="operation-group">
+                        <span class="operation-label">HTML Entities:</span>
+                        <button id="html-encode" class="btn btn-primary" title="Encode text to HTML entities">
+                            <i class="fas fa-arrow-right"></i> Encode
+                        </button>
+                        <button id="html-decode" class="btn btn-secondary" title="Decode HTML entities to plain text">
+                            <i class="fas fa-arrow-left"></i> Decode
+                        </button>
+                    </div>
+
+                    <div class="operation-group">
+                        <span class="operation-label">URL Encoding:</span>
+                        <button id="url-encode" class="btn btn-primary" title="Encode text for URL use">
+                            <i class="fas fa-arrow-right"></i> Encode
+                        </button>
+                        <button id="url-decode" class="btn btn-secondary" title="Decode URL-encoded text to plain text">
+                            <i class="fas fa-arrow-left"></i> Decode
+                        </button>
+                    </div>
+                </div><div class="output-section">
+                    <label for="output-text">Output:</label>                    <div class="output-container">
+                        <textarea id="output-text" readonly></textarea>
+                        <button id="copy-output" class="btn btn-copy-overlay" title="Copy output to clipboard">
+                            <i class="fas fa-copy"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tool-section">
+                <h2><i class="fas fa-hashtag"></i> Hash Functions</h2>
+
+                <div class="input-section">
+                    <label for="hash-input">Input Text:</label>
+                    <textarea id="hash-input" placeholder="Enter text to hash..."></textarea>
+                </div>                <div class="hash-results">
+                    <div class="hash-result" id="md5-result">
+                        <label>MD5:</label>
+                        <input type="text" readonly id="md5-output">
+                        <button class="btn btn-copy-small" data-target="md5-output" title="Copy MD5 hash to clipboard">
+                            <i class="fas fa-copy"></i>
+                        </button>
+                    </div>
+                    <div class="hash-result" id="sha1-result">
+                        <label>SHA-1:</label>
+                        <input type="text" readonly id="sha1-output">
+                        <button class="btn btn-copy-small" data-target="sha1-output" title="Copy SHA-1 hash to clipboard">
+                            <i class="fas fa-copy"></i>
+                        </button>
+                    </div>
+                    <div class="hash-result" id="sha256-result">
+                        <label>SHA-256:</label>
+                        <input type="text" readonly id="sha256-output">
+                        <button class="btn btn-copy-small" data-target="sha256-output" title="Copy SHA-256 hash to clipboard">
+                            <i class="fas fa-copy"></i>
+                        </button>
+                    </div>
+                    <div class="hash-result" id="sha512-result">
+                        <label>SHA-512:</label>
+                        <input type="text" readonly id="sha512-output">
+                        <button class="btn btn-copy-small" data-target="sha512-output" title="Copy SHA-512 hash to clipboard">
+                            <i class="fas fa-copy"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
