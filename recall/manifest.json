@@ -1,0 +1,20 @@
+{
+    "name": "Frame Recall PWA",
+    "short_name": "FrameRecall",
+    "description": "Capture and display frames from the last 2 seconds",
+    "start_url": "./",
+    "display": "standalone",
+    "background_color": "#1a1a1a",
+    "theme_color": "#4CAF50",
+    "orientation": "portrait-primary",
+    "icons": [
+        {
+            "src": "favicon.svg",
+            "sizes": "any",
+            "type": "image/svg+xml"
+        }
+    ],
+    "permissions": [
+        "camera"
+    ]
+}

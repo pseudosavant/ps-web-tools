@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Frame Recall PWA</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <link rel="manifest" href="manifest.json">
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.0/css/all.min.css">
+    <meta name="theme-color" content="#000000">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📷 Frame Recall</h1>
+        </header>
+        
+        <main>
+            <div class="video-container">
+                <video id="videoElement" autoplay muted playsinline></video>
+                <canvas id="captureCanvas" style="display: none;"></canvas>
+                <button id="toggleBtn" disabled title="Start capturing frames continuously"><i class="fas fa-play-circle"></i> Arm Capture</button>
+                <button id="settingsToggle" type="button" title="Show/hide camera and recording settings"><i class="fas fa-cog"></i> Settings</button>
+            </div>
+            
+            <div id="settingsPanel" class="settings-panel collapsed">
+                <div class="settings-content">
+                    <select id="cameraSelect" disabled title="Select which camera to use for recording">
+                        <option value="">Loading cameras...</option>
+                    </select>
+                    <select id="resolutionSelect" title="Choose video recording resolution">
+                        <option value="480p">480p</option>
+                        <option value="720p">720p</option>
+                        <option value="1080p" selected>1080p</option>
+                    </select>
+                    <select id="secondsSelect" title="How many seconds of frames to capture and store">
+                        <option value="1">1 Second</option>
+                        <option value="2" selected>2 Seconds</option>
+                        <option value="3">3 Seconds</option>
+                        <option value="5">5 Seconds</option>
+                        <option value="10">10 Seconds</option>
+                    </select>
+                    <select id="fpsSelect" title="Frames per second to capture at">
+                        <option value="10">10 FPS</option>
+                        <option value="15" selected>15 FPS</option>
+                        <option value="24">24 FPS</option>
+                        <option value="30">30 FPS</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div id="framesContainer" class="frames-grid"></div>
+            <div id="status" class="status">Select a camera to begin</div>
+        </main>
+    </div>
+    
+    <script src="app.js"></script>
+</body>
+</html>
