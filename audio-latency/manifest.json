@@ -1,0 +1,37 @@
+{
+  "name": "Bluetooth Audio Latency Tester",
+  "short_name": "Audio Latency",
+  "description": "Measure Bluetooth earbuds latency in your browser",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#f5f5f5",
+  "theme_color": "#2196F3",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "favicon-1.0.0.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "favicon-1.0.0.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "favicon-1.0.0.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "categories": ["productivity", "utilities"],
+  "shortcuts": [
+    {
+      "name": "Quick Test",
+      "short_name": "Test",
+      "description": "Start a latency test immediately",
+      "url": "./index.html#test",
+      "icons": [{ "src": "favicon-1.0.0.png", "sizes": "192x192", "type": "image/png" }]
+    }
+  ]
+}
