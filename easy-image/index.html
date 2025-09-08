@@ -1,0 +1,739 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="author" content="John Paul Ellis">
+  <meta name="copyright" content="Copyright 2025 John Paul Ellis">
+  <meta name="license" content="MIT">
+  <title>Easy Image</title>
+  <link rel="manifest" href="manifest.json">
+  <style>
+    :root {
+      --bg: #111;
+      --card: #111;
+      --muted: #bfc9d2;
+      --text: #ffffff;
+      --accent: #0a84ff
+    }
+
+    /* use browser accent support for form controls where available */
+    input,
+    button {
+      accent-color: var(--accent)
+    }
+
+    * {
+      box-sizing: border-box;
+      font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, 'Helvetica Neue', Arial
+    }
+
+    html,
+    body {
+      height: 100%
+    }
+
+    body {
+      margin: 0;
+      background: #111;
+      color: var(--text);
+      display: flex;
+      justify-content: center;
+      padding: 28px
+    }
+
+    .app {
+      width: 100%;
+      max-width: 1000px;
+      background: #111;
+      border-radius: 8px;
+      padding: 22px
+    }
+
+    h1 {
+      margin: 0 0 14px;
+      font-size: 22px
+    }
+
+    .dropzone {
+      width: 100%;
+      border: 1px solid #333;
+      background: #222;
+      padding: 18px;
+      border-radius: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      align-items: center;
+      justify-content: center;
+      min-height: 140px;
+      cursor: pointer
+    }
+
+    .dropzone.dragover {
+      background: linear-gradient(90deg, rgba(6, 182, 212, 0.06), rgba(124, 58, 237, 0.04));
+      border-color: rgba(6, 182, 212, 0.4)
+    }
+
+    /* keep open button unstyled so browser default applies; accent-color may affect it */
+    /* intentionally unstyled; browser default button styling applies */
+    .muted {
+      color: var(--muted);
+      font-size: 14px
+    }
+
+    .controls {
+      display: flex;
+      gap: 16px;
+      align-items: center;
+      padding-top: 14px
+    }
+
+    .controls .field {
+      display: flex;
+      align-items: center;
+      gap: 10px
+    }
+
+    /* Toggle checkbox hidden, label styled as pill */
+    input[type=checkbox].toggle {
+      position: absolute;
+      left: -9999px
+    }
+
+    .toggle-label {
+      display: inline-block;
+      width: 56px;
+      height: 30px;
+      background: #1b2a37;
+      border-radius: 999px;
+      position: relative;
+      vertical-align: middle;
+      transition: background .22s ease;
+      box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.25)
+    }
+
+    .toggle-label::after {
+      content: '';
+      position: absolute;
+      left: 4px;
+      top: 4px;
+      width: 22px;
+      height: 22px;
+      background: #fff;
+      border-radius: 50%;
+      transition: transform .22s cubic-bezier(.2, .9, .3, 1);
+      box-shadow: 0 2px 6px rgba(2, 6, 23, 0.4)
+    }
+
+    input[type=checkbox].toggle:checked+.toggle-label::after {
+      transform: translateX(26px)
+    }
+
+    .preview {
+      background: #111;
+      border-radius: 6px;
+      padding: 14px;
+      text-align: center;
+      margin-top: 16px
+    }
+
+    .preview img {
+      max-width: 100%;
+      height: auto;
+      border-radius: 6px;
+      display: block;
+      margin: 8px auto 0
+    }
+
+    .meta {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      justify-content: center;
+      margin-bottom: 8px
+    }
+
+    .chip {
+      background: rgba(255, 255, 255, 0.03);
+      padding: 6px 8px;
+      border-radius: 8px;
+      font-size: 13px;
+      color: var(--muted)
+    }
+
+    a.download-link {
+      color: var(--accent);
+      font-weight: 700;
+      text-decoration: underline
+    }
+
+    .slider {
+      width: 180px
+    }
+
+    footer {
+      margin-top: 14px;
+      color: var(--muted);
+      font-size: 13px
+    }
+
+    .instructions {
+      font-size: 15px;
+      color: var(--muted);
+      text-align: center
+    }
+
+    .quality-row {
+      display: flex;
+      align-items: center;
+      gap: 10px
+    }
+
+    .hidden {
+      display: none
+    }
+  </style>
+</head>
+
+<body>
+  <div class="app" id="app">
+  <h1>Easy Image</h1>
+    <div id="drop" class="dropzone" tabindex="0">
+      <strong>Drop an image anywhere</strong>
+      <div class="muted">or click the button to open a file</div>
+      <div style="display:flex;gap:10px;align-items:center;margin-top:12px">
+        <label id="fileLabel">
+          <button id="openBtn" class="open-btn" type="button">Open image</button>
+          <input id="fileInput" type="file" accept="image/*" style="display:none">
+        </label>
+      </div>
+      <div class="instructions muted">Minimal, local conversion to PNG or high-quality JPEG. Toggle
+        format or move the quality slider.</div>
+    </div>
+    <div class="controls" aria-hidden="false">
+      <div class="field" style="align-items:center">
+        <div class="muted">PNG</div>
+        <input id="jpegToggle" class="toggle" type="checkbox">
+        <label for="jpegToggle" class="toggle-label" title="Toggle format"></label>
+        <div class="muted">JPEG</div>
+      </div>
+      <div id="qualityWrap" class="quality-row hidden">
+        <input id="quality" class="slider" type="range" min="0.5" max="1" step="0.01" value="0.95">
+        <div class="muted" id="qualityVal">95%</div>
+      </div>
+    </div>
+    <div class="preview hidden" id="previewCard" aria-hidden="true">
+      <div style="display:flex;justify-content:center;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:8px">
+        <div class="meta" id="meta"></div>
+        <a id="downloadLink" class="download-link" href="#" download>Download</a>
+        <a id="copyLink" href="#" class="muted">Copy</a>
+      </div>
+      <div style="height:6px"></div>
+      <img id="previewImg" alt="Converted preview" src="" />
+    </div>
+    <footer>
+      © 2025 John Paul Ellis — licensed MIT
+    </footer>
+  </div>
+  <script>
+    // Elements
+    const drop = document.getElementById('drop');
+    const fileInput = document.getElementById('fileInput');
+    const fileLabel = document.getElementById('fileLabel');
+    const jpegToggle = document.getElementById('jpegToggle');
+    const quality = document.getElementById('quality');
+    const qualityVal = document.getElementById('qualityVal');
+    const qualityWrap = document.getElementById('qualityWrap');
+    const previewImg = document.getElementById('previewImg');
+    const metaEl = document.getElementById('meta');
+    const downloadLink = document.getElementById('downloadLink');
+    // message area (create if missing)
+    let messageEl = document.getElementById('message');
+    if (!messageEl) { messageEl = document.createElement('div'); messageEl.id = 'message'; messageEl.className = 'muted'; document.getElementById('drop').appendChild(messageEl); }
+
+    // State
+    let originalFile = null; // File object
+    let originalBlobUrl = null;
+    let originalMeta = null; // {type, width, height, size}
+
+    let convertedBlob = null;
+    let convertedBlobUrl = null;
+    let chosenBlob = null; // the blob we are currently using for preview/download
+    let chosenBlobUrl = null;
+
+    let lastSignature = null; // file signature to detect file change
+    let lastParams = null; // {toJPEG, quality}
+
+    function prevent(e) { e.preventDefault(); e.stopPropagation(); }
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(evt => document.addEventListener(evt, prevent));
+
+    // Highlight on dragover within app
+    ['dragenter', 'dragover'].forEach(evt => drop.addEventListener(evt, e => { drop.classList.add('dragover'); }));
+    ['dragleave', 'drop'].forEach(evt => drop.addEventListener(evt, e => { drop.classList.remove('dragover'); }));
+
+    drop.addEventListener('drop', e => {
+      const f = e.dataTransfer.files && e.dataTransfer.files[0];
+      if (f) handleFile(f);
+    });
+
+    // prevent clicks on the file label/button from bubbling to the dropzone
+    if (fileLabel) { fileLabel.addEventListener('click', (e) => { e.stopPropagation(); }); }
+    // explicit button handler to reliably open the hidden file input (avoids label focus edge-cases)
+    const openBtn = document.getElementById('openBtn');
+    if (openBtn) { openBtn.addEventListener('click', (e) => { e.stopPropagation(); e.preventDefault(); fileInput.click(); }); }
+    fileInput.addEventListener('change', e => { const f = e.target.files && e.target.files[0]; if (f) handleFile(f); fileInput.value = ''; });
+
+    // Toggle behaviour
+    jpegToggle.addEventListener('change', () => {
+      qualityWrap.classList.toggle('hidden', !jpegToggle.checked);
+      ensureConverted();
+    });
+    // debounce quality changes to avoid repeated conversions while sliding
+    let qualityDebounce = null;
+    quality.addEventListener('input', () => {
+      qualityVal.textContent = Math.round(quality.value * 100) + '%';
+      if (qualityDebounce) clearTimeout(qualityDebounce);
+      qualityDebounce = setTimeout(() => { qualityDebounce = null; ensureConverted(); }, 100);
+    });
+
+    // clicking the preview image opens the converted image in a new tab
+    previewImg.style.cursor = 'pointer';
+    previewImg.title = 'Open converted image in new tab';
+    previewImg.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const url = chosenBlobUrl || downloadLink.href;
+      if (url && url !== '#') window.open(url, '_blank');
+    });
+
+    function resetState() {
+      if (originalBlobUrl) { URL.revokeObjectURL(originalBlobUrl); originalBlobUrl = null }
+      if (convertedBlobUrl) { URL.revokeObjectURL(convertedBlobUrl); convertedBlobUrl = null }
+      if (chosenBlobUrl) { URL.revokeObjectURL(chosenBlobUrl); chosenBlobUrl = null }
+      originalFile = null; originalMeta = null; convertedBlob = null; chosenBlob = null;
+      convertedBlobUrl = null; chosenBlobUrl = null; lastSignature = null; lastParams = null;
+      previewImg.src = '';
+      metaEl.innerHTML = '';
+      downloadLink.href = '#';
+      messageEl.textContent = '';
+    }
+
+    function makeSignature(file) {
+      if (!file) return null;
+      return `${file.name}|${file.size}|${file.type}|${file.lastModified}`;
+    }
+
+    async function handleFile(file) {
+      resetState();
+      originalFile = file;
+      lastSignature = makeSignature(file);
+      lastSourceName = file.name.replace(/\.[^.]+$/, '');
+      originalBlobUrl = URL.createObjectURL(file);
+      // Try to load the image to determine if browser can open it
+      const img = new Image();
+      img.onload = () => {
+        originalMeta = { type: file.type || '', width: img.naturalWidth, height: img.naturalHeight, size: file.size };
+        messageEl.textContent = '';
+        // after loading, attempt conversion/selection
+        ensureConverted(img);
+      };
+      img.onerror = async () => {
+        // image couldn't be decoded by browser (common for HEIC, some TIFFs, etc.)
+        messageEl.textContent = 'Native decode failed — attempting WASM HEIC decoder (CDN)...';
+        try {
+          const decoded = await tryDecodeHeic(file);
+          if (decoded instanceof Blob) {
+            // use decoded blob as the new original
+            if (originalBlobUrl) { URL.revokeObjectURL(originalBlobUrl); originalBlobUrl = null; }
+            originalFile = decoded;
+            originalBlobUrl = URL.createObjectURL(decoded);
+            const img2 = new Image();
+            img2.onload = () => {
+              originalMeta = { type: decoded.type || '', width: img2.naturalWidth, height: img2.naturalHeight, size: decoded.size };
+              messageEl.textContent = '';
+              ensureConverted(img2);
+            };
+            img2.onerror = () => {
+              messageEl.textContent = 'Image could not be decoded even after WASM HEIC decode.';
+              previewImg.src = '';
+              metaEl.innerHTML = '';
+              downloadLink.href = '#';
+            };
+            img2.src = originalBlobUrl;
+            return;
+          }
+        } catch (e) {
+          console.warn('WASM HEIC decode attempt failed:', e);
+        }
+        // fallback message if decode not possible
+        messageEl.textContent = 'This image could not be opened by your browser. The format may be unsupported (for example HEIC). Try a browser or device with native support, or convert the source first.';
+        previewImg.src = '';
+        metaEl.innerHTML = '';
+        downloadLink.href = '#';
+      };
+      img.src = originalBlobUrl;
+    }
+
+    function drawImageToCanvas(img) {
+      const canvas = document.createElement('canvas');
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      const ctx = canvas.getContext('2d');
+      // If converting to JPEG and image has transparency, paint white background
+      if (jpegToggle.checked) { ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, canvas.width, canvas.height); }
+      ctx.drawImage(img, 0, 0);
+      // attach dims for metadata
+      canvas._width = canvas.width; canvas._height = canvas.height;
+      return canvas;
+    }
+
+    function canvasToBlob(canvas, mime, qualityOption) {
+      return new Promise(resolve => {
+        canvas.toBlob(blob => resolve(blob), mime, qualityOption);
+      });
+    }
+
+    // --- HEIC (WASM) support via CDN-loaded decoder ---
+    // We attempt to dynamically import a WASM-based libheif decoder from a CDN.
+    // This is best-effort: the CDN path may need to be adjusted to a working build that
+    // exposes a global decoder (for example window.libheif.decode(arrayBuffer) -> Blob).
+    // Prefer the documented ESM bundle on jsDelivr (pin to a known working version)
+    const LIBHEIF_CDN_CANDIDATES = [
+      'https://cdn.jsdelivr.net/npm/libheif-js@1.19.8/libheif-wasm/libheif-bundle.mjs'
+    ];
+    let _libheifLoaded = null; // promise
+
+    async function loadLibHeif() {
+      if (_libheifLoaded) return _libheifLoaded;
+      _libheifLoaded = (async () => {
+        let lastErr = null;
+        for (const url of LIBHEIF_CDN_CANDIDATES) {
+          try {
+            // dynamic import an ESM bundle; return its default export if present
+            const mod = await import(url);
+            return mod && (mod.default || mod);
+          } catch (err) {
+            lastErr = err;
+            // try next candidate
+          }
+        }
+        // if we reach here, none loaded successfully
+        throw lastErr || new Error('Could not load libheif from CDN candidates');
+      })();
+      return _libheifLoaded;
+    }
+
+    async function tryDecodeHeic(file) {
+      // returns a Blob (PNG or JPEG) if decoding succeeds, or null
+      try {
+        const mod = await loadLibHeif();
+        // short status
+        messageEl.textContent = 'Decoding HEIC...';
+        // normalize to a decoder object we can call methods on
+        let decoder = mod && (mod.default || mod);
+
+        // if module export is a factory function, try invoking it to get an instance
+        if (typeof decoder === 'function') {
+          try {
+            const inst = await decoder();
+            if (inst) decoder = inst;
+          } catch (e) {
+            // ignore instantiation failure, continue with the function itself
+            console.warn('libheif default export is a function but calling it failed:', e);
+          }
+        }
+
+        const keys = decoder ? Object.keys(decoder) : [];
+
+        if (!decoder) throw new Error('libheif module loaded but no usable export found');
+
+        const ab = await file.arrayBuffer();
+
+        // helper: normalize possible outputs to a Blob
+        async function normalizeToBlob(res) {
+          if (!res) return null;
+          if (res instanceof Blob) return res;
+          // {data: Uint8Array, mime}
+          if (res.data && (res.data instanceof Uint8Array || res.data.buffer)) {
+            const mime = res.mime || 'image/png';
+            return new Blob([res.data.buffer || res.data], { type: mime });
+          }
+          // raw Uint8Array
+          if (res instanceof Uint8Array) return new Blob([res.buffer], { type: 'image/png' });
+          // ArrayBuffer
+          if (res instanceof ArrayBuffer) return new Blob([res], { type: 'image/png' });
+          // data URL string
+          if (typeof res === 'string' && res.startsWith('data:')) {
+            try { const fetched = await fetch(res); return fetched.blob(); } catch (e) { }
+          }
+          return null;
+        }
+
+        // If the module exposes a high-level HeifDecoder, prefer that
+        if (decoder && (typeof decoder.HeifDecoder === 'function' || typeof decoder.HeifDecoder === 'object')) {
+          try {
+            console.log('attempting high-level HeifDecoder API');
+            const HeifDecoder = decoder.HeifDecoder;
+            const inst = (typeof HeifDecoder === 'function') ? new HeifDecoder() : HeifDecoder;
+            if (inst && typeof inst.decode === 'function') {
+              const images = await inst.decode(ab);
+              // HeifDecoder.decode returned images (handled below)
+              if (images && images.length) {
+                const img = images[0];
+                // decoded image object inspected below
+
+                // Preferred browser path: image.display(imageData, callback)
+                try {
+                  if (typeof img.get_width === 'function' && typeof img.get_height === 'function' && typeof img.display === 'function') {
+                    const width = img.get_width();
+                    const height = img.get_height();
+                    const canvas = document.createElement('canvas');
+                    canvas.width = width; canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    const imageData = ctx.createImageData(width, height);
+                    await new Promise((resolve, reject) => {
+                      // image.display may accept (imageData, callback) per example
+                      try {
+                        img.display(imageData, (displayData) => {
+                          if (!displayData) { return reject(new Error('HEIF processing error')); }
+                          resolve();
+                        });
+                      } catch (err) { reject(err); }
+                    });
+                    ctx.putImageData(imageData, 0, 0);
+                    const blob = await new Promise(res => canvas.toBlob(res, 'image/png'));
+                    if (blob) return blob;
+                  }
+                } catch (err) { console.warn('image.display path failed', err); }
+
+                // try a few common accessors to get raw pixel data
+                const pixelFns = ['get_rgba', 'getRGBA', 'getImageRGBA', 'get_image', 'get_image_data', 'get_image_data_rgba', 'get_pixels', 'get_plane', 'toRGBA', 'toImageData', 'toBlob', 'asBlob', 'get_buffer'];
+                for (const fn of pixelFns) {
+                  if (typeof img[fn] === 'function') {
+                    try {
+                      const out = await img[fn]();
+                      const blob = await normalizeToBlob(out);
+                      if (blob) return blob;
+                    } catch (e) { console.warn('image.' + fn + ' call failed', e); }
+                  }
+                }
+
+                // if image exposes width/height and a raw buffer property
+                if (typeof img.get_width === 'function' && typeof img.get_height === 'function') {
+                  const w = img.get_width(); const h = img.get_height();
+                  // try common buffer props
+                  if (img.data || img.buffer || img.pixels) {
+                    const raw = img.data || img.buffer || img.pixels;
+                    const blob = await normalizeToBlob(raw);
+                    if (blob) return blob;
+                  }
+                }
+              }
+            }
+          } catch (e) { console.warn('HeifDecoder path failed', e); }
+        }
+
+        // Try known function names in order of likelihood
+        const tryFns = ['decodeToBlob', 'decode', 'decodeFile', 'decodeBuffer', 'decodeToRGBA', 'decodeToImage'];
+        for (const name of tryFns) {
+          const fn = decoder[name];
+          if (typeof fn === 'function') {
+            try {
+              const out = await fn(ab);
+              const blob = await normalizeToBlob(out);
+              if (blob) return blob;
+
+              // decodeToRGBA may return raw pixels
+              if (name === 'decodeToRGBA' && out && out.data) {
+                const canvas = document.createElement('canvas');
+                canvas.width = out.width; canvas.height = out.height;
+                const ctx = canvas.getContext('2d');
+                const imgData = new ImageData(new Uint8ClampedArray(out.data), out.width, out.height);
+                ctx.putImageData(imgData, 0, 0);
+                return await new Promise(res => canvas.toBlob(res, 'image/png'));
+              }
+            } catch (e) {
+              console.warn('call to decoder.' + name + ' failed:', e);
+            }
+          }
+        }
+
+        // If decoder has nested namespaces, search them (e.g., decoder.libheif.decode)
+        for (const k of keys) {
+          const ns = decoder[k];
+          if (ns && typeof ns === 'object') {
+            for (const name of tryFns) {
+              const fn = ns[name];
+              if (typeof fn === 'function') {
+                try {
+                  const out = await fn(ab);
+                  const blob = await normalizeToBlob(out);
+                  if (blob) return blob;
+                } catch (e) { console.warn('nested call failed', k, name, e); }
+              }
+            }
+          }
+        }
+
+        // last resort: some bundles provide a method that returns a data URL or ArrayBuffer under different names
+        messageEl.textContent = 'libheif loaded but no compatible decode API found; see console for module shape.';
+        return null;
+      } catch (e) {
+        console.error('HEIC decode error', e);
+        throw e;
+      }
+    }
+
+    async function ensureConverted(loadedImg) {
+      // Determine desired params
+      const toJPEG = jpegToggle.checked;
+      const q = toJPEG ? parseFloat(quality.value) : undefined;
+      const params = { toJPEG, quality: q };
+      // If no file loaded, nothing to do
+      if (!originalFile) return;
+      // If params and signature are same as last time and we have chosenBlob, reuse it
+      const sig = lastSignature || makeSignature(originalFile);
+      if (lastSignature === sig && lastParams && lastParams.toJPEG === params.toJPEG && lastParams.quality === params.quality && chosenBlob) {
+        // already up-to-date
+        applyChosenBlob();
+        return;
+      }
+      // load an Image if not provided
+      let img = loadedImg;
+      if (!img) { img = new Image(); img.src = originalBlobUrl; try { await img.decode(); } catch (e) { /* decode failed or not supported */ } }
+
+      // ensure the image actually decoded to usable pixels
+      if (!img || !img.naturalWidth || !img.naturalHeight) {
+        messageEl.textContent = 'This image could not be decoded by the browser (unsupported format or corrupted).';
+        return;
+      }
+
+      // Decide fast path: if output PNG and original is PNG, use original file directly
+      if (!toJPEG && originalFile.type === 'image/png') {
+        chosenBlob = originalFile;
+        chosenBlobUrl = originalBlobUrl;
+        lastParams = params; lastSignature = sig;
+        applyChosenBlob();
+        return;
+      }
+
+      // Otherwise we need to convert at least once to obtain the converted blob for comparison (JPEG case)
+      let canvas;
+      let blob;
+      try {
+        canvas = drawImageToCanvas(img);
+        const mime = toJPEG ? 'image/jpeg' : 'image/png';
+        blob = await canvasToBlob(canvas, mime, q);
+      } catch (e) {
+        messageEl.textContent = 'Conversion failed: ' + (e && e.message ? e.message : e);
+        return;
+      }
+      if (!blob) { messageEl.textContent = 'Conversion failed.'; return }
+      convertedBlob = blob;
+      // Decide whether to prefer original
+      if (toJPEG && originalFile.type === 'image/jpeg') {
+        // prefer the smaller of original vs converted
+        if (originalFile.size <= convertedBlob.size) { chosenBlob = originalFile; chosenBlobUrl = originalBlobUrl; }
+        else { chosenBlob = convertedBlob; if (convertedBlobUrl) URL.revokeObjectURL(convertedBlobUrl); convertedBlobUrl = URL.createObjectURL(convertedBlob); chosenBlobUrl = convertedBlobUrl; }
+      } else {
+        // if output PNG and original PNG handled earlier; otherwise use converted
+        chosenBlob = convertedBlob;
+        if (convertedBlobUrl) URL.revokeObjectURL(convertedBlobUrl);
+        convertedBlobUrl = URL.createObjectURL(convertedBlob);
+        chosenBlobUrl = convertedBlobUrl;
+      }
+
+      lastParams = params;
+      lastSignature = sig;
+      applyChosenBlob();
+    }
+
+    async function copyBlobToClipboard(blob) {
+      if (!navigator.clipboard || !window.ClipboardItem) {
+        messageEl.textContent = 'Clipboard API not available in this browser.';
+        return false;
+      }
+      if (!window.isSecureContext) {
+        messageEl.textContent = 'Clipboard write requires a secure context (HTTPS or localhost).';
+        // still try, but likely to fail
+      }
+
+      // try to write original mime first (prefer JPEG if that's the source)
+      try {
+        await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
+        messageEl.textContent = 'Image copied to clipboard as ' + blob.type + '.';
+        return true;
+      } catch (err) {
+        // try to provide both types (original + PNG) in one ClipboardItem — some implementations accept this
+        try {
+          const imgBitmap = await createImageBitmap(blob);
+          const canvas = document.createElement('canvas');
+          canvas.width = imgBitmap.width; canvas.height = imgBitmap.height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(imgBitmap, 0, 0);
+          const pngBlob = await new Promise(res => canvas.toBlob(res, 'image/png'));
+          if (!pngBlob) { messageEl.textContent = 'Copy failed: could not create PNG fallback.'; return false }
+
+          // try writing a ClipboardItem with both types — if the platform supports image/jpeg it will use that
+          try {
+            await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob, 'image/png': pngBlob })]);
+            messageEl.textContent = 'Image copied to clipboard (included JPEG + PNG).';
+            return true;
+          } catch (e2) {
+            // final fallback: write PNG only
+            await navigator.clipboard.write([new ClipboardItem({ 'image/png': pngBlob })]);
+            messageEl.textContent = 'Image copied to clipboard as PNG (fallback).';
+            return true;
+          }
+        } catch (e3) {
+          messageEl.textContent = 'Copy failed: ' + (e3 && e3.message ? e3.message : e3);
+          return false;
+        }
+      }
+    }
+
+    function applyChosenBlob() {
+      if (!chosenBlob) return;
+      // set meta
+      metaEl.innerHTML = '';
+      const typeChip = document.createElement('div'); typeChip.className = 'chip'; typeChip.textContent = chosenBlob.type || (jpegToggle.checked ? 'image/jpeg' : 'image/png');
+      const sizeChip = document.createElement('div'); sizeChip.className = 'chip'; sizeChip.textContent = ((chosenBlob.size / 1024).toFixed(1)) + ' KB';
+      const dimChip = document.createElement('div'); dimChip.className = 'chip'; dimChip.textContent = (originalMeta ? (originalMeta.width + '×' + originalMeta.height) : '');
+      metaEl.appendChild(typeChip); metaEl.appendChild(sizeChip); metaEl.appendChild(dimChip);
+      // download link (plain link) with explicit format in text
+      const isPNG = (chosenBlob.type === 'image/png' || (!jpegToggle.checked && chosenBlob.type && chosenBlob.type.includes('png')));
+      const ext = isPNG ? 'png' : 'jpeg';
+      downloadLink.href = chosenBlobUrl || URL.createObjectURL(chosenBlob);
+      if (!isPNG) {
+        // include quality in filename for JPEGs, e.g. input.q95.jpeg
+        const qVal = Math.round((parseFloat(quality.value) || 0.95) * 100);
+        downloadLink.download = `${lastSourceName}.q${qVal}.${ext}`;
+      } else {
+        downloadLink.download = lastSourceName + '-converted.' + ext;
+      }
+      downloadLink.textContent = isPNG ? 'Download PNG' : 'Download JPEG';
+
+      // copy link behavior
+      const copyLink = document.getElementById('copyLink');
+      copyLink.textContent = isPNG ? 'Copy PNG' : 'Copy JPEG';
+      copyLink.onclick = async (e) => { e.preventDefault(); await copyBlobToClipboard(chosenBlob); };
+
+      // set preview image src and show the preview container
+      previewImg.src = chosenBlobUrl || URL.createObjectURL(chosenBlob);
+      const previewCard = document.getElementById('previewCard');
+      previewCard.classList.remove('hidden');
+      previewCard.setAttribute('aria-hidden', 'false');
+      messageEl.textContent = '';
+    }
+
+    // initial UI state
+    qualityVal.textContent = Math.round(quality.value * 100) + '%';
+
+    // Accessibility: allow dropzone click to open
+    drop.addEventListener('click', () => fileInput.click());
+
+  </script>
+</body>
+
+</html>
