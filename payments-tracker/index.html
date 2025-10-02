@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width,initial-scale=1" />
+	<title>Payments Tracker</title>
+	<meta name="description" content="Track recurring payment progress and remaining payments (loan, support, subscription, etc.)" />
+	<!--
+	  Payments Tracker
+	  License: MIT (see repository root LICENSE file)
+	  SPDX-License-Identifier: MIT
+	-->
+	<meta name="license" content="MIT" />
+	<link rel="license" href="../LICENSE" />
+	<link rel="stylesheet" href="style.css" />
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.0/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
+	<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath fill='%23007ACC' d='M8 12h48v8H8zm0 16h32v8H8zm0 16h16v8H8z'/%3E%3C/svg%3E" />
+</head>
+<body>
+	<header>
+		<h1 id="title"></h1>
+	</header>
+
+	<section id="aggregate" hidden>
+		<div class="metrics">
+			<div class="metric">
+				<span class="label"><i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i> Payments Remaining</span>
+				<span class="value" id="aggPaymentsRemaining">0</span>
+			</div>
+			<div class="metric">
+				<span class="label"><i class="fa-solid fa-sack-dollar" aria-hidden="true"></i> Amount Remaining</span>
+				<span class="value" id="aggAmountRemaining">$0</span>
+			</div>
+			<div class="metric" id="aggPaidWrapper" hidden>
+				<span class="label"><i class="fa-solid fa-circle-dollar-to-slot" aria-hidden="true"></i> Amount Paid</span>
+				<span class="value" id="aggAmountPaid">$0</span>
+			</div>
+		</div>
+		<div class="progress-aggregate" id="aggProgressWrapper" hidden>
+			<div class="progress-bar" aria-hidden="true"><div class="progress-bar-fill" id="aggProgressFill"></div></div>
+			<div class="progress-label" id="aggProgressLabel"><i class="fa-solid fa-chart-line" aria-hidden="true"></i> <span class="progress-text"></span></div>
+		</div>
+	</section>
+
+	<section id="payments" aria-label="Payments list"></section>
+
+	<div class="toolbar below">
+		<button id="toggleFormBtn" type="button" class="primary"><i class="fa-solid fa-circle-plus" aria-hidden="true"></i> <span class="btn-text">Add Payment</span></button>
+	</div>
+
+	<section id="addPaymentSection" aria-label="Add payment" hidden>
+		<form id="paymentForm" novalidate autocomplete="off">
+			<fieldset>
+				<legend>Add Payment</legend>
+				<div class="field-group">
+					<label>
+						<span>Name (optional)</span>
+						<input type="text" name="name" maxlength="60" placeholder="e.g. Payment" autocomplete="off" />
+					</label>
+					<label>
+						<span>Amount (USD)</span>
+						<input type="number" name="amount" min="0" step="0.01" required placeholder="e.g. 500" autocomplete="off" />
+					</label>
+					<label>
+						<span>Day (1-28)</span>
+						<input type="number" name="day" min="1" max="28" required placeholder="e.g. 15" autocomplete="off" />
+					</label>
+					<label>
+						<span>Start Date (optional)</span>
+						<input type="date" name="start" autocomplete="off" />
+					</label>
+					<label>
+						<span>End Date</span>
+						<input type="date" name="end" required autocomplete="off" />
+					</label>
+				</div>
+				<div class="actions">
+					<button id="submitBtn" type="submit"><i class="fa-solid fa-floppy-disk" aria-hidden="true"></i> <span class="btn-text">Add</span></button>
+					<button type="reset" class="secondary" id="resetBtn"><i class="fa-solid fa-eraser" aria-hidden="true"></i> <span class="btn-text">Clear</span></button>
+					<button type="button" class="secondary" id="cancelEditBtn" hidden><i class="fa-solid fa-xmark" aria-hidden="true"></i> <span class="btn-text">Cancel</span></button>
+				</div>
+				<p id="formMessage" role="status" aria-live="polite" class="form-message"></p>
+			</fieldset>
+		</form>
+	</section>
+	<footer id="footnotes"></footer>
+
+	<script src="script.js" defer></script>
+</body>
+</html>
