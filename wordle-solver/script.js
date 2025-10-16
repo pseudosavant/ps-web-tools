@@ -11,6 +11,202 @@ let gameState = {
     hintsBlurred: true
 };
 
+// --- Wordle Grid support ---
+const GRID_ROWS = 6;
+const GRID_COLS = 5;
+const CELL_STATES = ['gray', 'yellow', 'green'];
+let __restoringUrl = false; // guard to prevent history churn during restore
+
+function getGridCells() {
+    return Array.from(document.querySelectorAll('.wordle-grid .grid-cell'));
+}
+
+function getCellIndex(cell) {
+    return {
+        row: parseInt(cell.getAttribute('data-row'), 10) || 0,
+        col: parseInt(cell.getAttribute('data-col'), 10) || 0
+    };
+}
+
+function clearCellState(cell) {
+    cell.classList.remove('cell-gray', 'cell-yellow', 'cell-green');
+    cell.removeAttribute('data-state');
+}
+
+function setCellState(cell, state) {
+    clearCellState(cell);
+    if (!state) return;
+    cell.setAttribute('data-state', state);
+    if (state === 'gray') cell.classList.add('cell-gray');
+    if (state === 'yellow') cell.classList.add('cell-yellow');
+    if (state === 'green') cell.classList.add('cell-green');
+}
+
+function getCellState(cell) {
+    return cell.getAttribute('data-state') || '';
+}
+
+function cycleCellState(cell) {
+    const current = getCellState(cell);
+    // If empty, initialize to gray on first click
+    if (!cell.value) return; // do not color empty cells
+    const idx = CELL_STATES.indexOf(current);
+    const next = CELL_STATES[(idx + 1) % CELL_STATES.length];
+    setCellState(cell, next);
+}
+
+function initializeGrid() {
+    const grid = document.querySelector('.wordle-grid');
+    if (!grid) return;
+
+    getGridCells().forEach((cell) => {
+        // Text input normalization and auto-advance
+        cell.addEventListener('input', (e) => {
+            const v = (e.target.value || '').toUpperCase().replace(/[^A-Z]/g, '');
+            e.target.value = v.slice(0, 1);
+            // Toggle has-letter class for cursor and styling
+            if (e.target.value) {
+                e.target.classList.add('has-letter');
+                // Default new letters to gray state unless already colored
+                if (!getCellState(e.target)) {
+                    setCellState(e.target, 'gray');
+                }
+            } else {
+                e.target.classList.remove('has-letter');
+                clearCellState(e.target);
+            }
+            // Move right on entry
+            if (e.target.value) {
+                const { row, col } = getCellIndex(e.target);
+                const nextCol = col + 1;
+                if (nextCol < GRID_COLS) {
+                    const next = grid.querySelector(`.grid-cell[data-row="${row}"][data-col="${nextCol}"]`);
+                    if (next) next.focus();
+                }
+            }
+            syncGridToInputs();
+        });
+
+        // Click to cycle color
+        cell.addEventListener('click', (e) => {
+            cycleCellState(e.currentTarget);
+            syncGridToInputs();
+        });
+
+        // Keyboard navigation within grid
+        cell.addEventListener('keydown', (e) => {
+            const { row, col } = getCellIndex(e.currentTarget);
+            switch (e.key) {
+                case 'Backspace':
+                    if (!e.currentTarget.value) {
+                        const prevCol = col - 1;
+                        if (prevCol >= 0) {
+                            const prev = grid.querySelector(`.grid-cell[data-row="${row}"][data-col="${prevCol}"]`);
+                            if (prev) prev.focus();
+                        }
+                    }
+                    // Clear state when emptied
+                    setTimeout(() => {
+                        if (!e.currentTarget.value) {
+                            clearCellState(e.currentTarget);
+                            e.currentTarget.classList.remove('has-letter');
+                        }
+                        syncGridToInputs();
+                    }, 0);
+                    break;
+                case 'ArrowLeft':
+                    e.preventDefault();
+                    if (col > 0) {
+                        const prev = grid.querySelector(`.grid-cell[data-row="${row}"][data-col="${col - 1}"]`);
+                        if (prev) prev.focus();
+                    }
+                    break;
+                case 'ArrowRight':
+                    e.preventDefault();
+                    if (col + 1 < GRID_COLS) {
+                        const next = grid.querySelector(`.grid-cell[data-row="${row}"][data-col="${col + 1}"]`);
+                        if (next) next.focus();
+                    }
+                    break;
+                case 'ArrowUp':
+                    e.preventDefault();
+                    if (row > 0) {
+                        const up = grid.querySelector(`.grid-cell[data-row="${row - 1}"][data-col="${col}"]`);
+                        if (up) up.focus();
+                    }
+                    break;
+                case 'ArrowDown':
+                    e.preventDefault();
+                    if (row + 1 < GRID_ROWS) {
+                        const down = grid.querySelector(`.grid-cell[data-row="${row + 1}"][data-col="${col}"]`);
+                        if (down) down.focus();
+                    }
+                    break;
+                case ' ': // space to cycle
+                    e.preventDefault();
+                    cycleCellState(e.currentTarget);
+                    syncGridToInputs();
+                    break;
+            }
+        });
+    });
+}
+
+// Convert grid content into existing inputs
+function syncGridToInputs() {
+    const cells = getGridCells();
+    if (!cells.length) return;
+
+    const greenByPos = Array(GRID_COLS).fill('');
+    const yellowByPos = Array.from({ length: GRID_COLS }, () => new Set());
+    const grayLetters = new Set();
+    const includedLetters = new Set(); // letters seen as green/yellow anywhere
+
+    // Process from top to bottom; last green for a column wins naturally if earlier empty
+        for (let row = 0; row < GRID_ROWS; row++) {
+        for (let col = 0; col < GRID_COLS; col++) {
+            const cell = document.querySelector(`.grid-cell[data-row="${row}"][data-col="${col}"]`);
+            if (!cell) continue;
+            const letter = (cell.value || '').toLowerCase();
+            if (!letter) continue;
+            const state = getCellState(cell);
+            if (state === 'green') {
+                greenByPos[col] = letter; // overwrite with the latest explicit green
+                includedLetters.add(letter);
+            } else if (state === 'yellow') {
+                yellowByPos[col].add(letter);
+                includedLetters.add(letter);
+            } else if (state === 'gray') {
+                grayLetters.add(letter);
+            }
+        }
+    }
+
+    // Apply to UI inputs
+    const greenInputs = document.querySelectorAll('#greenInputs .letter-input');
+    greenByPos.forEach((ch, i) => {
+        if (greenInputs[i]) greenInputs[i].value = ch.toUpperCase();
+    });
+
+    const yellowInputs = document.querySelectorAll('#yellowInputs .letter-input');
+    yellowByPos.forEach((set, i) => {
+        const str = Array.from(set).map(c => c.toUpperCase()).join('');
+        if (yellowInputs[i]) yellowInputs[i].value = str;
+    });
+
+    // Excluded letters are gray letters not already included as green/yellow
+    const excluded = Array.from(grayLetters)
+        .filter(ch => !includedLetters.has(ch))
+        .map(ch => ch.toUpperCase())
+        .join('');
+    const excludedInput = document.getElementById('excludedInput');
+    if (excludedInput) excludedInput.value = excluded;
+
+        analyzeWords();
+        // Keep URL in sync with grid content unless we're restoring
+        if (!__restoringUrl) updateUrl();
+}
+
 // Performance optimization: Pattern cache and word frequency data
 const patternCache = new Map();
 const COMMON_WORDS = new Set(['about', 'above', 'abuse', 'actor', 'acute', 'admit', 'adopt', 'adult', 'after', 'again', 'agent', 'agree', 'ahead', 'alarm', 'album', 'alert', 'alien', 'align', 'alike', 'alive', 'allow', 'alone', 'along', 'alter', 'among', 'anger', 'angle', 'angry', 'apart', 'apple', 'apply', 'arena', 'argue', 'arise', 'array', 'aside', 'asset', 'audio', 'audit', 'avoid', 'awake', 'award', 'aware', 'badly', 'baker', 'bases', 'basic', 'beach', 'began', 'begin', 'being', 'below', 'bench', 'billy', 'birth', 'black', 'blame', 'blind', 'block', 'blood', 'board', 'boost', 'booth', 'bound', 'brain', 'brand', 'brass', 'brave', 'bread', 'break', 'breed', 'brief', 'bring', 'broad', 'broke', 'brown', 'build', 'built', 'buyer', 'cable', 'calif', 'carry', 'catch', 'cause', 'chain', 'chair', 'chaos', 'charm', 'chart', 'chase', 'cheap', 'check', 'chest', 'chief', 'child', 'china', 'chose', 'civil', 'claim', 'class', 'clean', 'clear', 'click', 'climb', 'clock', 'close', 'cloud', 'coach', 'coast', 'could', 'count', 'court', 'cover', 'craft', 'crash', 'crazy', 'cream', 'crime', 'cross', 'crowd', 'crown', 'crude', 'curve', 'cycle', 'daily', 'dance', 'dated', 'dealt', 'death', 'debut', 'delay', 'depth', 'doing', 'doubt', 'dozen', 'draft', 'drama', 'drank', 'dream', 'dress', 'drill', 'drink', 'drive', 'drove', 'dying', 'eager', 'early', 'earth', 'eight', 'elite', 'empty', 'enemy', 'enjoy', 'enter', 'entry', 'equal', 'error', 'event', 'every', 'exact', 'exist', 'extra', 'faith', 'false', 'fault', 'fiber', 'field', 'fifth', 'fifty', 'fight', 'final', 'first', 'fixed', 'flash', 'fleet', 'floor', 'fluid', 'focus', 'force', 'forth', 'forty', 'forum', 'found', 'frame', 'frank', 'fraud', 'fresh', 'front', 'fruit', 'fully', 'funny', 'giant', 'given', 'glass', 'globe', 'going', 'grace', 'grade', 'grand', 'grant', 'grass', 'grave', 'great', 'green', 'gross', 'group', 'grown', 'guard', 'guess', 'guest', 'guide', 'happy', 'harry', 'heart', 'heavy', 'hence', 'henry', 'horse', 'hotel', 'house', 'human', 'ideal', 'image', 'index', 'inner', 'input', 'issue', 'japan', 'jimmy', 'joint', 'jones', 'judge', 'known', 'label', 'large', 'laser', 'later', 'laugh', 'layer', 'learn', 'lease', 'least', 'leave', 'legal', 'level', 'lewis', 'light', 'limit', 'links', 'lives', 'local', 'loose', 'lower', 'lucky', 'lunch', 'lying', 'magic', 'major', 'maker', 'march', 'maria', 'match', 'maybe', 'mayor', 'meant', 'media', 'metal', 'might', 'minor', 'minus', 'mixed', 'model', 'money', 'month', 'moral', 'motor', 'mount', 'mouse', 'mouth', 'moved', 'movie', 'music', 'needs', 'never', 'newly', 'night', 'noise', 'north', 'noted', 'novel', 'nurse', 'occur', 'ocean', 'offer', 'often', 'order', 'other', 'ought', 'paint', 'panel', 'paper', 'party', 'peace', 'peter', 'phase', 'phone', 'photo', 'piano', 'piece', 'pilot', 'pitch', 'place', 'plain', 'plane', 'plant', 'plate', 'point', 'pound', 'power', 'press', 'price', 'pride', 'prime', 'print', 'prior', 'prize', 'proof', 'proud', 'prove', 'queen', 'quick', 'quiet', 'quite', 'radio', 'raise', 'range', 'rapid', 'ratio', 'reach', 'ready', 'realm', 'rebel', 'refer', 'relax', 'repay', 'reply', 'right', 'rigid', 'rival', 'river', 'robin', 'roger', 'roman', 'rough', 'round', 'route', 'royal', 'rural', 'scale', 'scene', 'scope', 'score', 'sense', 'serve', 'seven', 'shall', 'shape', 'share', 'sharp', 'sheet', 'shelf', 'shell', 'shift', 'shine', 'shirt', 'shock', 'shoot', 'short', 'shown', 'sides', 'sight', 'simon', 'sixth', 'sixty', 'sized', 'skill', 'sleep', 'slide', 'small', 'smart', 'smile', 'smith', 'smoke', 'snake', 'snow', 'solid', 'solve', 'sorry', 'sound', 'south', 'space', 'spare', 'speak', 'speed', 'spend', 'spent', 'split', 'spoke', 'sport', 'staff', 'stage', 'stake', 'stand', 'start', 'state', 'steam', 'steel', 'steep', 'steer', 'steve', 'stick', 'still', 'stock', 'stone', 'stood', 'store', 'storm', 'story', 'strip', 'stuck', 'study', 'stuff', 'style', 'sugar', 'suite', 'super', 'sweet', 'table', 'taken', 'taste', 'taxes', 'teach', 'teams', 'teeth', 'terry', 'texas', 'thank', 'theft', 'their', 'theme', 'there', 'these', 'thick', 'thing', 'think', 'third', 'those', 'three', 'threw', 'throw', 'thumb', 'tiger', 'tight', 'timer', 'tired', 'title', 'today', 'topic', 'total', 'touch', 'tough', 'tower', 'track', 'trade', 'train', 'treat', 'trend', 'trial', 'tribe', 'trick', 'tried', 'tries', 'truck', 'truly', 'trunk', 'trust', 'truth', 'twice', 'twin', 'twist', 'tyler', 'ultra', 'uncle', 'under', 'undue', 'union', 'unity', 'until', 'upper', 'upset', 'urban', 'usage', 'usual', 'valid', 'value', 'video', 'virus', 'visit', 'vital', 'vocal', 'voice', 'waste', 'watch', 'water', 'wave', 'ways', 'weird', 'welcome', 'western', 'wheel', 'where', 'which', 'while', 'white', 'whole', 'whose', 'woman', 'women', 'world', 'worry', 'worse', 'worst', 'worth', 'would', 'write', 'wrong', 'wrote', 'young', 'youth']);
@@ -528,6 +724,7 @@ async function initializeApp() {
     await loadWordList();
     restoreValuesFromUrl();
     analyzeWords();
+    updateUrl();
 }
 
 // Start the app when page loads - but only if not in test environment
@@ -768,6 +965,13 @@ const debouncedAnalyze = debounce(analyzeWords, 100);
 function resetInputs() {
     const $inputs = [...document.querySelectorAll('input[type="text"]')];
     $inputs.forEach((input) => input.value = '');
+    // Clear grid cell states
+    document.querySelectorAll('.wordle-grid .grid-cell').forEach((cell) => {
+        cell.value = '';
+        cell.classList.remove('cell-gray', 'cell-yellow', 'cell-green');
+        cell.classList.remove('has-letter');
+        cell.removeAttribute('data-state');
+    });
     
     gameState = {
         greenLetters: ['', '', '', '', ''],
@@ -901,31 +1105,87 @@ function updateRemainingWords() {
 
 // URL state management
 function updateUrl() {
-    const values = getInputValues();
-    const query = values.map((value, idx) => `${idx}=${encodeURIComponent(value)}`).join('&');
-    const url = new URL(location);
-    url.search = query;
-    
-    history.pushState(values, null, url);
+    // Build ?guess=WORD&guess=WORD ... using only full 5-letter rows
+    const guesses = [];
+    for (let row = 0; row < GRID_ROWS; row++) {
+        let word = '';
+        for (let col = 0; col < GRID_COLS; col++) {
+            const cell = document.querySelector(`.grid-cell[data-row="${row}"][data-col="${col}"]`);
+            const ch = (cell && cell.value) ? cell.value.toUpperCase() : '';
+            word += ch;
+        }
+        if (word.length === 5 && /^[A-Z]{5}$/.test(word)) {
+            guesses.push(word);
+        }
+    }
+
+    const url = new URL(location.href);
+    url.search = '';
+    // For each full guess row, also include greens/yellows masks
+    guesses.forEach((g, row) => {
+        url.searchParams.append('guess', g);
+        let maskG = '';
+        let maskY = '';
+        for (let col = 0; col < GRID_COLS; col++) {
+            const cell = document.querySelector(`.grid-cell[data-row="${row}"][data-col="${col}"]`);
+            const state = cell ? (cell.getAttribute('data-state') || 'gray') : 'gray';
+            maskG += state === 'green' ? '1' : '0';
+            maskY += state === 'yellow' ? '1' : '0';
+        }
+        url.searchParams.append('greens', maskG);
+        url.searchParams.append('yellows', maskY);
+    });
+    if (!__restoringUrl) {
+        history.pushState(guesses, '', url);
+    } else {
+        history.replaceState(guesses, '', url);
+    }
 }
 
 function restoreValuesFromUrl() {
-    const params = new URL(location).searchParams;
-    const entries = [...params.entries()];
-    const $inputs = [...document.querySelectorAll('input[type="text"]')];
-    
-    const arr = []
-    entries.forEach((entry) => {
-        const key = entry[0];
-        const value = decodeURIComponent(entry[1]);
-        arr[key] = value;
+    const params = new URL(location.href).searchParams;
+    const guesses = params.getAll('guess');
+    const greensList = params.getAll('greens');
+    const yellowsList = params.getAll('yellows');
+
+    // Clear grid first
+    document.querySelectorAll('.wordle-grid .grid-cell').forEach((cell) => {
+        cell.value = '';
+        cell.classList.remove('has-letter', 'cell-gray', 'cell-yellow', 'cell-green');
+        cell.removeAttribute('data-state');
     });
-    
-    restoreInputValues(arr);
+
+    // Apply guesses row-by-row with optional greens/yellows masks
+    __restoringUrl = true;
+    guesses.slice(0, GRID_ROWS).forEach((g, row) => {
+        const word = (g || '').toUpperCase().replace(/[^A-Z]/g, '').slice(0, 5);
+        const gMask = (greensList[row] || '').replace(/[^01]/g, '').padEnd(5, '0').slice(0, 5);
+        const yMask = (yellowsList[row] || '').replace(/[^01]/g, '').padEnd(5, '0').slice(0, 5);
+        for (let col = 0; col < Math.min(word.length, GRID_COLS); col++) {
+            const cell = document.querySelector(`.grid-cell[data-row="${row}"][data-col="${col}"]`);
+            if (!cell) continue;
+            cell.value = word[col];
+            cell.classList.add('has-letter');
+            // Set state per masks; default to gray
+            cell.classList.remove('cell-gray', 'cell-yellow', 'cell-green');
+            cell.removeAttribute('data-state');
+            if (gMask[col] === '1') {
+                setCellState(cell, 'green');
+            } else if (yMask[col] === '1') {
+                setCellState(cell, 'yellow');
+            } else if (cell.value) {
+                setCellState(cell, 'gray');
+            }
+        }
+    });
+
+    // After restoring guesses, sync to inputs and analyze
+    syncGridToInputs();
+    __restoringUrl = false;
 }
 
 function getInputValues() {
-    const $inputs = [...document.querySelectorAll('input[type="text"]')];
+    const $inputs = [...document.querySelectorAll('input[type="text"]:not(.grid-cell)')];
     const values = $inputs.map(($el) => $el.value);
     
     return values;
@@ -933,7 +1193,7 @@ function getInputValues() {
 
 function restoreInputValues(values) {
     if (values && values.length > 0) {
-        const $inputs = [...document.querySelectorAll('input[type="text"]')];
+        const $inputs = [...document.querySelectorAll('input[type="text"]:not(.grid-cell)')];
         values.forEach((value, idx) => $inputs[idx].value = value);
     }
 }
@@ -967,7 +1227,7 @@ function tabAdvance(amount = 1) {
 }
 
 function registerTabHandling() {
-    [...document.querySelectorAll("input")].forEach((input) => {
+    [...document.querySelectorAll("input:not(.grid-cell)")].forEach((input) => {
         input.onkeydown = (e) => {
             if (e.key === "Enter" || e.key === "Tab") {
                 e.preventDefault();
@@ -978,8 +1238,8 @@ function registerTabHandling() {
                     tabAdvance(1);
                 }
                 
+                // Keep URL derived from grid only
                 updateUrl();
-                restoreValuesFromUrl();
             }
         };
     });
@@ -1064,7 +1324,7 @@ function hideShortcuts() {
 // Setup all event listeners
 function setupEventListeners() {
     // Input change listeners - check if elements exist first
-    const textInputs = document.querySelectorAll('input[type="text"]');
+    const textInputs = document.querySelectorAll('input[type="text"]:not(.grid-cell)');
     if (textInputs.length > 0) {
         textInputs.forEach((input) => input.oninput = debouncedAnalyze);
     }
@@ -1100,6 +1360,9 @@ function setupEventListeners() {
 
     // Tab handling
     registerTabHandling();
+
+    // Initialize Wordle grid interactions
+    initializeGrid();
 }
 
 // Initialize Web Worker when app starts

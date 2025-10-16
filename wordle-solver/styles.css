@@ -121,6 +121,88 @@ input, textarea {
     margin-bottom: 20px;
 }
 
+/* Wordle-style grid */
+.wordle-grid-section .input-help { margin-bottom: 10px; }
+
+.wordle-grid {
+    --cell-size: 56px;
+    --cell-gap: 6px;
+    display: grid;
+    grid-auto-rows: var(--cell-size);
+    gap: var(--cell-gap);
+    user-select: none;
+}
+
+.grid-row {
+    display: grid;
+    grid-template-columns: repeat(5, var(--cell-size));
+    gap: var(--cell-gap);
+    justify-content: start; /* prevent stretching and excess whitespace */
+}
+
+.grid-cell {
+    width: var(--cell-size);
+    height: var(--cell-size);
+    border: 2px solid #d3d6da;
+    border-radius: 6px;
+    text-align: center;
+    font-size: 1.4rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    background: #fff;
+    transition: all 0.2s ease;
+    caret-color: #6AAA64;
+    cursor: text; /* default when empty for typing */
+    user-select: none;
+}
+
+/* When a cell has a letter, show a clickable cursor to imply color-cycling */
+.grid-cell.has-letter { cursor: pointer; }
+
+.grid-cell:focus {
+    outline: none;
+    border-color: #6AAA64;
+    box-shadow: 0 0 0 3px rgba(106, 170, 100, 0.25);
+}
+
+/* Cell states */
+.grid-cell:not(.has-letter).cell-gray,
+.grid-cell:not(.has-letter).cell-yellow,
+.grid-cell:not(.has-letter).cell-green {
+    /* If no letter, don't show colored backgrounds */
+    background: #fff;
+    color: inherit;
+    border-color: #d3d6da;
+}
+
+.cell-gray {
+    background: #787c7e;
+    color: #fff;
+    border-color: #787c7e;
+}
+
+.cell-yellow {
+    background: #c9b458;
+    color: #fff;
+    border-color: #c9b458;
+}
+
+.cell-green {
+    background: #6aaa64;
+    color: #fff;
+    border-color: #6aaa64;
+}
+
+@media (max-width: 768px) {
+    .wordle-grid { --cell-size: 46px; }
+    .grid-cell { font-size: 1.2rem; }
+}
+
+@media (max-width: 480px) {
+    .wordle-grid { --cell-size: 40px; }
+    .grid-cell { font-size: 1rem; }
+}
+
 .input-group label {
     display: flex;
     align-items: center;

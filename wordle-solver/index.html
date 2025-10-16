@@ -32,7 +32,59 @@
 
         <div class="main-content">
             <div class="input-section">
-                <div class="input-group">
+                <!-- Wordle-style 5x6 guess grid -->
+                <div class="input-group wordle-grid-section">
+                    <label><i class="fas fa-table-cells-large" style="color: #4CAF50;"></i> Guess Grid</label>
+                    <div class="input-help">Click cells to cycle colors (gray → yellow → green). Type letters just like in Wordle.</div>
+                    <div class="wordle-grid" role="grid" aria-label="Wordle guess grid" data-rows="6" data-cols="5">
+                        <!-- 6 rows × 5 columns -->
+                        <div class="grid-row" role="row" data-row="0">
+                            <input role="gridcell" aria-label="Row 1, Col 1" class="grid-cell" maxlength="1" data-row="0" data-col="0" type="text" inputmode="latin" autocomplete="off" />
+                            <input role="gridcell" aria-label="Row 1, Col 2" class="grid-cell" maxlength="1" data-row="0" data-col="1" type="text" inputmode="latin" autocomplete="off" />
+                            <input role="gridcell" aria-label="Row 1, Col 3" class="grid-cell" maxlength="1" data-row="0" data-col="2" type="text" inputmode="latin" autocomplete="off" />
+                            <input role="gridcell" aria-label="Row 1, Col 4" class="grid-cell" maxlength="1" data-row="0" data-col="3" type="text" inputmode="latin" autocomplete="off" />
+                            <input role="gridcell" aria-label="Row 1, Col 5" class="grid-cell" maxlength="1" data-row="0" data-col="4" type="text" inputmode="latin" autocomplete="off" />
+                        </div>
+                        <div class="grid-row" role="row" data-row="1">
+                            <input role="gridcell" aria-label="Row 2, Col 1" class="grid-cell" maxlength="1" data-row="1" data-col="0" type="text" inputmode="latin" autocomplete="off" />
+                            <input role="gridcell" aria-label="Row 2, Col 2" class="grid-cell" maxlength="1" data-row="1" data-col="1" type="text" inputmode="latin" autocomplete="off" />
+                            <input role="gridcell" aria-label="Row 2, Col 3" class="grid-cell" maxlength="1" data-row="1" data-col="2" type="text" inputmode="latin" autocomplete="off" />
+                            <input role="gridcell" aria-label="Row 2, Col 4" class="grid-cell" maxlength="1" data-row="1" data-col="3" type="text" inputmode="latin" autocomplete="off" />
+                            <input role="gridcell" aria-label="Row 2, Col 5" class="grid-cell" maxlength="1" data-row="1" data-col="4" type="text" inputmode="latin" autocomplete="off" />
+                        </div>
+                        <div class="grid-row" role="row" data-row="2">
+                            <input role="gridcell" aria-label="Row 3, Col 1" class="grid-cell" maxlength="1" data-row="2" data-col="0" type="text" inputmode="latin" autocomplete="off" />
+                            <input role="gridcell" aria-label="Row 3, Col 2" class="grid-cell" maxlength="1" data-row="2" data-col="1" type="text" inputmode="latin" autocomplete="off" />
+                            <input role="gridcell" aria-label="Row 3, Col 3" class="grid-cell" maxlength="1" data-row="2" data-col="2" type="text" inputmode="latin" autocomplete="off" />
+                            <input role="gridcell" aria-label="Row 3, Col 4" class="grid-cell" maxlength="1" data-row="2" data-col="3" type="text" inputmode="latin" autocomplete="off" />
+                            <input role="gridcell" aria-label="Row 3, Col 5" class="grid-cell" maxlength="1" data-row="2" data-col="4" type="text" inputmode="latin" autocomplete="off" />
+                        </div>
+                        <div class="grid-row" role="row" data-row="3">
+                            <input role="gridcell" aria-label="Row 4, Col 1" class="grid-cell" maxlength="1" data-row="3" data-col="0" type="text" inputmode="latin" autocomplete="off" />
+                            <input role="gridcell" aria-label="Row 4, Col 2" class="grid-cell" maxlength="1" data-row="3" data-col="1" type="text" inputmode="latin" autocomplete="off" />
+                            <input role="gridcell" aria-label="Row 4, Col 3" class="grid-cell" maxlength="1" data-row="3" data-col="2" type="text" inputmode="latin" autocomplete="off" />
+                            <input role="gridcell" aria-label="Row 4, Col 4" class="grid-cell" maxlength="1" data-row="3" data-col="3" type="text" inputmode="latin" autocomplete="off" />
+                            <input role="gridcell" aria-label="Row 4, Col 5" class="grid-cell" maxlength="1" data-row="3" data-col="4" type="text" inputmode="latin" autocomplete="off" />
+                        </div>
+                        <div class="grid-row" role="row" data-row="4">
+                            <input role="gridcell" aria-label="Row 5, Col 1" class="grid-cell" maxlength="1" data-row="4" data-col="0" type="text" inputmode="latin" autocomplete="off" />
+                            <input role="gridcell" aria-label="Row 5, Col 2" class="grid-cell" maxlength="1" data-row="4" data-col="1" type="text" inputmode="latin" autocomplete="off" />
+                            <input role="gridcell" aria-label="Row 5, Col 3" class="grid-cell" maxlength="1" data-row="4" data-col="2" type="text" inputmode="latin" autocomplete="off" />
+                            <input role="gridcell" aria-label="Row 5, Col 4" class="grid-cell" maxlength="1" data-row="4" data-col="3" type="text" inputmode="latin" autocomplete="off" />
+                            <input role="gridcell" aria-label="Row 5, Col 5" class="grid-cell" maxlength="1" data-row="4" data-col="4" type="text" inputmode="latin" autocomplete="off" />
+                        </div>
+                        <div class="grid-row" role="row" data-row="5">
+                            <input role="gridcell" aria-label="Row 6, Col 1" class="grid-cell" maxlength="1" data-row="5" data-col="0" type="text" inputmode="latin" autocomplete="off" />
+                            <input role="gridcell" aria-label="Row 6, Col 2" class="grid-cell" maxlength="1" data-row="5" data-col="1" type="text" inputmode="latin" autocomplete="off" />
+                            <input role="gridcell" aria-label="Row 6, Col 3" class="grid-cell" maxlength="1" data-row="5" data-col="2" type="text" inputmode="latin" autocomplete="off" />
+                            <input role="gridcell" aria-label="Row 6, Col 4" class="grid-cell" maxlength="1" data-row="5" data-col="3" type="text" inputmode="latin" autocomplete="off" />
+                            <input role="gridcell" aria-label="Row 6, Col 5" class="grid-cell" maxlength="1" data-row="5" data-col="4" type="text" inputmode="latin" autocomplete="off" />
+                        </div>
+                    </div>
+                </div>
+                <!-- End Wordle-style grid -->
+
+                <div class="input-group" style="display: none;">
                     <label><i class="fas fa-check-circle" style="color: #4CAF50;"></i> Exact Positions (Green)</label>
                     <div class="input-help">Letters in correct positions</div>
                     <div class="letter-inputs" id="greenInputs">
@@ -44,7 +96,7 @@
                     </div>
                 </div>
 
-                <div class="input-group">
+                <div class="input-group" style="display: none;">
                     <label><i class="fas fa-exclamation-circle" style="color: #FF9800;"></i> Wrong Positions (Yellow)</label>
                     <div class="input-help">Letters in word but wrong positions (can enter multiple per box)</div>
                     <div class="letter-inputs" id="yellowInputs">
@@ -56,7 +108,7 @@
                     </div>
                 </div>
 
-                <div class="input-group">
+                <div class="input-group" style="display: none;">
                     <label><i class="fas fa-times-circle" style="color: #f44336;"></i> Excluded Letters (Gray)</label>
                     <div class="input-help">Letters not in the word at all</div>
                     <input type="text" class="excluded-input not" id="excludedInput" placeholder="Enter excluded letters...">
