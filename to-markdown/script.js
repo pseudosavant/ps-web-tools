@@ -46,6 +46,15 @@ document.addEventListener('DOMContentLoaded', () => {
             .replace(/<!--[\s\S]*?-->/g, '');
     }
 
+    // Remove sticky header wrapper tables that lack data cells.
+    function removeEmptyTables(root) {
+        root.querySelectorAll('table').forEach(table => {
+            if (!table.querySelector('td')) {
+                table.remove();
+            }
+        });
+    }
+
     // Function to convert table to JSON structure
     function tableToJson(table) {
         const headers = [];
@@ -75,22 +84,30 @@ document.addEventListener('DOMContentLoaded', () => {
     function convertWithJsonTables(html, isSimple = false) {
         const div = document.createElement('div');
         div.innerHTML = isSimple ? stripStyles(html) : html;
-        
+        removeEmptyTables(div);
+        const placeholders = [];
+
         div.querySelectorAll('table').forEach(table => {
             const jsonData = tableToJson(table);
             if (jsonData) {
-                const pre = document.createElement('pre');
-                const code = document.createElement('code');
-                code.textContent = '```json\n' + 
-                    JSON.stringify(jsonData, null, 2) + 
-                    '\n```';
-                pre.appendChild(code);
-                table.replaceWith(pre);
+                const placeholderId = `@@JSON_TABLE_${placeholders.length}@@`;
+                placeholders.push('```json\n' + JSON.stringify(jsonData, null, 2) + '\n```');
+
+                const marker = document.createElement('p');
+                marker.textContent = placeholderId;
+                table.replaceWith(marker);
             }
         });
 
         const service = isSimple ? simpleTurndownService : fullTurndownService;
-        return service.turndown(div.innerHTML);
+        let markdown = service.turndown(div.innerHTML);
+
+        placeholders.forEach((block, index) => {
+            const id = `@@JSON_TABLE_${index}@@`;
+            markdown = markdown.replace(id, block);
+        });
+
+        return markdown;
     }
 
     const baseConfig = {
@@ -110,8 +127,118 @@ document.addEventListener('DOMContentLoaded', () => {
         strongDelimiter: '*'
     });
 
+    // Helpers to tailor Turndown output for list-heavy content.
+    function isListParagraph(node) {
+        return Boolean(node && node.nodeName === 'P' && node.parentNode && node.parentNode.nodeName === 'LI');
+    }
+
+    function nextRenderableSibling(node) {
+        let sibling = node ? node.nextSibling : null;
+        while (sibling) {
+            if (sibling.nodeType === 3) {
+                if (sibling.textContent.trim()) {
+                    return sibling;
+                }
+            } else if (sibling.nodeType === 1) {
+                if (!['SCRIPT', 'STYLE'].includes(sibling.nodeName)) {
+                    if (sibling.nodeName === 'BR') {
+                        sibling = sibling.nextSibling;
+                        continue;
+                    }
+                    return sibling;
+                }
+            }
+            sibling = sibling.nextSibling;
+        }
+        return null;
+    }
+
+    // Configure tighter list output to avoid unwanted blank lines.
+    function configureTightListRules(service) {
+        service.addRule('listParagraphSpacing', {
+            filter: function(node) {
+                return isListParagraph(node);
+            },
+            replacement: function(content, node) {
+                const trimmed = content.trim();
+                const next = nextRenderableSibling(node);
+
+                if (!next) {
+                    return trimmed;
+                }
+
+                if (next.nodeType === 1 && ['UL', 'OL'].includes(next.nodeName)) {
+                    return trimmed;
+                }
+
+                if (next.nodeType === 1 && next.nodeName === 'P') {
+                    return trimmed + '\n\n';
+                }
+
+                return trimmed + '\n';
+            }
+        });
+
+        service.addRule('tightListItem', {
+            filter: 'li',
+            replacement: function(content, node, options) {
+                const normalizedContent = content
+                    .replace(/^[\n\s]+/, '')
+                    .replace(/[\n\s]+$/, '')
+                    .replace(/\n{3,}/g, '\n\n');
+
+                let prefix = options.bulletListMarker + ' ';
+                const parent = node.parentNode;
+                if (parent && parent.nodeName === 'OL') {
+                    const start = parent.getAttribute('start');
+                    const index = Array.prototype.indexOf.call(parent.children, node);
+                    const base = start ? Number(start) + index : index + 1;
+                    prefix = base + '. ';
+                }
+
+                const indent = ' '.repeat(prefix.length);
+                const indentedContent = normalizedContent
+                    .split('\n')
+                    .map((line, lineIndex) => {
+                        if (lineIndex === 0) {
+                            return line;
+                        }
+                        if (!line.trim()) {
+                            return '';
+                        }
+                        return indent + line;
+                    })
+                    .join('\n');
+
+                return prefix + indentedContent + '\n';
+            }
+        });
+
+        service.addRule('tightList', {
+            filter: ['ul', 'ol'],
+            replacement: function(content, node) {
+                const compacted = content
+                    .replace(/\n{3,}/g, '\n\n')
+                    .replace(/^\n+/, '')
+                    .replace(/\n+$/, '\n');
+
+                const isNested = node.parentNode && node.parentNode.nodeName === 'LI';
+                if (isNested) {
+                    return '\n' + compacted;
+                }
+
+                return '\n' + compacted + '\n';
+            }
+        });
+    }
+
+    configureTightListRules(fullTurndownService);
+    configureTightListRules(simpleTurndownService);
+
     // Table rules for both services
     [fullTurndownService, simpleTurndownService].forEach((service, isSimple) => {
+        const simpleMode = Boolean(isSimple);
+
         service.addRule('tableCell', {
             filter: ['th', 'td'],
             replacement: function(content, node) {
@@ -128,24 +255,44 @@ document.addEventListener('DOMContentLoaded', () => {
 
         service.addRule('table', {
             filter: 'table',
-            replacement: function(content, node) {
-                const rows = node.querySelectorAll('tr');
-                if (!rows.length) return content;
-
-                let output = '\n';
-                const headerCells = rows[0].querySelectorAll('th, td');
-                const separator = '|' + Array(headerCells.length + 1).join(' --- |');
-
-                output += content;
-                if (!output.includes('---')) {
-                    const firstLineEnd = output.indexOf('\n');
-                    output = output.slice(0, firstLineEnd + 1) + 
-                            separator + '\n' + 
-                            output.slice(firstLineEnd + 1);
+            replacement: function(_, node) {
+                const rows = Array.from(node.querySelectorAll('tr'));
+                if (!rows.length) {
+                    return '\n';
                 }
-                output = output.replace(/\n+$/, '\n');
-                output = output.replace(/^\n+/, '\n');
-                return output;
+
+                const extractCells = (row) => Array.from(row.querySelectorAll('th, td'));
+                const headerCells = extractCells(rows[0]);
+                const columnCounts = rows.map(row => extractCells(row).length);
+                const maxColumns = Math.max(headerCells.length, ...columnCounts, 1);
+
+                const normalizeCell = (cell) => {
+                    if (!cell) return '';
+                    if (simpleMode) {
+                        return cell.textContent.replace(/\s+/g, ' ').trim().replace(/\|/g, '\\|');
+                    }
+                    const raw = service.turndown(cell.innerHTML);
+                    const withBreaks = raw
+                        .split(/\n+/)
+                        .map(part => part.trim())
+                        .filter(part => part.length)
+                        .join('<br>');
+                    return withBreaks.replace(/\|/g, '\\|');
+                };
+
+                const buildRow = (cells) => {
+                    const normalized = cells.map(normalizeCell);
+                    while (normalized.length < maxColumns) {
+                        normalized.push('');
+                    }
+                    return '| ' + normalized.join(' | ') + ' |';
+                };
+
+                const headerLine = buildRow(headerCells);
+                const separatorLine = '| ' + Array(maxColumns).fill('---').join(' | ') + ' |';
+                const bodyLines = rows.slice(1).map(row => buildRow(extractCells(row)));
+
+                return '\n' + [headerLine, separatorLine, ...bodyLines].join('\n') + '\n';
             }
         });
     });
@@ -173,10 +320,15 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             const service = simpleModeToggle.checked ? simpleTurndownService : fullTurndownService;
             const html = simpleModeToggle.checked ? stripStyles(editor.innerHTML) : editor.innerHTML;
-            markdown = service.turndown(html);
+            const wrapper = document.createElement('div');
+            wrapper.innerHTML = html;
+            removeEmptyTables(wrapper);
+            markdown = service.turndown(wrapper.innerHTML);
         }
         
-        output.textContent = markdown.replace(/\n\n+/g, '\n\n').trim();
+        output.textContent = markdown
+            .replace(/\n{3,}/g, '\n\n')
+            .trim();
     }
 
     // Handle paste with auto-convert

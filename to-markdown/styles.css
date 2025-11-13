@@ -52,13 +52,10 @@ body {
   margin: 0;
 }
 
-.section {
-    /* margin-bottom: 2rem; */
-}
-
 #editor, #output {
     max-height: 35vh;
     overflow-y: auto;
+    overflow-x: auto;
     border: 2px solid var(--border-color);
     border-radius: 4px;
     padding: 1rem;
@@ -77,6 +74,24 @@ body {
     content: "Paste your rich text here... Auto-converts as you type!";
     color: #999;
     font-style: italic;
+}
+
+#editor {
+    position: relative;
+    contain: layout paint;
+}
+
+#editor * {
+    max-width: 100%;
+    box-sizing: border-box;
+}
+
+#editor [style*="position:sticky"],
+#editor [style*="position: sticky"],
+#editor [class*="sticky"],
+#editor .pm-table-sticky-wrapper,
+#editor .pm-table-sticky-scrollbar-container-view-page {
+    position: static !important;
 }
 
 #output {
