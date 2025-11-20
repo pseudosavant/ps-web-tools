@@ -1,0 +1,17 @@
+{
+    "name": "Image to PDF",
+    "short_name": "ImagePDF",
+    "start_url": "./index.html",
+    "display": "standalone",
+    "background_color": "#1d3557",
+    "theme_color": "#1d3557",
+    "description": "Arrange PNG/JPEG images, optimize them, and create a multi-page PDF entirely offline.",
+    "icons": [
+        {
+            "src": "favicon.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "any"
+        }
+    ]
+}
