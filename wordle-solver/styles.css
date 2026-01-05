@@ -153,7 +153,14 @@ input, textarea {
     transition: all 0.2s ease;
     caret-color: #6AAA64;
     cursor: text; /* default when empty for typing */
+    /* Prevent text selection while clicking to cycle colors */
     user-select: none;
+    -webkit-user-select: none;
+    -ms-user-select: none;
+}
+
+.grid-cell::selection {
+    background: transparent;
 }
 
 /* When a cell has a letter, show a clickable cursor to imply color-cycling */
@@ -161,8 +168,9 @@ input, textarea {
 
 .grid-cell:focus {
     outline: none;
-    border-color: #6AAA64;
-    box-shadow: 0 0 0 3px rgba(106, 170, 100, 0.25);
+    /* High-contrast focus ring (avoid green/yellow/gray) */
+    border-color: #2563eb;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.45);
 }
 
 /* Cell states */
