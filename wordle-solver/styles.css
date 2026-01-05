@@ -604,7 +604,8 @@ input, textarea {
 
 /* Blur effect for hint content */
 .word-hints-section .word-list,
-.word-hints-section .heatmap {
+.word-hints-section .heatmap,
+.word-hints-section .frequency-chart {
     filter: blur(4px);
     transition: filter 0.1s ease;
     cursor: pointer;
@@ -612,18 +613,21 @@ input, textarea {
 }
 
 .word-hints-section .word-list:hover,
-.word-hints-section .heatmap:hover {
+.word-hints-section .heatmap:hover,
+.word-hints-section .frequency-chart:hover {
     filter: blur(0px);
 }
 
 /* When hints are unblurred */
 .word-hints-section.unblurred .word-list,
-.word-hints-section.unblurred .heatmap {
+.word-hints-section.unblurred .heatmap,
+.word-hints-section.unblurred .frequency-chart {
     filter: blur(0px);
 }
 
 .word-hints-section.unblurred .word-list:hover,
-.word-hints-section.unblurred .heatmap:hover {
+.word-hints-section.unblurred .heatmap:hover,
+.word-hints-section.unblurred .frequency-chart:hover {
     filter: blur(0px);
 }
 
