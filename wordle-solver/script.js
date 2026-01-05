@@ -60,6 +60,12 @@ function initializeGrid() {
     if (!grid) return;
 
     getGridCells().forEach((cell) => {
+        // Prevent mouse selection highlight while still allowing focus
+        cell.addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            e.currentTarget.focus();
+        });
+
         // Text input normalization and auto-advance
         cell.addEventListener('input', (e) => {
             const v = (e.target.value || '').toUpperCase().replace(/[^A-Z]/g, '');
@@ -82,6 +88,13 @@ function initializeGrid() {
                 if (nextCol < GRID_COLS) {
                     const next = grid.querySelector(`.grid-cell[data-row="${row}"][data-col="${nextCol}"]`);
                     if (next) next.focus();
+                } else {
+                    // Wrap to next row, first column
+                    const nextRow = row + 1;
+                    if (nextRow < GRID_ROWS) {
+                        const next = grid.querySelector(`.grid-cell[data-row="${nextRow}"][data-col="0"]`);
+                        if (next) next.focus();
+                    }
                 }
             }
             syncGridToInputs();
@@ -95,21 +108,29 @@ function initializeGrid() {
 
         // Keyboard navigation within grid
         cell.addEventListener('keydown', (e) => {
-            const { row, col } = getCellIndex(e.currentTarget);
+            const currentCell = e.currentTarget;
+            const { row, col } = getCellIndex(currentCell);
             switch (e.key) {
                 case 'Backspace':
-                    if (!e.currentTarget.value) {
+                    if (!currentCell.value) {
                         const prevCol = col - 1;
                         if (prevCol >= 0) {
                             const prev = grid.querySelector(`.grid-cell[data-row="${row}"][data-col="${prevCol}"]`);
                             if (prev) prev.focus();
+                        } else {
+                            // Wrap to previous row, last column
+                            const prevRow = row - 1;
+                            if (prevRow >= 0) {
+                                const prev = grid.querySelector(`.grid-cell[data-row="${prevRow}"][data-col="${GRID_COLS - 1}"]`);
+                                if (prev) prev.focus();
+                            }
                         }
                     }
                     // Clear state when emptied
                     setTimeout(() => {
-                        if (!e.currentTarget.value) {
-                            clearCellState(e.currentTarget);
-                            e.currentTarget.classList.remove('has-letter');
+                        if (!currentCell.value) {
+                            clearCellState(currentCell);
+                            currentCell.classList.remove('has-letter');
                         }
                         syncGridToInputs();
                     }, 0);
@@ -119,6 +140,13 @@ function initializeGrid() {
                     if (col > 0) {
                         const prev = grid.querySelector(`.grid-cell[data-row="${row}"][data-col="${col - 1}"]`);
                         if (prev) prev.focus();
+                    } else {
+                        // Wrap to previous row, last column
+                        const prevRow = row - 1;
+                        if (prevRow >= 0) {
+                            const prev = grid.querySelector(`.grid-cell[data-row="${prevRow}"][data-col="${GRID_COLS - 1}"]`);
+                            if (prev) prev.focus();
+                        }
                     }
                     break;
                 case 'ArrowRight':
@@ -126,6 +154,13 @@ function initializeGrid() {
                     if (col + 1 < GRID_COLS) {
                         const next = grid.querySelector(`.grid-cell[data-row="${row}"][data-col="${col + 1}"]`);
                         if (next) next.focus();
+                    } else {
+                        // Wrap to next row, first column
+                        const nextRow = row + 1;
+                        if (nextRow < GRID_ROWS) {
+                            const next = grid.querySelector(`.grid-cell[data-row="${nextRow}"][data-col="0"]`);
+                            if (next) next.focus();
+                        }
                     }
                     break;
                 case 'ArrowUp':
@@ -199,12 +234,20 @@ function syncGridToInputs() {
         .filter(ch => !includedLetters.has(ch))
         .map(ch => ch.toUpperCase())
         .join('');
-    const excludedInput = document.getElementById('excludedInput');
-    if (excludedInput) excludedInput.value = excluded;
 
+    // Persist constraints in state (no hidden legacy inputs required)
+    gameState.greenLetters = greenByPos;
+    gameState.yellowLetters = yellowByPos.map((set) => Array.from(set).join(''));
+    gameState.excludedLetters = excluded;
+
+    // Grid updates can happen on every keystroke; keep the UI responsive by
+    // debouncing the expensive analysis/render step. During URL restore, run
+    // immediately so history uses replaceState.
+    if (__restoringUrl) {
         analyzeWords();
-        // Keep URL in sync with grid content unless we're restoring
-        if (!__restoringUrl) updateUrl();
+    } else {
+        debouncedAnalyze();
+    }
 }
 
 // Performance optimization: Pattern cache and word frequency data
@@ -339,26 +382,21 @@ function updateWordHintsDisplay() {
     }
 }
 function getExactly() {
-    const chars = [...document.querySelectorAll('.exactly')]
-        .map((el) => el.value ? el.value : '.')
-        .join('');
-    return chars;
+    const letters = Array.isArray(gameState.greenLetters) ? gameState.greenLetters : ['', '', '', '', ''];
+    return letters.map((ch) => ch ? ch : '.').join('');
 }
 
 function getExactlyNot() {
-    const chars = [...document.querySelectorAll('.exactly-not')]
-        .map((el) => el.value ? `[^${el.value}]{1}` : '.')
+    const lettersByPos = Array.isArray(gameState.yellowLetters) ? gameState.yellowLetters : ['', '', '', '', ''];
+    return lettersByPos
+        .map((letters) => letters ? `[^${letters}]{1}` : '.')
         .join('');
-    return chars;
 }
 
 function createHasValue() {
-    const chars = [...document.querySelectorAll('.exactly, .exactly-not')]
-        .map((el) => el.value)
-        .join('')
-        .toLowerCase();
-
-    return uniqueChars(chars);
+    const greens = (Array.isArray(gameState.greenLetters) ? gameState.greenLetters : []).join('');
+    const yellows = (Array.isArray(gameState.yellowLetters) ? gameState.yellowLetters : []).join('');
+    return uniqueChars((greens + yellows).toLowerCase());
 }
 
 function uniqueChars(allChars) {
@@ -387,7 +425,7 @@ function filterWords() {
 
     const exactlyValue = getExactly().toLowerCase();
     const exactlyNotValue = getExactlyNot().toLowerCase();
-    const notValue = document.querySelector('.not').value.toLowerCase();
+    const notValue = (gameState.excludedLetters || '').toLowerCase();
     const hasValue = createHasValue();
     
     const exact = (s) => re(exactlyValue).test(s);
@@ -959,7 +997,9 @@ function analyzeWords() {
     updateUrl();
 }
 
-const debouncedAnalyze = debounce(analyzeWords, 100);
+// Debounced analysis for high-frequency input (typing/cycling in the grid)
+// Keep this >= 250ms to avoid lag while typing.
+const debouncedAnalyze = debounce(analyzeWords, 250);
 
 // Reset function
 function resetInputs() {
@@ -1292,9 +1332,11 @@ function handleGlobalShortcuts(event) {
     } 
     
     // Handle other shortcuts
-    if (!isInputFocused()) {
+    // Allow help to open even when an input has focus.
+    if (!event.ctrlKey && !event.altKey && !event.metaKey) {
         switch (event.key) {
             case '?':
+                event.preventDefault();
                 showShortcuts();
                 return;
         }
@@ -1343,9 +1385,8 @@ function setupEventListeners() {
 
     // Browser navigation
     window.onpopstate = (e) => {
-        const values = e.state;
-        restoreInputValues(values);
-        analyzeWords();
+        // Restore the grid from the URL parameters (guess/greens/yellows)
+        restoreValuesFromUrl();
     };
 
     // Modal close - check if modal exists

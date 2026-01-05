@@ -6,6 +6,8 @@ A sophisticated Wordle puzzle solver powered by information theory and strategic
 
 ### Core Functionality
 - **Real-time Analysis**: Solutions update as you type your constraints
+- **Wordle-style Guess Grid**: Type guesses directly into a 5×6 grid (like Wordle)
+- **Click/Space Color Cycling**: Mark each tile gray → yellow → green by clicking it or pressing Space
 - **Information Theory Optimization**: Suggests words that eliminate the most possibilities
 - **Multi-letter Yellow Support**: Enter multiple letters per position for complex scenarios
 - **Complete Word Database**: Uses the official Wordle word list (12,000+ words)
@@ -22,6 +24,7 @@ A sophisticated Wordle puzzle solver powered by information theory and strategic
 - **Responsive Design**: Optimized for desktop, tablet, and mobile
 - **Keyboard Shortcuts**: Fast navigation and control
 - **URL State Persistence**: Share puzzle states or bookmark progress
+- **Fast Grid Navigation**: Arrow keys move between tiles; typing and backspace wrap across rows
 
 ## 🚀 Getting Started
 
@@ -41,11 +44,11 @@ Simply visit the deployed application URL and start entering your Wordle constra
 ## 📱 How to Use
 
 ### Basic Workflow
-1. **Enter Green Letters**: Type confirmed letters in their correct positions
-2. **Enter Yellow Letters**: Type letters that are in the word but wrong position
-   - You can enter multiple letters per box (e.g., "AB" if both A and B were yellow in that position)
-3. **Enter Gray Letters**: Type letters that aren't in the word at all
-4. **View Suggestions**: See optimal next guesses and analysis
+1. **Enter Guesses in the Grid**: Type letters into the 5×6 grid just like Wordle
+2. **Set Tile Colors**:
+   - Click a filled tile (or press `Space`) to cycle: gray → yellow → green
+   - Empty tiles don’t get colored
+3. **View Suggestions**: See optimal next guesses and analysis
 
 ### Hint System
 - **Blur Mode (Default)**: Hints are visible but blurred to prevent spoilers
@@ -64,13 +67,16 @@ Simply visit the deployed application URL and start entering your Wordle constra
 |----------|---------|
 | `Ctrl + H` | Toggle hint blur |
 | `Ctrl + R` | Reset all inputs |
-| `Alt + Ctrl + G` | Focus green letters |
-| `Alt + Ctrl + Y` | Focus yellow letters |
-| `Alt + Ctrl + E` | Focus excluded letters |
-| `Tab` / `Enter` | Navigate between input sections |
-| `←` / `→` | Navigate within green/yellow sections |
-| `Backspace` | Smart navigation (moves to previous input when empty) |
 | `?` | Show keyboard shortcuts |
+
+### Guess Grid Keyboard Controls
+
+| Key | Action |
+|-----|--------|
+| `←` `→` `↑` `↓` | Move between tiles (Left/Right wraps across rows) |
+| `Space` | Cycle tile color (gray → yellow → green) |
+| Type letters | Auto-advances across row and wraps to the next row |
+| `Backspace` | Deletes letter; if empty, moves left and wraps to previous row |
 
 ## 🛠️ Technical Details
 
@@ -86,7 +92,7 @@ Simply visit the deployed application URL and start entering your Wordle constra
 - **PWA**: Installable on Android and iOS devices
 
 ### Performance
-- **Debounced Analysis**: 100ms delay prevents excessive calculations
+- **Debounced Analysis**: 250ms delay prevents excessive calculations while typing/cycling tiles
 - **Efficient Algorithms**: Information theory calculations optimized for real-time use
 - **Lazy Loading**: Large word lists loaded asynchronously
 - **Mobile Optimized**: Compact layouts and touch-friendly interfaces

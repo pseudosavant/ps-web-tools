@@ -84,36 +84,6 @@
                 </div>
                 <!-- End Wordle-style grid -->
 
-                <div class="input-group" style="display: none;">
-                    <label><i class="fas fa-check-circle" style="color: #4CAF50;"></i> Exact Positions (Green)</label>
-                    <div class="input-help">Letters in correct positions</div>
-                    <div class="letter-inputs" id="greenInputs">
-                        <input type="text" class="letter-input green exactly" maxlength="1" data-position="0">
-                        <input type="text" class="letter-input green exactly" maxlength="1" data-position="1">
-                        <input type="text" class="letter-input green exactly" maxlength="1" data-position="2">
-                        <input type="text" class="letter-input green exactly" maxlength="1" data-position="3">
-                        <input type="text" class="letter-input green exactly" maxlength="1" data-position="4">
-                    </div>
-                </div>
-
-                <div class="input-group" style="display: none;">
-                    <label><i class="fas fa-exclamation-circle" style="color: #FF9800;"></i> Wrong Positions (Yellow)</label>
-                    <div class="input-help">Letters in word but wrong positions (can enter multiple per box)</div>
-                    <div class="letter-inputs" id="yellowInputs">
-                        <input type="text" class="letter-input yellow exactly-not" data-position="0" placeholder="AB">
-                        <input type="text" class="letter-input yellow exactly-not" data-position="1" placeholder="CD">
-                        <input type="text" class="letter-input yellow exactly-not" data-position="2" placeholder="EF">
-                        <input type="text" class="letter-input yellow exactly-not" data-position="3" placeholder="GH">
-                        <input type="text" class="letter-input yellow exactly-not" data-position="4" placeholder="IJ">
-                    </div>
-                </div>
-
-                <div class="input-group" style="display: none;">
-                    <label><i class="fas fa-times-circle" style="color: #f44336;"></i> Excluded Letters (Gray)</label>
-                    <div class="input-help">Letters not in the word at all</div>
-                    <input type="text" class="excluded-input not" id="excludedInput" placeholder="Enter excluded letters...">
-                </div>
-
                 <div class="controls">
                     <button class="btn btn-secondary reset" onclick="resetInputs()">
                         <i class="fas fa-undo"></i> Reset
@@ -198,27 +168,19 @@
                 <span class="shortcut-key">Ctrl + H</span>
             </div>
             <div class="shortcut-item">
-                <span>Focus green letters</span>
-                <span class="shortcut-key">Alt + Ctrl + G</span>
+                <span>Move between tiles</span>
+                <span class="shortcut-key">← / → / ↑ / ↓</span>
             </div>
             <div class="shortcut-item">
-                <span>Focus yellow letters</span>
-                <span class="shortcut-key">Alt + Ctrl + Y</span>
+                <span>Cycle tile color</span>
+                <span class="shortcut-key">Space</span>
             </div>
             <div class="shortcut-item">
-                <span>Focus excluded letters</span>
-                <span class="shortcut-key">Alt + Ctrl + E</span>
+                <span>Type letters (auto-advance + wrap)</span>
+                <span class="shortcut-key">A–Z</span>
             </div>
             <div class="shortcut-item">
-                <span>Navigate between inputs</span>
-                <span class="shortcut-key">Tab / Enter</span>
-            </div>
-            <div class="shortcut-item">
-                <span>Navigate within green/yellow</span>
-                <span class="shortcut-key">← / → Arrow Keys</span>
-            </div>
-            <div class="shortcut-item">
-                <span>Smart backspace navigation</span>
+                <span>Delete / move back (wrap)</span>
                 <span class="shortcut-key">Backspace</span>
             </div>
             <div class="shortcut-item">
