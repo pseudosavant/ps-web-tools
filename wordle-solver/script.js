@@ -1517,6 +1517,16 @@ function setupEventListeners() {
     initializeGrid();
 }
 
+function focusFirstGridCellIfEmpty() {
+    const cells = getGridCells();
+    if (!cells.length) return;
+    const hasAnyValue = cells.some((cell) => (cell.value || '').trim().length > 0);
+    if (!hasAnyValue) {
+        const first = document.querySelector('.grid-cell[data-row="0"][data-col="0"]');
+        if (first) first.focus();
+    }
+}
+
 // Initialize Web Worker when app starts
 async function initializeApp() {
     // Check if we're in a test environment - don't initialize if so
@@ -1537,6 +1547,7 @@ async function initializeApp() {
     
     await loadWordList();
     restoreValuesFromUrl();
+    focusFirstGridCellIfEmpty();
     analyzeWords();
 }
 
