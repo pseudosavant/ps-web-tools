@@ -8,6 +8,7 @@ let gameState = {
     optimalGuesses: [],
     letterFrequency: {},
     positionFrequency: [{}, {}, {}, {}, {}],
+    positionTotals: [0, 0, 0, 0, 0],
     hintsBlurred: true
 };
 
@@ -16,6 +17,12 @@ const GRID_ROWS = 6;
 const GRID_COLS = 5;
 const CELL_STATES = ['gray', 'yellow', 'green'];
 let __restoringUrl = false; // guard to prevent history churn during restore
+const rowRemainingCache = {
+    signatures: Array(GRID_ROWS).fill(''),
+    remaining: Array(GRID_ROWS).fill(null)
+};
+const gridCellCache = Array.from({ length: GRID_ROWS }, () => Array(GRID_COLS).fill(null));
+let rowRemainingElements = Array(GRID_ROWS).fill(null);
 
 function getGridCells() {
     return Array.from(document.querySelectorAll('.wordle-grid .grid-cell'));
@@ -59,7 +66,13 @@ function initializeGrid() {
     const grid = document.querySelector('.wordle-grid');
     if (!grid) return;
 
-    getGridCells().forEach((cell) => {
+    const cells = getGridCells();
+    cells.forEach((cell) => {
+        const { row, col } = getCellIndex(cell);
+        if (row >= 0 && row < GRID_ROWS && col >= 0 && col < GRID_COLS) {
+            gridCellCache[row][col] = cell;
+        }
+
         // Prevent mouse selection highlight while still allowing focus
         cell.addEventListener('mousedown', (e) => {
             e.preventDefault();
@@ -185,6 +198,10 @@ function initializeGrid() {
             }
         });
     });
+
+    rowRemainingElements = Array.from({ length: GRID_ROWS }, (_, row) =>
+        document.querySelector(`.row-remaining[data-row="${row}"]`)
+    );
 }
 
 // Convert grid content into existing inputs
@@ -250,8 +267,49 @@ function syncGridToInputs() {
     }
 }
 
+function refreshGridCaches() {
+    const cells = getGridCells();
+    cells.forEach((cell) => {
+        const { row, col } = getCellIndex(cell);
+        if (row >= 0 && row < GRID_ROWS && col >= 0 && col < GRID_COLS) {
+            gridCellCache[row][col] = cell;
+        }
+    });
+
+    rowRemainingElements = Array.from({ length: GRID_ROWS }, (_, row) =>
+        document.querySelector(`.row-remaining[data-row="${row}"]`)
+    );
+}
+
 function getGridCell(row, col) {
-    return document.querySelector(`.grid-cell[data-row="${row}"][data-col="${col}"]`);
+    const cached = gridCellCache[row] ? gridCellCache[row][col] : null;
+    if (cached) return cached;
+    const cell = document.querySelector(`.grid-cell[data-row="${row}"][data-col="${col}"]`);
+    if (cell && row >= 0 && row < GRID_ROWS && col >= 0 && col < GRID_COLS) {
+        gridCellCache[row][col] = cell;
+    }
+    return cell;
+}
+
+function getRowRemainingElement(row) {
+    const cached = rowRemainingElements[row];
+    if (cached) return cached;
+    const element = document.querySelector(`.row-remaining[data-row="${row}"]`);
+    if (element) {
+        rowRemainingElements[row] = element;
+    }
+    return element;
+}
+
+function getRowSignature(row) {
+    let signature = '';
+    for (let col = 0; col < GRID_COLS; col++) {
+        const cell = getGridCell(row, col);
+        const letter = cell && cell.value ? cell.value.toUpperCase() : '.';
+        const state = cell ? (getCellState(cell) || '') : '';
+        signature += `${letter}:${state}|`;
+    }
+    return signature;
 }
 
 function isRowComplete(row) {
@@ -302,39 +360,56 @@ function buildConstraintsThroughRow(maxRow) {
 }
 
 function updateGuessRemainingCounts() {
-    const rows = document.querySelectorAll('.row-remaining');
-    if (!rows.length) return;
+    const rows = rowRemainingElements.filter(Boolean);
+    if (!rows.length) {
+        refreshGridCaches();
+    }
+    if (!rowRemainingElements.filter(Boolean).length) return;
 
     if (WORD_LIST.length === 0) {
-        rows.forEach((row) => {
+        rowRemainingElements.forEach((row) => {
+            if (!row) return;
             const pill = row.querySelector('.row-remaining-pill');
             if (pill) pill.textContent = '-';
             row.classList.add('is-empty');
         });
+        rowRemainingCache.signatures = Array(GRID_ROWS).fill('');
+        rowRemainingCache.remaining = Array(GRID_ROWS).fill(null);
         return;
     }
 
-    let canCompute = true;
-    for (let row = 0; row < GRID_ROWS; row++) {
-        const rowDisplay = document.querySelector(`.row-remaining[data-row="${row}"]`);
+    const signatures = Array.from({ length: GRID_ROWS }, (_, row) => getRowSignature(row));
+    const firstChanged = signatures.findIndex((sig, idx) => sig !== rowRemainingCache.signatures[idx]);
+
+    if (firstChanged === -1) {
+        return;
+    }
+
+    rowRemainingCache.signatures = signatures;
+
+    let baseWords = firstChanged === 0 ? WORD_LIST : rowRemainingCache.remaining[firstChanged - 1];
+
+    for (let row = firstChanged; row < GRID_ROWS; row++) {
+        const rowDisplay = getRowRemainingElement(row);
         if (!rowDisplay) continue;
         const pill = rowDisplay.querySelector('.row-remaining-pill');
         if (!pill) continue;
 
         const rowComplete = isRowComplete(row);
-        if (!canCompute || !rowComplete) {
+        if (!baseWords || !rowComplete) {
             pill.textContent = '-';
             rowDisplay.classList.add('is-empty');
-            if (!rowComplete) {
-                canCompute = false;
-            }
+            rowRemainingCache.remaining[row] = null;
+            baseWords = null;
             continue;
         }
 
         const constraints = buildConstraintsThroughRow(row);
-        const remaining = filterWordsWithConstraints(constraints);
+        const remaining = filterWordsWithConstraints(constraints, baseWords);
+        rowRemainingCache.remaining[row] = remaining;
         pill.textContent = remaining.length.toLocaleString();
         rowDisplay.classList.remove('is-empty');
+        baseWords = remaining;
     }
 }
 
@@ -505,29 +580,25 @@ function createHasValueFromConstraints(constraints) {
     return uniqueChars((greens + yellows).toLowerCase());
 }
 
-function filterWordsWithConstraints(constraints) {
-    if (WORD_LIST.length === 0) return [];
+function filterWordsWithConstraints(constraints, baseWords = WORD_LIST) {
+    if (!baseWords || baseWords.length === 0) return [];
 
     const exactlyValue = getExactlyFromConstraints(constraints).toLowerCase();
     const exactlyNotValue = getExactlyNotFromConstraints(constraints).toLowerCase();
     const notValue = (constraints.excludedLetters || '').toLowerCase();
     const hasValue = createHasValueFromConstraints(constraints);
+    const exactRe = new RegExp(exactlyValue, 'i');
+    const exactNotRe = new RegExp(exactlyNotValue, 'i');
+    const notRe = new RegExp(`[^${notValue}]{5}`, 'i');
+    const hasRegexes = hasValue ? [...hasValue].map((letter) => new RegExp(letter, 'i')) : [];
+    const has = hasRegexes.length
+        ? (s) => hasRegexes.every((regex) => regex.test(s))
+        : () => true;
 
-    const exact = (s) => re(exactlyValue).test(s);
-    const exactNot = (s) => re(exactlyNotValue).test(s);
-    const not = (s) => re(`[^${notValue}]{5}`).test(s);
-    const has = (s) => {
-        const arr = [...hasValue];
-        const mapped = arr.map((letter) => re(letter).test(s));
-        const filtered = mapped.filter(isTrue);
-        const containsAllLetters = filtered.length === hasValue.length;
-        return containsAllLetters;
-    };
-
-    return WORD_LIST
-        .filter(not)
-        .filter(exactNot)
-        .filter(exact)
+    return baseWords
+        .filter((s) => notRe.test(s))
+        .filter((s) => exactNotRe.test(s))
+        .filter((s) => exactRe.test(s))
         .filter(has);
 }
 
@@ -577,6 +648,10 @@ function calculateLetterFrequency() {
             gameState.positionFrequency[i][letter] = (gameState.positionFrequency[i][letter] || 0) + 1;
         }
     });
+
+    gameState.positionTotals = gameState.positionFrequency.map((posFreq) =>
+        Object.values(posFreq).reduce((sum, count) => sum + count, 0)
+    );
 }
 
 // Enhanced word frequency scoring
@@ -604,8 +679,9 @@ function calculatePositionScore(word) {
     for (let i = 0; i < 5; i++) {
         const letter = word[i];
         const positionFreq = gameState.positionFrequency[i][letter] || 0;
-        const totalWordsInPosition = Object.values(gameState.positionFrequency[i])
-            .reduce((sum, count) => sum + count, 0);
+        const totalWordsInPosition = Array.isArray(gameState.positionTotals)
+            ? (gameState.positionTotals[i] || 0)
+            : Object.values(gameState.positionFrequency[i]).reduce((sum, count) => sum + count, 0);
         
         if (totalWordsInPosition > 0) {
             score += positionFreq / totalWordsInPosition;
@@ -851,42 +927,6 @@ function calculateOptimalGuessesSync(candidatePool = null) {
     showLoading(false);
 }
 
-// Initialize Web Worker when app starts
-async function initializeApp() {
-    // Check if we're in a test environment - don't initialize if so
-    if (window.location.pathname.includes('/test/') || 
-        document.title.includes('Test') ||
-        typeof initTestEnvironment === 'function') {
-        console.log('Test environment detected, skipping main app initialization');
-        return;
-    }
-
-    setupEventListeners();
-    updateWordHintsDisplay();
-    
-    // Initialize Web Worker for better performance
-    if (typeof Worker !== 'undefined') {
-        initializeWebWorker();
-    }
-    
-    await loadWordList();
-    restoreValuesFromUrl();
-    analyzeWords();
-    updateUrl();
-}
-
-// Start the app when page loads - but only if not in test environment
-document.addEventListener('DOMContentLoaded', () => {
-    // Additional check to prevent initialization in test environment
-    if (window.location.pathname.includes('/test/') || 
-        document.title.includes('Test Suite')) {
-        console.log('Skipping main app initialization in test environment');
-        return;
-    }
-    
-    initializeApp();
-});
-
 // Simplified scoring for better performance
 function calculateSimplifiedScore(word) {
     const remainingCount = gameState.remainingWords.length;
@@ -1104,7 +1144,7 @@ function analyzeWords() {
     calculateLetterFrequency();
     calculateOptimalGuesses();
     updateDisplay();
-    updateUrl();
+    scheduleUrlUpdate();
 }
 
 // Debounced analysis for high-frequency input (typing/cycling in the grid)
@@ -1131,6 +1171,7 @@ function resetInputs() {
         optimalGuesses: [],
         letterFrequency: {},
         positionFrequency: [{}, {}, {}, {}, {}],
+        positionTotals: [0, 0, 0, 0, 0],
         hintsBlurred: gameState.hintsBlurred // Preserve the blur setting
     };
 
@@ -1144,7 +1185,7 @@ function updateDisplay() {
     updateOptimalGuesses();
     updateLetterFrequency();
     updateHeatmap();
-    updateRemainingWords();
+    debouncedUpdateRemainingWords();
 }
 
 // Update statistics
@@ -1254,6 +1295,8 @@ function updateRemainingWords() {
     ).join('');
 }
 
+const debouncedUpdateRemainingWords = debounce(updateRemainingWords, 150);
+
 // URL state management
 function updateUrl() {
     // Build ?guess=WORD&guess=WORD ... using only full 5-letter rows
@@ -1261,7 +1304,7 @@ function updateUrl() {
     for (let row = 0; row < GRID_ROWS; row++) {
         let word = '';
         for (let col = 0; col < GRID_COLS; col++) {
-            const cell = document.querySelector(`.grid-cell[data-row="${row}"][data-col="${col}"]`);
+            const cell = getGridCell(row, col);
             const ch = (cell && cell.value) ? cell.value.toUpperCase() : '';
             word += ch;
         }
@@ -1278,7 +1321,7 @@ function updateUrl() {
         let maskG = '';
         let maskY = '';
         for (let col = 0; col < GRID_COLS; col++) {
-            const cell = document.querySelector(`.grid-cell[data-row="${row}"][data-col="${col}"]`);
+            const cell = getGridCell(row, col);
             const state = cell ? (cell.getAttribute('data-state') || 'gray') : 'gray';
             maskG += state === 'green' ? '1' : '0';
             maskY += state === 'yellow' ? '1' : '0';
@@ -1291,6 +1334,16 @@ function updateUrl() {
     } else {
         history.replaceState(guesses, '', url);
     }
+}
+
+const debouncedUpdateUrl = debounce(updateUrl, 200);
+
+function scheduleUrlUpdate() {
+    if (__restoringUrl) {
+        updateUrl();
+        return;
+    }
+    debouncedUpdateUrl();
 }
 
 function restoreValuesFromUrl() {
@@ -1313,7 +1366,7 @@ function restoreValuesFromUrl() {
         const gMask = (greensList[row] || '').replace(/[^01]/g, '').padEnd(5, '0').slice(0, 5);
         const yMask = (yellowsList[row] || '').replace(/[^01]/g, '').padEnd(5, '0').slice(0, 5);
         for (let col = 0; col < Math.min(word.length, GRID_COLS); col++) {
-            const cell = document.querySelector(`.grid-cell[data-row="${row}"][data-col="${col}"]`);
+            const cell = getGridCell(row, col);
             if (!cell) continue;
             cell.value = word[col];
             cell.classList.add('has-letter');
@@ -1390,7 +1443,7 @@ function registerTabHandling() {
                 }
                 
                 // Keep URL derived from grid only
-                updateUrl();
+                scheduleUrlUpdate();
             }
         };
     });
