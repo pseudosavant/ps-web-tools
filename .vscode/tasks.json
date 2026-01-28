@@ -1,0 +1,25 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Run pytest with uv",
+			"type": "shell",
+			"command": "uv run -q -p c:\\Users\\paul\\OneDrive\\Code\\ps-web-tools\\group-play\\pyproject.toml -m pytest",
+			"isBackground": false,
+			"problemMatcher": [
+				"$pytest"
+			],
+			"group": "build"
+		},
+		{
+			"label": "Run pytest with uv (project dir)",
+			"type": "shell",
+			"command": "uv run -q -p c:\\Users\\paul\\OneDrive\\Code\\ps-web-tools\\group-play -m pytest",
+			"isBackground": false,
+			"problemMatcher": [
+				"$pytest"
+			],
+			"group": "build"
+		}
+	]
+}
