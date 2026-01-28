@@ -250,6 +250,94 @@ function syncGridToInputs() {
     }
 }
 
+function getGridCell(row, col) {
+    return document.querySelector(`.grid-cell[data-row="${row}"][data-col="${col}"]`);
+}
+
+function isRowComplete(row) {
+    for (let col = 0; col < GRID_COLS; col++) {
+        const cell = getGridCell(row, col);
+        const value = (cell && cell.value ? cell.value.trim() : '');
+        if (!value || !/^[A-Z]$/i.test(value)) {
+            return false;
+        }
+    }
+    return true;
+}
+
+function buildConstraintsThroughRow(maxRow) {
+    const greenByPos = Array(GRID_COLS).fill('');
+    const yellowByPos = Array.from({ length: GRID_COLS }, () => new Set());
+    const grayLetters = new Set();
+    const includedLetters = new Set();
+
+    for (let row = 0; row <= maxRow; row++) {
+        for (let col = 0; col < GRID_COLS; col++) {
+            const cell = getGridCell(row, col);
+            if (!cell) continue;
+            const letter = (cell.value || '').toLowerCase();
+            if (!letter) continue;
+            const state = getCellState(cell) || 'gray';
+            if (state === 'green') {
+                greenByPos[col] = letter;
+                includedLetters.add(letter);
+            } else if (state === 'yellow') {
+                yellowByPos[col].add(letter);
+                includedLetters.add(letter);
+            } else if (state === 'gray') {
+                grayLetters.add(letter);
+            }
+        }
+    }
+
+    const excluded = Array.from(grayLetters)
+        .filter((ch) => !includedLetters.has(ch))
+        .join('');
+
+    return {
+        greenLetters: greenByPos,
+        yellowLetters: yellowByPos.map((set) => Array.from(set).join('')),
+        excludedLetters: excluded
+    };
+}
+
+function updateGuessRemainingCounts() {
+    const rows = document.querySelectorAll('.row-remaining');
+    if (!rows.length) return;
+
+    if (WORD_LIST.length === 0) {
+        rows.forEach((row) => {
+            const pill = row.querySelector('.row-remaining-pill');
+            if (pill) pill.textContent = '-';
+            row.classList.add('is-empty');
+        });
+        return;
+    }
+
+    let canCompute = true;
+    for (let row = 0; row < GRID_ROWS; row++) {
+        const rowDisplay = document.querySelector(`.row-remaining[data-row="${row}"]`);
+        if (!rowDisplay) continue;
+        const pill = rowDisplay.querySelector('.row-remaining-pill');
+        if (!pill) continue;
+
+        const rowComplete = isRowComplete(row);
+        if (!canCompute || !rowComplete) {
+            pill.textContent = '-';
+            rowDisplay.classList.add('is-empty');
+            if (!rowComplete) {
+                canCompute = false;
+            }
+            continue;
+        }
+
+        const constraints = buildConstraintsThroughRow(row);
+        const remaining = filterWordsWithConstraints(constraints);
+        pill.textContent = remaining.length.toLocaleString();
+        rowDisplay.classList.remove('is-empty');
+    }
+}
+
 // Performance optimization: Pattern cache and word frequency data
 const patternCache = new Map();
 const COMMON_WORDS = new Set(['about', 'above', 'abuse', 'actor', 'acute', 'admit', 'adopt', 'adult', 'after', 'again', 'agent', 'agree', 'ahead', 'alarm', 'album', 'alert', 'alien', 'align', 'alike', 'alive', 'allow', 'alone', 'along', 'alter', 'among', 'anger', 'angle', 'angry', 'apart', 'apple', 'apply', 'arena', 'argue', 'arise', 'array', 'aside', 'asset', 'audio', 'audit', 'avoid', 'awake', 'award', 'aware', 'badly', 'baker', 'bases', 'basic', 'beach', 'began', 'begin', 'being', 'below', 'bench', 'billy', 'birth', 'black', 'blame', 'blind', 'block', 'blood', 'board', 'boost', 'booth', 'bound', 'brain', 'brand', 'brass', 'brave', 'bread', 'break', 'breed', 'brief', 'bring', 'broad', 'broke', 'brown', 'build', 'built', 'buyer', 'cable', 'calif', 'carry', 'catch', 'cause', 'chain', 'chair', 'chaos', 'charm', 'chart', 'chase', 'cheap', 'check', 'chest', 'chief', 'child', 'china', 'chose', 'civil', 'claim', 'class', 'clean', 'clear', 'click', 'climb', 'clock', 'close', 'cloud', 'coach', 'coast', 'could', 'count', 'court', 'cover', 'craft', 'crash', 'crazy', 'cream', 'crime', 'cross', 'crowd', 'crown', 'crude', 'curve', 'cycle', 'daily', 'dance', 'dated', 'dealt', 'death', 'debut', 'delay', 'depth', 'doing', 'doubt', 'dozen', 'draft', 'drama', 'drank', 'dream', 'dress', 'drill', 'drink', 'drive', 'drove', 'dying', 'eager', 'early', 'earth', 'eight', 'elite', 'empty', 'enemy', 'enjoy', 'enter', 'entry', 'equal', 'error', 'event', 'every', 'exact', 'exist', 'extra', 'faith', 'false', 'fault', 'fiber', 'field', 'fifth', 'fifty', 'fight', 'final', 'first', 'fixed', 'flash', 'fleet', 'floor', 'fluid', 'focus', 'force', 'forth', 'forty', 'forum', 'found', 'frame', 'frank', 'fraud', 'fresh', 'front', 'fruit', 'fully', 'funny', 'giant', 'given', 'glass', 'globe', 'going', 'grace', 'grade', 'grand', 'grant', 'grass', 'grave', 'great', 'green', 'gross', 'group', 'grown', 'guard', 'guess', 'guest', 'guide', 'happy', 'harry', 'heart', 'heavy', 'hence', 'henry', 'horse', 'hotel', 'house', 'human', 'ideal', 'image', 'index', 'inner', 'input', 'issue', 'japan', 'jimmy', 'joint', 'jones', 'judge', 'known', 'label', 'large', 'laser', 'later', 'laugh', 'layer', 'learn', 'lease', 'least', 'leave', 'legal', 'level', 'lewis', 'light', 'limit', 'links', 'lives', 'local', 'loose', 'lower', 'lucky', 'lunch', 'lying', 'magic', 'major', 'maker', 'march', 'maria', 'match', 'maybe', 'mayor', 'meant', 'media', 'metal', 'might', 'minor', 'minus', 'mixed', 'model', 'money', 'month', 'moral', 'motor', 'mount', 'mouse', 'mouth', 'moved', 'movie', 'music', 'needs', 'never', 'newly', 'night', 'noise', 'north', 'noted', 'novel', 'nurse', 'occur', 'ocean', 'offer', 'often', 'order', 'other', 'ought', 'paint', 'panel', 'paper', 'party', 'peace', 'peter', 'phase', 'phone', 'photo', 'piano', 'piece', 'pilot', 'pitch', 'place', 'plain', 'plane', 'plant', 'plate', 'point', 'pound', 'power', 'press', 'price', 'pride', 'prime', 'print', 'prior', 'prize', 'proof', 'proud', 'prove', 'queen', 'quick', 'quiet', 'quite', 'radio', 'raise', 'range', 'rapid', 'ratio', 'reach', 'ready', 'realm', 'rebel', 'refer', 'relax', 'repay', 'reply', 'right', 'rigid', 'rival', 'river', 'robin', 'roger', 'roman', 'rough', 'round', 'route', 'royal', 'rural', 'scale', 'scene', 'scope', 'score', 'sense', 'serve', 'seven', 'shall', 'shape', 'share', 'sharp', 'sheet', 'shelf', 'shell', 'shift', 'shine', 'shirt', 'shock', 'shoot', 'short', 'shown', 'sides', 'sight', 'simon', 'sixth', 'sixty', 'sized', 'skill', 'sleep', 'slide', 'small', 'smart', 'smile', 'smith', 'smoke', 'snake', 'snow', 'solid', 'solve', 'sorry', 'sound', 'south', 'space', 'spare', 'speak', 'speed', 'spend', 'spent', 'split', 'spoke', 'sport', 'staff', 'stage', 'stake', 'stand', 'start', 'state', 'steam', 'steel', 'steep', 'steer', 'steve', 'stick', 'still', 'stock', 'stone', 'stood', 'store', 'storm', 'story', 'strip', 'stuck', 'study', 'stuff', 'style', 'sugar', 'suite', 'super', 'sweet', 'table', 'taken', 'taste', 'taxes', 'teach', 'teams', 'teeth', 'terry', 'texas', 'thank', 'theft', 'their', 'theme', 'there', 'these', 'thick', 'thing', 'think', 'third', 'those', 'three', 'threw', 'throw', 'thumb', 'tiger', 'tight', 'timer', 'tired', 'title', 'today', 'topic', 'total', 'touch', 'tough', 'tower', 'track', 'trade', 'train', 'treat', 'trend', 'trial', 'tribe', 'trick', 'tried', 'tries', 'truck', 'truly', 'trunk', 'trust', 'truth', 'twice', 'twin', 'twist', 'tyler', 'ultra', 'uncle', 'under', 'undue', 'union', 'unity', 'until', 'upper', 'upset', 'urban', 'usage', 'usual', 'valid', 'value', 'video', 'virus', 'visit', 'vital', 'vocal', 'voice', 'waste', 'watch', 'water', 'wave', 'ways', 'weird', 'welcome', 'western', 'wheel', 'where', 'which', 'while', 'white', 'whole', 'whose', 'woman', 'women', 'world', 'worry', 'worse', 'worst', 'worth', 'would', 'write', 'wrong', 'wrote', 'young', 'youth']);
@@ -382,27 +470,65 @@ function updateWordHintsDisplay() {
     }
 }
 function getExactly() {
-    const letters = Array.isArray(gameState.greenLetters) ? gameState.greenLetters : ['', '', '', '', ''];
-    return letters.map((ch) => ch ? ch : '.').join('');
+    return getExactlyFromConstraints(gameState);
 }
 
 function getExactlyNot() {
-    const lettersByPos = Array.isArray(gameState.yellowLetters) ? gameState.yellowLetters : ['', '', '', '', ''];
-    return lettersByPos
-        .map((letters) => letters ? `[^${letters}]{1}` : '.')
-        .join('');
+    return getExactlyNotFromConstraints(gameState);
 }
 
 function createHasValue() {
-    const greens = (Array.isArray(gameState.greenLetters) ? gameState.greenLetters : []).join('');
-    const yellows = (Array.isArray(gameState.yellowLetters) ? gameState.yellowLetters : []).join('');
-    return uniqueChars((greens + yellows).toLowerCase());
+    return createHasValueFromConstraints(gameState);
 }
 
 function uniqueChars(allChars) {
     const chars = {};
     [...allChars].forEach((char) => chars[char] = true);
     return Object.keys(chars).join('');
+}
+
+function getExactlyFromConstraints(constraints) {
+    const letters = Array.isArray(constraints.greenLetters) ? constraints.greenLetters : ['', '', '', '', ''];
+    return letters.map((ch) => ch ? ch : '.').join('');
+}
+
+function getExactlyNotFromConstraints(constraints) {
+    const lettersByPos = Array.isArray(constraints.yellowLetters) ? constraints.yellowLetters : ['', '', '', '', ''];
+    return lettersByPos
+        .map((letters) => letters ? `[^${letters}]{1}` : '.')
+        .join('');
+}
+
+function createHasValueFromConstraints(constraints) {
+    const greens = (Array.isArray(constraints.greenLetters) ? constraints.greenLetters : []).join('');
+    const yellows = (Array.isArray(constraints.yellowLetters) ? constraints.yellowLetters : []).join('');
+    return uniqueChars((greens + yellows).toLowerCase());
+}
+
+function filterWordsWithConstraints(constraints) {
+    if (WORD_LIST.length === 0) return [];
+
+    const exactlyValue = getExactlyFromConstraints(constraints).toLowerCase();
+    const exactlyNotValue = getExactlyNotFromConstraints(constraints).toLowerCase();
+    const notValue = (constraints.excludedLetters || '').toLowerCase();
+    const hasValue = createHasValueFromConstraints(constraints);
+
+    const exact = (s) => re(exactlyValue).test(s);
+    const exactNot = (s) => re(exactlyNotValue).test(s);
+    const not = (s) => re(`[^${notValue}]{5}`).test(s);
+    const has = (s) => {
+        const arr = [...hasValue];
+        const mapped = arr.map((letter) => re(letter).test(s));
+        const filtered = mapped.filter(isTrue);
+        const containsAllLetters = filtered.length === hasValue.length;
+        return containsAllLetters;
+    };
+
+    return WORD_LIST
+        .filter(not)
+        .filter(exactNot)
+        .filter(exact)
+        .filter(has);
 }
 
 // Character distribution analysis
@@ -423,27 +549,11 @@ function characterDistribution(words) {
 function filterWords() {
     if (WORD_LIST.length === 0) return;
 
-    const exactlyValue = getExactly().toLowerCase();
-    const exactlyNotValue = getExactlyNot().toLowerCase();
-    const notValue = (gameState.excludedLetters || '').toLowerCase();
-    const hasValue = createHasValue();
-    
-    const exact = (s) => re(exactlyValue).test(s);
-    const exactNot = (s) => re(exactlyNotValue).test(s);
-    const not = (s) => re(`[^${notValue}]{5}`).test(s);
-    const has = (s) => {
-        const arr = [...hasValue];
-        const mapped = arr.map((letter) => re(letter).test(s));
-        const filtered = mapped.filter(isTrue);
-        const containsAllLetters = filtered.length === hasValue.length;
-        return containsAllLetters;
-    }
-
-    gameState.remainingWords = WORD_LIST
-        .filter(not)
-        .filter(exactNot)
-        .filter(exact)
-        .filter(has);
+    gameState.remainingWords = filterWordsWithConstraints({
+        greenLetters: gameState.greenLetters,
+        yellowLetters: gameState.yellowLetters,
+        excludedLetters: gameState.excludedLetters
+    });
 }
 
 // Calculate letter frequency for remaining words
@@ -1030,6 +1140,7 @@ function resetInputs() {
 // Update all display elements
 function updateDisplay() {
     updateStats();
+    updateGuessRemainingCounts();
     updateOptimalGuesses();
     updateLetterFrequency();
     updateHeatmap();

@@ -135,9 +135,10 @@ input, textarea {
 
 .grid-row {
     display: grid;
-    grid-template-columns: repeat(5, var(--cell-size));
+    grid-template-columns: repeat(5, var(--cell-size)) minmax(64px, auto);
     gap: var(--cell-gap);
     justify-content: start; /* prevent stretching and excess whitespace */
+    align-items: center;
 }
 
 .grid-cell {
@@ -165,6 +166,40 @@ input, textarea {
 
 /* When a cell has a letter, show a clickable cursor to imply color-cycling */
 .grid-cell.has-letter { cursor: pointer; }
+
+.row-remaining {
+    min-width: 64px;
+    height: var(--cell-size);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.9rem;
+    font-weight: 600;
+    font-family: monospace;
+    color: #555;
+    background: transparent;
+    border: none;
+    padding: 0;
+}
+
+.row-remaining-pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 24px;
+    min-width: 5ch;
+    padding: 5px;
+    border-radius: 10px;
+    background: #ddd;
+    border: 1px solid #d5d9dd;
+    line-height: 1;
+}
+
+.row-remaining.is-empty .row-remaining-pill {
+    color: #999;
+    background: #f5f5f5;
+    border-color: #e1e1e1;
+}
 
 .grid-cell:focus {
     outline: none;
@@ -204,11 +239,15 @@ input, textarea {
 @media (max-width: 768px) {
     .wordle-grid { --cell-size: 46px; }
     .grid-cell { font-size: 1.2rem; }
+    .row-remaining { min-width: 54px; font-size: 0.8rem; }
+    .row-remaining-pill { min-height: 22px; padding: 2px 8px; }
 }
 
 @media (max-width: 480px) {
     .wordle-grid { --cell-size: 40px; }
     .grid-cell { font-size: 1rem; }
+    .row-remaining { min-width: 48px; font-size: 0.75rem; }
+    .row-remaining-pill { min-height: 20px; padding: 2px 7px; }
 }
 
 .input-group label {
