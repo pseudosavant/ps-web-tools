@@ -24,7 +24,9 @@ export function frequencyToX(frequency, canvas, isFullRange) {
     const logMin = Math.log10(minFreq);
     const logMax = Math.log10(maxFreq);
     const logFreq = Math.log10(frequency);
-    return (canvas.width * (logFreq - logMin)) / (logMax - logMin);
+    const width = canvas?.clientWidth || canvas?.width || 0;
+    if (!width) return 0;
+    return (width * (logFreq - logMin)) / (logMax - logMin);
 }
 
 export function xToFrequency(x, canvas, isFullRange) {
@@ -32,7 +34,9 @@ export function xToFrequency(x, canvas, isFullRange) {
     const maxFreq = isFullRange ? 20000 : 500;
     const logMin = Math.log10(minFreq);
     const logMax = Math.log10(maxFreq);
-    const logFreq = (x / canvas.width) * (logMax - logMin) + logMin;
+    const width = canvas?.clientWidth || canvas?.width || 0;
+    if (!width) return minFreq;
+    const logFreq = (x / width) * (logMax - logMin) + logMin;
     return Math.pow(10, logFreq);
 }
 

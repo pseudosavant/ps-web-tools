@@ -8,10 +8,10 @@ export function setupVisualization(analyzer) {
 
 function setupCanvas(analyzer) {
     const resize = () => {
-        const container = analyzer.elements.canvas.parentElement;
-        const containerWidth = container.clientWidth - 40;
-        analyzer.elements.canvas.width = containerWidth;
-        analyzer.elements.canvas.height = 400;
+        const rect = analyzer.elements.canvas.getBoundingClientRect();
+        analyzer.elements.canvas.width = Math.max(1, Math.floor(rect.width));
+        analyzer.elements.canvas.height = Math.max(1, Math.floor(rect.height));
+        analyzer.updateAxes?.();
     };
     
     resize();
@@ -34,6 +34,8 @@ function handleTooltip(e, analyzer) {
     const rect = analyzer.elements.canvas.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
+    const canvasWidth = analyzer.elements.canvas.clientWidth || analyzer.elements.canvas.width;
+    if (!canvasWidth) return;
     
     // Get frequency analysis data
     const bufferLength = analyzer.analyser.frequencyBinCount;
@@ -48,12 +50,13 @@ function handleTooltip(e, analyzer) {
     // Convert x position to logarithmic frequency
     const minLog = Math.log10(minFreq);
     const maxLog = Math.log10(maxFreq);
-    const xRatio = x / analyzer.elements.canvas.width;
+    const clampedX = Math.max(0, Math.min(x, canvasWidth));
+    const xRatio = clampedX / canvasWidth;
     const logFreq = minLog + (maxLog - minLog) * xRatio;
     const freq = Math.pow(10, logFreq);
     
     // Find nearest bin
-    const bin = Math.round(freq / binSize);
+    const bin = Math.max(0, Math.min(bufferLength - 1, Math.round(freq / binSize)));
     const exactFreq = Math.round(bin * binSize);
     
     // Get amplitude from the FFT data

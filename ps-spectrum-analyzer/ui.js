@@ -3,6 +3,7 @@ import { frequencyToX } from './utils.js';
 
 export function setupUI(analyzer) {
     setupEventListeners(analyzer);
+    analyzer.updateAxes = () => createAxisLabels(analyzer);
     createAxisLabels(analyzer);
 }
 
@@ -61,6 +62,8 @@ function createAxisLabels(analyzer) {
 }
 
 function updateFrequencyAxis(analyzer) {
+    syncFrequencyAxisLayout(analyzer);
+
     // Get the appropriate frequency labels
     const frequencies = analyzer.isFullRange ? 
         FREQUENCY_LABELS.FULL_RANGE : 
@@ -72,7 +75,6 @@ function updateFrequencyAxis(analyzer) {
         return `<span style="position: absolute; left: ${x}px; transform: translateX(-50%); white-space: nowrap">${label}</span>`;
     });
 
-    analyzer.elements.freqAxis.style.position = 'relative';
     analyzer.elements.freqAxis.innerHTML = labelElements.join('');
 }
 
@@ -80,4 +82,21 @@ function updateDBAxis(analyzer) {
     analyzer.elements.dbAxis.innerHTML = AXIS_LABELS.DB.map(label => 
         `<span style="display: block">${label}</span>`
     ).join('');
+}
+
+function syncFrequencyAxisLayout(analyzer) {
+    const canvas = analyzer.elements.canvas;
+    const axis = analyzer.elements.freqAxis;
+    const container = canvas?.parentElement;
+    if (!canvas || !axis || !container) return;
+
+    const canvasRect = canvas.getBoundingClientRect();
+    const containerRect = container.getBoundingClientRect();
+    const left = canvasRect.left - containerRect.left;
+
+    axis.style.left = `${left}px`;
+    axis.style.width = `${canvasRect.width}px`;
+    axis.style.right = 'auto';
+    axis.style.padding = '0';
+    axis.style.position = 'absolute';
 }
