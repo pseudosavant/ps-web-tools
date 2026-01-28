@@ -1,5 +1,5 @@
 import { frequencyToX, xToFrequency, findNearestNote } from './utils.js';
-import { REFERENCE_LINES, FREQUENCY_LABELS } from './constants.js';
+import { REFERENCE_LINES, FREQUENCY_LABELS, CANVAS_BG } from './constants.js';
 
 export function setupVisualization(analyzer) {
     setupCanvas(analyzer);
@@ -115,7 +115,7 @@ function updateAutoGain(analyzer, dataArray) {
 }
 
 function clearCanvas(analyzer) {
-    analyzer.canvasCtx.fillStyle = '#2d2d2d';
+    analyzer.canvasCtx.fillStyle = CANVAS_BG;
     analyzer.canvasCtx.fillRect(0, 0, analyzer.elements.canvas.width, analyzer.elements.canvas.height);
 }
 
@@ -209,33 +209,115 @@ function drawNoteOverlay(analyzer) {
 function drawNoteLabel(analyzer, x, note) {
     analyzer.canvasCtx.beginPath();
     analyzer.canvasCtx.setLineDash([2, 2]);
-    analyzer.canvasCtx.strokeStyle = '#4A90E2';
+    analyzer.canvasCtx.strokeStyle = 'rgba(125, 211, 252, 0.8)';
     analyzer.canvasCtx.moveTo(x, 0);
     analyzer.canvasCtx.lineTo(x, analyzer.elements.canvas.height);
     analyzer.canvasCtx.stroke();
     analyzer.canvasCtx.setLineDash([]);
 
-    analyzer.canvasCtx.fillStyle = '#4A90E2';
+    analyzer.canvasCtx.lineWidth = 3;
+    analyzer.canvasCtx.strokeStyle = 'rgba(15, 23, 42, 0.9)';
+    analyzer.canvasCtx.strokeText(note, x, 15);
+    analyzer.canvasCtx.lineWidth = 1;
+    analyzer.canvasCtx.fillStyle = '#7dd3fc';
     analyzer.canvasCtx.fillText(note, x, 15);
 }
 
 function drawReferenceLines(analyzer) {
     REFERENCE_LINES.forEach(line => {
         const y = analyzer.elements.canvas.height * (1 - (line.db + 90) / 90);
+        const lineColor = ensureContrast(line.color, CANVAS_BG, 3);
+        const labelColor = ensureContrast(line.color, CANVAS_BG, 4.5);
         
         // Draw the line
         analyzer.canvasCtx.beginPath();
         analyzer.canvasCtx.setLineDash([5, 5]);
-        analyzer.canvasCtx.strokeStyle = line.color;
+        analyzer.canvasCtx.strokeStyle = lineColor;
+        analyzer.canvasCtx.lineWidth = line.db >= -6 ? 1.5 : 1;
         analyzer.canvasCtx.moveTo(0, y);
         analyzer.canvasCtx.lineTo(analyzer.elements.canvas.width, y);
         analyzer.canvasCtx.stroke();
         analyzer.canvasCtx.setLineDash([]);
+        analyzer.canvasCtx.lineWidth = 1;
 
         // Draw the label
         analyzer.canvasCtx.font = '10px sans-serif';
-        analyzer.canvasCtx.fillStyle = line.color;
+        analyzer.canvasCtx.lineWidth = 3;
+        analyzer.canvasCtx.strokeStyle = 'rgba(15, 23, 42, 0.9)';
         analyzer.canvasCtx.textAlign = 'left';
+        analyzer.canvasCtx.strokeText(line.label, 5, y - 2);
+        analyzer.canvasCtx.lineWidth = 1;
+        analyzer.canvasCtx.fillStyle = labelColor;
         analyzer.canvasCtx.fillText(line.label, 5, y - 2);
     });
+}
+
+function ensureContrast(foreground, background, minRatio) {
+    const fg = hexToRgb(foreground);
+    const bg = hexToRgb(background);
+    if (!fg || !bg) return foreground;
+
+    const current = contrastRatio(fg, bg);
+    if (current >= minRatio) return foreground;
+
+    const white = { r: 255, g: 255, b: 255 };
+    const black = { r: 0, g: 0, b: 0 };
+    const toward = contrastRatio(white, bg) >= contrastRatio(black, bg) ? white : black;
+
+    let low = 0;
+    let high = 1;
+    let best = fg;
+    for (let i = 0; i < 20; i++) {
+        const mid = (low + high) / 2;
+        const candidate = mixRgb(fg, toward, mid);
+        const ratio = contrastRatio(candidate, bg);
+        if (ratio >= minRatio) {
+            best = candidate;
+            high = mid;
+        } else {
+            low = mid;
+        }
+    }
+
+    return rgbToHex(best);
+}
+
+function hexToRgb(hex) {
+    if (typeof hex !== 'string') return null;
+    const value = hex.replace('#', '').trim();
+    if (value.length !== 6) return null;
+    const r = parseInt(value.slice(0, 2), 16);
+    const g = parseInt(value.slice(2, 4), 16);
+    const b = parseInt(value.slice(4, 6), 16);
+    if (Number.isNaN(r) || Number.isNaN(g) || Number.isNaN(b)) return null;
+    return { r, g, b };
+}
+
+function rgbToHex({ r, g, b }) {
+    const toHex = (channel) => channel.toString(16).padStart(2, '0');
+    return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+}
+
+function mixRgb(a, b, t) {
+    const mix = (start, end) => Math.round(start + (end - start) * t);
+    return { r: mix(a.r, b.r), g: mix(a.g, b.g), b: mix(a.b, b.b) };
+}
+
+function contrastRatio(fg, bg) {
+    const l1 = relativeLuminance(fg);
+    const l2 = relativeLuminance(bg);
+    const lighter = Math.max(l1, l2);
+    const darker = Math.min(l1, l2);
+    return (lighter + 0.05) / (darker + 0.05);
+}
+
+function relativeLuminance({ r, g, b }) {
+    const toLinear = (value) => {
+        const srgb = value / 255;
+        return srgb <= 0.03928 ? srgb / 12.92 : Math.pow((srgb + 0.055) / 1.055, 2.4);
+    };
+    const rl = toLinear(r);
+    const gl = toLinear(g);
+    const bl = toLinear(b);
+    return 0.2126 * rl + 0.7152 * gl + 0.0722 * bl;
 }

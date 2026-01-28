@@ -16,7 +16,7 @@ export class AudioAnalyzer {
         this.isRunning = false;
         this.isFrozen = false;
         this.showReferenceLines = true;
-        this.showNoteOverlay = true;
+        this.showNoteOverlay = false;
         this.showPeakHold = true;
         this.isFullRange = true;
         this.autoGain = true;
