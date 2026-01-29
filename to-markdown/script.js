@@ -8,7 +8,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const copySuccessEl = document.getElementById('copySuccess');
     const pasteError = document.getElementById('pasteError');
     const simpleModeToggle = document.getElementById('simpleModeToggle');
-    const jsonModeToggle = document.getElementById('jsonModeToggle');
 
     // Enhanced strip styles helper
     function stripStyles(html) {
@@ -46,6 +45,33 @@ document.addEventListener('DOMContentLoaded', () => {
             .replace(/<!--[\s\S]*?-->/g, '');
     }
 
+    function sanitizeHtml(html) {
+        const doc = new DOMParser().parseFromString(html, 'text/html');
+
+        doc.querySelectorAll('script, style, link, meta, iframe, object, embed').forEach(element => {
+            element.remove();
+        });
+
+        doc.querySelectorAll('*').forEach(element => {
+            Array.from(element.attributes).forEach(attr => {
+                const name = attr.name.toLowerCase();
+                const value = attr.value.trim().toLowerCase();
+
+                if (name.startsWith('on')) {
+                    element.removeAttribute(attr.name);
+                    return;
+                }
+
+                if ((name === 'href' || name === 'src') &&
+                    (value.startsWith('javascript:') || value.startsWith('blob:'))) {
+                    element.removeAttribute(attr.name);
+                }
+            });
+        });
+
+        return doc.body.innerHTML;
+    }
+
     // Remove sticky header wrapper tables that lack data cells.
     function removeEmptyTables(root) {
         root.querySelectorAll('table').forEach(table => {
@@ -55,60 +81,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Function to convert table to JSON structure
-    function tableToJson(table) {
-        const headers = [];
-        const rows = table.querySelectorAll('tr');
-        if (!rows.length) return null;
-
-        rows[0].querySelectorAll('th, td').forEach(cell => {
-            headers.push(cell.textContent.trim());
-        });
-
-        const data = [];
-        for (let i = 1; i < rows.length; i++) {
-            const row = {};
-            const cells = rows[i].querySelectorAll('td');
-            cells.forEach((cell, index) => {
-                if (index < headers.length) {
-                    row[headers[index]] = cell.textContent.trim();
-                }
-            });
-            data.push(row);
-        }
-
-        return { headers, data };
-    }
-
-    // Function to convert HTML to markdown with JSON tables
-    function convertWithJsonTables(html, isSimple = false) {
-        const div = document.createElement('div');
-        div.innerHTML = isSimple ? stripStyles(html) : html;
-        removeEmptyTables(div);
-        const placeholders = [];
-
-        div.querySelectorAll('table').forEach(table => {
-            const jsonData = tableToJson(table);
-            if (jsonData) {
-                const placeholderId = `@@JSON_TABLE_${placeholders.length}@@`;
-                placeholders.push('```json\n' + JSON.stringify(jsonData, null, 2) + '\n```');
-
-                const marker = document.createElement('p');
-                marker.textContent = placeholderId;
-                table.replaceWith(marker);
-            }
-        });
-
-        const service = isSimple ? simpleTurndownService : fullTurndownService;
-        let markdown = service.turndown(div.innerHTML);
-
-        placeholders.forEach((block, index) => {
-            const id = `@@JSON_TABLE_${index}@@`;
-            markdown = markdown.replace(id, block);
-        });
-
-        return markdown;
-    }
 
     const baseConfig = {
         headingStyle: 'atx',
@@ -314,21 +286,61 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Convert function (extracted for reuse)
     function convertToMarkdown() {
-        let markdown;
-        if (jsonModeToggle.checked) {
-            markdown = convertWithJsonTables(editor.innerHTML, simpleModeToggle.checked);
-        } else {
-            const service = simpleModeToggle.checked ? simpleTurndownService : fullTurndownService;
-            const html = simpleModeToggle.checked ? stripStyles(editor.innerHTML) : editor.innerHTML;
-            const wrapper = document.createElement('div');
-            wrapper.innerHTML = html;
-            removeEmptyTables(wrapper);
-            markdown = service.turndown(wrapper.innerHTML);
-        }
+        const service = simpleModeToggle.checked ? simpleTurndownService : fullTurndownService;
+        const html = simpleModeToggle.checked ? stripStyles(editor.innerHTML) : editor.innerHTML;
+        const wrapper = document.createElement('div');
+        wrapper.innerHTML = html;
+        removeEmptyTables(wrapper);
+        const markdown = service.turndown(wrapper.innerHTML);
         
         output.textContent = markdown
             .replace(/\n{3,}/g, '\n\n')
             .trim();
+    }
+
+    async function pasteFromClipboard() {
+        pasteError.style.display = 'none';
+
+        try {
+            if (!navigator.clipboard || !navigator.clipboard.read) {
+                throw new Error('Clipboard read not supported');
+            }
+
+            const items = await navigator.clipboard.read();
+            let html = '';
+            let text = '';
+
+            for (const item of items) {
+                if (!html && item.types.includes('text/html')) {
+                    const blob = await item.getType('text/html');
+                    html = await blob.text();
+                }
+
+                if (!text && item.types.includes('text/plain')) {
+                    const blob = await item.getType('text/plain');
+                    text = await blob.text();
+                }
+            }
+
+            if (html) {
+                editor.innerHTML = sanitizeHtml(html);
+            } else if (text) {
+                editor.innerText = text;
+            } else {
+                throw new Error('No compatible clipboard data');
+            }
+
+            setTimeout(autoConvert, 100);
+        } catch (err) {
+            pasteError.innerHTML = `
+                <i class="fas fa-exclamation-triangle"></i> 
+                Unable to read clipboard. Please use <kbd>Ctrl/Cmd+V</kbd> to paste.
+            `;
+            pasteError.style.display = 'block';
+            setTimeout(() => {
+                pasteError.style.display = 'none';
+            }, 3000);
+        }
     }
 
     // Handle paste with auto-convert
@@ -336,7 +348,7 @@ document.addEventListener('DOMContentLoaded', () => {
         e.preventDefault();
         const html = e.clipboardData.getData('text/html');
         if (html) {
-            editor.innerHTML = html;
+            editor.innerHTML = sanitizeHtml(html);
         } else {
             const text = e.clipboardData.getData('text/plain');
             editor.innerText = text;
@@ -389,8 +401,7 @@ document.addEventListener('DOMContentLoaded', () => {
             { element: convertBtn, text: 'Convert to Markdown (Ctrl+Enter)' },
             { element: copyMarkdownBtn, text: 'Copy Markdown to clipboard (Ctrl+Shift+C)' },
             { element: clearBtn, text: 'Clear all content (Ctrl+Shift+X)' },
-            { element: simpleModeToggle.parentElement, text: 'Remove formatting and create cleaner Markdown' },
-            { element: jsonModeToggle.parentElement, text: 'Convert tables to JSON format instead of Markdown tables' }
+            { element: simpleModeToggle.parentElement, text: 'Remove formatting and create cleaner Markdown' }
         ];
 
         tooltips.forEach(({ element, text }) => {
@@ -459,6 +470,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Convert button
     convertBtn.addEventListener('click', convertToMarkdown);
+
+    // Paste button
+    pasteBtn.addEventListener('click', () => {
+        editor.focus();
+        pasteFromClipboard();
+    });
 
     // Copy markdown button
     copyMarkdownBtn.addEventListener('click', () => {
