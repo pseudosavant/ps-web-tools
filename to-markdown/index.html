@@ -23,24 +23,21 @@
         <div class="section">
             <div class="button-group">
                 <button id="pasteBtn" class="success"><i class="fas fa-paste"></i> Paste from Clipboard</button>
-                <div class="conversion-controls">
-                    <button id="convertBtn"><i class="fas fa-exchange-alt"></i> Convert to Markdown</button>
-                    <div class="mode-switches">
-                        <div class="mode-switch">
-                            <label class="switch">
-                                <input type="checkbox" id="simpleModeToggle" checked>
-                                <span class="slider"></span>
-                            </label>
-                            <span>Simplified Mode</span>
-                        </div>
+                <button id="copyMarkdownBtn" class="secondary"><i class="fab fa-markdown"></i> Copy Markdown</button>
+                <button id="clearBtn" class="danger"><i class="fas fa-trash"></i> Clear</button>
+                <div class="mode-switches">
+                    <div class="mode-switch">
+                        <label class="switch">
+                            <input type="checkbox" id="simpleModeToggle" checked>
+                            <span class="slider"></span>
+                        </label>
+                        <span>Simplified Mode</span>
                     </div>
                 </div>
-                <button id="copyMarkdownBtn" class="secondary"><i class="fab fa-markdown"></i> Copy Markdown to Clipboard</button>
-                <button id="clearBtn" class="danger"><i class="fas fa-trash"></i> Clear All</button>
             </div>
+            <div id="copySuccess" class="success-message">Copied to clipboard!</div>
             <h2><i class="fas fa-edit"></i> Input: Paste your rich text here (Ctrl/Cmd+V)</h2>
             <div id="editor" contenteditable="true"></div>
-            <div id="copySuccess" class="success-message">Copied to clipboard!</div>
             <div id="pasteError" class="error-message">Please use Ctrl/Cmd+V to paste content</div>
         </div>
 

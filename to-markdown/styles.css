@@ -200,7 +200,6 @@ kbd {
     display: flex;
     align-items: center;
     gap: 1rem;
-    margin-left: 1rem;
 }
 
 .mode-switch {
@@ -252,13 +251,6 @@ input:checked + .slider {
 
 input:checked + .slider:before {
     transform: translateX(24px);
-}
-
-.conversion-controls {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    flex-wrap: wrap;
 }
 
 button i {
@@ -325,13 +317,7 @@ h2 i {
         align-items: stretch;
     }
     
-    .conversion-controls {
-        flex-direction: column;
-        align-items: stretch;
-    }
-    
     .mode-switches {
-        margin-left: 0;
         margin-top: 0.5rem;
         justify-content: space-around;
     }

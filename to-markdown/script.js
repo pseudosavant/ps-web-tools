@@ -1,7 +1,6 @@
 document.addEventListener('DOMContentLoaded', () => {
     const editor = document.getElementById('editor');
     const output = document.getElementById('output');
-    const convertBtn = document.getElementById('convertBtn');
     const copyMarkdownBtn = document.getElementById('copyMarkdownBtn');
     const clearBtn = document.getElementById('clearBtn');
     const pasteBtn = document.getElementById('pasteBtn');
@@ -367,12 +366,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Keyboard shortcuts
     document.addEventListener('keydown', (e) => {
-        // Ctrl/Cmd + Enter: Convert
-        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-            e.preventDefault();
-            convertToMarkdown();
-        }
-        
         // Ctrl/Cmd + Shift + V: Paste button
         if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'V') {
             e.preventDefault();
@@ -398,7 +391,6 @@ document.addEventListener('DOMContentLoaded', () => {
     function initTooltips() {
         const tooltips = [
             { element: pasteBtn, text: 'Paste content from clipboard (Ctrl+Shift+V)' },
-            { element: convertBtn, text: 'Convert to Markdown (Ctrl+Enter)' },
             { element: copyMarkdownBtn, text: 'Copy Markdown to clipboard (Ctrl+Shift+C)' },
             { element: clearBtn, text: 'Clear all content (Ctrl+Shift+X)' },
             { element: simpleModeToggle.parentElement, text: 'Remove formatting and create cleaner Markdown' }
@@ -467,9 +459,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }, 3000);
         }
     }
-
-    // Convert button
-    convertBtn.addEventListener('click', convertToMarkdown);
 
     // Paste button
     pasteBtn.addEventListener('click', () => {
