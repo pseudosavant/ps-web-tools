@@ -22,7 +22,8 @@
         
         <div class="section">
             <div class="button-group">
-                <button id="pasteBtn" class="success"><i class="fas fa-paste"></i> Paste from Clipboard</button>
+                <button id="convertClipboardBtn" class="success"><i class="fas fa-wand-magic-sparkles"></i> Convert to Markdown</button>
+                <button id="pasteBtn" class="secondary"><i class="fas fa-paste"></i> Paste</button>
                 <button id="copyMarkdownBtn" class="secondary"><i class="fab fa-markdown"></i> Copy Markdown</button>
                 <button id="clearBtn" class="danger"><i class="fas fa-trash"></i> Clear</button>
                 <div class="mode-switches">
@@ -31,18 +32,18 @@
                             <input type="checkbox" id="simpleModeToggle" checked>
                             <span class="slider"></span>
                         </label>
-                        <span>Simplified Mode</span>
+                        <span>Simplified</span>
                     </div>
                 </div>
             </div>
             <div id="copySuccess" class="success-message">Copied to clipboard!</div>
-            <h2><i class="fas fa-edit"></i> Input: Paste your rich text here (Ctrl/Cmd+V)</h2>
+            <h2><i class="fas fa-edit"></i> Input</h2>
             <div id="editor" contenteditable="true"></div>
             <div id="pasteError" class="error-message">Please use Ctrl/Cmd+V to paste content</div>
         </div>
 
         <div class="section">
-            <h2><i class="fas fa-file-code"></i> Output: Markdown</h2>
+            <h2><i class="fas fa-file-code"></i> Output Markdown</h2>
             <div id="output"></div>
         </div>
     </div>

@@ -1,6 +1,7 @@
 document.addEventListener('DOMContentLoaded', () => {
     const editor = document.getElementById('editor');
     const output = document.getElementById('output');
+    const convertClipboardBtn = document.getElementById('convertClipboardBtn');
     const copyMarkdownBtn = document.getElementById('copyMarkdownBtn');
     const clearBtn = document.getElementById('clearBtn');
     const pasteBtn = document.getElementById('pasteBtn');
@@ -297,7 +298,7 @@ document.addEventListener('DOMContentLoaded', () => {
             .trim();
     }
 
-    async function pasteFromClipboard() {
+    async function pasteFromClipboard({ autoConvertAfterPaste = true } = {}) {
         pasteError.style.display = 'none';
 
         try {
@@ -329,7 +330,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 throw new Error('No compatible clipboard data');
             }
 
-            setTimeout(autoConvert, 100);
+            if (autoConvertAfterPaste) {
+                setTimeout(autoConvert, 100);
+            }
+            return true;
         } catch (err) {
             pasteError.innerHTML = `
                 <i class="fas fa-exclamation-triangle"></i> 
@@ -339,6 +343,7 @@ document.addEventListener('DOMContentLoaded', () => {
             setTimeout(() => {
                 pasteError.style.display = 'none';
             }, 3000);
+            return false;
         }
     }
 
@@ -364,12 +369,50 @@ document.addEventListener('DOMContentLoaded', () => {
         editor.convertTimeout = setTimeout(autoConvert, 300);
     });
 
+    function isEditableElement(element) {
+        if (!element) return false;
+        if (element.isContentEditable) return true;
+        const tag = element.tagName;
+        if (tag === 'TEXTAREA') return true;
+        if (tag === 'INPUT') {
+            const type = (element.type || '').toLowerCase();
+            return ['text', 'search', 'url', 'tel', 'email', 'password'].includes(type);
+        }
+        return false;
+    }
+
+    function canReadClipboard() {
+        return Boolean(navigator.clipboard && navigator.clipboard.read);
+    }
+
     // Keyboard shortcuts
     document.addEventListener('keydown', (e) => {
-        // Ctrl/Cmd + Shift + V: Paste button
+        // Ctrl/Cmd + V: Paste from clipboard
+        if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'v') {
+            if (canReadClipboard()) {
+                e.preventDefault();
+                pasteBtn.click();
+                return;
+            }
+            if (!isEditableElement(document.activeElement)) {
+                e.preventDefault();
+                pasteBtn.click();
+            }
+            return;
+        }
+
+        // Ctrl/Cmd + Shift + V: Paste, convert, copy
         if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'V') {
             e.preventDefault();
-            pasteBtn.click();
+            pasteFromClipboard({ autoConvertAfterPaste: false }).then((didPaste) => {
+                if (!didPaste) {
+                    return;
+                }
+                convertToMarkdown();
+                if (output.textContent.trim()) {
+                    copyToClipboard(output.textContent, 'Markdown copied to clipboard!');
+                }
+            });
         }
         
         // Ctrl/Cmd + Shift + C: Copy markdown
@@ -390,7 +433,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // Initialize tooltips
     function initTooltips() {
         const tooltips = [
-            { element: pasteBtn, text: 'Paste content from clipboard (Ctrl+Shift+V)' },
+            { element: convertClipboardBtn, text: 'Convert clipboard to Markdown and copy (Ctrl+Shift+V)' },
+            { element: pasteBtn, text: 'Paste content from clipboard (Ctrl+V)' },
             { element: copyMarkdownBtn, text: 'Copy Markdown to clipboard (Ctrl+Shift+C)' },
             { element: clearBtn, text: 'Clear all content (Ctrl+Shift+X)' },
             { element: simpleModeToggle.parentElement, text: 'Remove formatting and create cleaner Markdown' }
@@ -464,6 +508,20 @@ document.addEventListener('DOMContentLoaded', () => {
     pasteBtn.addEventListener('click', () => {
         editor.focus();
         pasteFromClipboard();
+    });
+
+    // Convert clipboard button
+    convertClipboardBtn.addEventListener('click', () => {
+        editor.focus();
+        pasteFromClipboard({ autoConvertAfterPaste: false }).then((didPaste) => {
+            if (!didPaste) {
+                return;
+            }
+            convertToMarkdown();
+            if (output.textContent.trim()) {
+                copyToClipboard(output.textContent, 'Markdown copied to clipboard!');
+            }
+        });
     });
 
     // Copy markdown button
