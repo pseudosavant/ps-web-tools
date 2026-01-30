@@ -1,17 +1,22 @@
 {
   "short_name": "Data URI",
   "name": "Data URI PWA",
-  "description": "This web app will create a data URI of the contents of any local file, text, or CORS-enabled remote URL. All processing is done on the client – no information is ever sent to a server.",
+  "description": "This web app will create a data URI of the contents of any local file, text, or CORS-enabled remote URL. All processing is done on the client - no information is ever sent to a server.",
   "background_color": "#FFFFFF",
   "theme_color": "#CCEBFF",
-  "color": " #CCEBFF",
   "icons": [
     {
-      "src": "https://cdn.glitch.com/f6b6c656-0aa7-4ce1-8286-8c6351d423fe%2Ffavicon%20(1).png?v=1596671902439",
-      "type": "image/png",
-      "sizes": "512x512"
+      "src": "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.7.2/svgs/solid/link.svg",
+      "type": "image/svg+xml",
+      "sizes": "any"
+    },
+    {
+      "src": "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.7.2/svgs/solid/file-alt.svg",
+      "type": "image/svg+xml",
+      "sizes": "any"
     }
   ],
   "display": "standalone",
-  "start_url": "https://data-uri-pwa.glitch.me/"
+  "start_url": "./",
+  "scope": "./"
 }

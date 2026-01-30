@@ -1,6 +1,6 @@
 :root {
   --border-radius: 0.5rem;
-  --border-color: hsl(204deg, 80%, 80%);
+  --border-color: #9ca3af;
   --source-color: hsl(204deg, 100%, 90%);
 }
 
@@ -9,7 +9,8 @@
   user-select: none;
 }
 
-input {
+input,
+textarea {
   user-select: unset;
 }
 
@@ -18,15 +19,20 @@ body {
   font-size: 14px;
   margin: 1em;
   position: relative;
-  background: linear-gradient(135deg, #e3f2fd 0%, #f8fafc 100%);
+  background: linear-gradient(135deg, #eef0f3 0%, #f8f9fb 100%);
   min-height: 100vh;
-  color: #222;
+  color: #111827;
   text-align: left;
 }
 
 h1, h2, h3 {
   text-align: left;
   margin-left: 0;
+}
+
+.panels {
+  max-width: 1200px;
+  margin: 0 auto 2rem;
 }
 
 .sources, .output {
@@ -43,10 +49,19 @@ h1, h2, h3 {
   width: 95vw;
 }
 
-@media (min-width: 1200px) {
+@media (min-width: 1100px) {
+  .panels {
+    display: flex;
+    align-items: flex-start;
+    gap: 1.5rem;
+  }
   .sources, .output {
-    width: 80vw;
-    max-width: 1200px;
+    width: 100%;
+    max-width: none;
+    margin-left: 0;
+    margin-right: 0;
+    margin-bottom: 0;
+    flex: 1 1 0;
   }
 }
 
@@ -81,34 +96,83 @@ h1, h2, h3 {
     padding: 0.25rem;
     width: 100vw;
   }
-  .sources ul li {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 0.25rem;
+  .source-row {
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
   }
 }
 
 .sources ul {
   margin-bottom: 1rem;
-  background: #f5faff;
+  background: #f3f4f6;
   border-radius: var(--border-radius);
-  padding: 0.5rem;
+  padding: 0.75rem;
+  list-style: none;
+  margin-left: 0;
+  padding-left: 0.75rem;
 }
 
 .sources ul li {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 0.25rem;
+  padding: 1rem 0.5rem;
+}
+
+.source-item + .source-item {
+  border-top: 1px solid rgba(17, 24, 39, 0.12);
+  padding-top: 1.25rem;
+}
+
+.source-row {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) minmax(220px, 2fr);
+  align-items: start;
+  gap: 1rem;
 }
 
 .sources label, .drop-widget {
   font-weight: 500;
-  min-width: 110px;
   margin-bottom: 0;
 }
 
-.sources input {
+.source-row label {
+  display: block;
+  font-weight: 600;
+}
+
+.source-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.source-control {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.source-control > * {
+  width: 100%;
+  margin-right: 0;
+}
+
+.source-control input,
+.source-control textarea {
+  min-width: 0;
+}
+
+.drop-widget {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  width: 100%;
+  min-height: 6rem;
+  padding: 1.25rem;
+  text-align: center;
+}
+
+.sources input,
+.sources textarea {
   width: 100%;
   padding: 0.5rem;
   border-radius: var(--border-radius);
@@ -123,61 +187,54 @@ label[for="local"] {
   margin: 0;
 }
 
-label[for="local"] button {
-  padding: 0.25rem;
-  border-radius: var(--border-radius);
-  border: 1px solid #AAA;
-  background: rgba(255,255,255,0.5);
-  margin-left: 0.25rem;
-}
-
 .sources .text {
-  width: calc(100% - 2.5rem);
+  width: 100%;
+  min-height: 3.5rem;
+  resize: vertical;
 }
 
-.sources .btn-paste {
-  width: 2rem;
-  padding: 0.35rem;
-  border: 1px solid #AAA;
+.sources .btn-paste,
+.sources .btn-file {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  width: 100%;
+  text-align: center;
+}
+
+input, textarea, button, .btn-paste {
   font-size: 1em;
   border-radius: var(--border-radius);
   border: 1px solid var(--border-color);
   padding: 0.5em 0.75em;
   margin-right: 0.25em;
-  background: #f9fcff;
-  transition: border 0.2s, box-shadow 0.2s, background 0.2s;
-}
-
-input, button, .btn-paste {
-  font-size: 1em;
-  border-radius: var(--border-radius);
-  border: 1px solid var(--border-color);
-  padding: 0.5em 0.75em;
-  margin-right: 0.25em;
-  background: #f9fcff;
+  background: #ffffff;
   transition: border 0.2s, box-shadow 0.2s, background 0.2s;
   text-align: left;
 }
 
-input[type="url"], input[type="text"] {
+input[type="url"], input[type="text"], textarea {
   flex: 1 1 auto;
   min-width: 0;
 }
 
-input:focus, button:focus, .btn-paste:focus {
-  outline: 2px solid #3399ff;
+input:focus, textarea:focus, button:focus, .btn-paste:focus {
+  outline: 2px solid #6b7280;
   outline-offset: 2px;
-  border-color: #3399ff;
-  background: #e3f2fd;
+  border-color: #6b7280;
+  background: #f3f4f6;
 }
 
 button,
 .btn-paste,
-label[for="local"] button {
+.btn-file,
+.source-button,
+.source-action {
   cursor: pointer;
-  background: #e3f2fd;
-  border: 1px solid #90caf9;
-  color: #1976d2;
+  background: #e5e7eb;
+  border: 1px solid #9ca3af;
+  color: #111827;
   font-weight: 600;
   box-shadow: 0 1px 2px rgba(30,144,255,0.03);
   border-radius: var(--border-radius);
@@ -186,13 +243,17 @@ label[for="local"] button {
 
 button:hover,
 .btn-paste:hover,
-label[for="local"] button:hover,
+.btn-file:hover,
+.source-button:hover,
+.source-action:hover,
 button:focus,
 .btn-paste:focus,
-label[for="local"] button:focus {
-  background: #bbdefb;
-  border-color: #1976d2;
-  color: #0d47a1;
+.btn-file:focus,
+.source-button:focus,
+.source-action:focus {
+  background: #d1d5db;
+  border-color: #6b7280;
+  color: #111827;
   outline: none;
 }
 
@@ -201,9 +262,9 @@ label[for="local"] button:focus {
   margin-bottom: 0.5rem;
   font-size: 1em;
   font-weight: 600;
-  background: #e3f2fd;
-  border: 1px solid #90caf9;
-  color: #1976d2;
+  background: #e5e7eb;
+  border: 1px solid #9ca3af;
+  color: #111827;
 }
 
 .copy:active {
@@ -216,11 +277,26 @@ label[for="local"] button:focus {
   word-break: break-all;
   font-family: monospace;
   font-size: 0.95em;
-  color: #1565c0;
+  color: #ffffff;
+  background: #111827;
+  padding: 0.35rem 0.5rem;
+  border-radius: calc(var(--border-radius) * 0.75);
   text-decoration: underline dotted;
 }
 
-.data-uri[href=""], .data-uri[href=""] ~ * {
+.data-uri:focus,
+.data-uri:focus-visible {
+  outline: 2px solid #6b7280;
+  outline-offset: 2px;
+}
+
+.data-uri[href=""] {
+  display: none;
+}
+
+.data-uri[href=""] ~ .copy,
+.data-uri[href=""] ~ .copy-message,
+.data-uri[href=""] ~ .preview {
   display: none;
 }
 
@@ -276,8 +352,8 @@ label[for="local"] button:focus {
 }
 
 .preview > * {
-  width: 100%;
-  min-height: 25vh;
+  max-width: 100%;
+  min-height: 5rem;
   max-height: 50vh;
   object-fit: contain;
   border: 0 none;
@@ -290,6 +366,47 @@ label[for="local"] button:focus {
   font-size: 1.1em;
   text-align: center;
   width: 100%;
+}
+
+.help {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: 0.9em;
+  color: #374151;
+}
+
+.status-message {
+  min-height: 1.25em;
+  margin: 0.5rem 0 1rem;
+  font-size: 0.95em;
+  color: #1f2937;
+}
+
+.status-message.is-error {
+  color: #1f2937;
+}
+
+.status-message.is-info {
+  color: #4b5563;
+}
+
+.status-message.is-loading::before {
+  content: "";
+  display: inline-block;
+  width: 0.75em;
+  height: 0.75em;
+  margin-right: 0.5em;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  animation: spin 0.8s linear infinite;
+  vertical-align: -0.1em;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 footer {
@@ -307,7 +424,7 @@ footer {
   bottom: 1.5rem;
   right: 1.5rem;
   z-index: 100;
-  background: #1976d2;
+  background: #374151;
   color: #fff;
   border: none;
   box-shadow: 0 2px 8px rgba(30,144,255,0.18);
@@ -319,70 +436,104 @@ footer {
 }
 
 .install:hover, .install:focus {
-  background: #0d47a1;
+  background: #111827;
   box-shadow: 0 4px 16px rgba(30,144,255,0.25);
 }
 
 .dropover {
-  box-shadow: 0 0 0 4px #3399ff;
-  border-color: #3399ff !important;
+  box-shadow: 0 0 0 4px #6b7280;
+  border-color: #6b7280 !important;
   z-index: 2;
+}
+
+.paste-proxy {
+  position: fixed;
+  left: -9999px;
+  top: 0;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
 }
 
 /* Subtle link colors */
 a, a:visited {
-  color: #4a90e2;
+  color: #374151;
   text-decoration: underline;
   transition: color 0.2s;
 }
 a:hover, a:focus {
-  color: #1976d2;
+  color: #111827;
   text-decoration: underline;
 }
 
 /* Dark mode support */
 @media (prefers-color-scheme: dark) {
   body {
-    background: linear-gradient(135deg, #16181d 0%, #23272f 100%);
+    background: linear-gradient(135deg, #14161a 0%, #20242b 100%);
     color: #f5faff;
   }
   .sources, .output {
-    background: #232733;
+    background: #1f232b;
     color: #f5faff;
     box-shadow: 0 2px 12px rgba(0,0,0,0.25);
     border-radius: var(--border-radius);
   }
   .sources ul {
-    background: #181b20;
+    background: #1b1f27;
     border-radius: var(--border-radius);
   }
-  input, button, .btn-paste {
-    background: #232733;
-    color: #f5faff;
-    border-color: #374151;
+  input[type="url"], input[type="text"], textarea {
+    background: #eeeeee;
+    color: #111827;
+    border-color: #64748b;
   }
-  input[type="url"], input[type="text"] {
-    background: #181b20;
-    color: #f5faff;
-    border-color: #374151;
+  button,
+  .btn-paste,
+  .btn-file,
+  .source-button,
+  .source-action {
+    background: #2a2e34;
+    color: #f3f4f6;
+    border-color: #6b7280;
   }
-  button, .btn-paste {
-    background: #26334d;
-    color: #90caf9;
-    border-color: #1976d2;
+  button:hover,
+  .btn-paste:hover,
+  .btn-file:hover,
+  .source-button:hover,
+  .source-action:hover,
+  button:focus,
+  .btn-paste:focus,
+  .btn-file:focus,
+  .source-button:focus,
+  .source-action:focus {
+    background: #3a3f47;
+    border-color: #9ca3af;
+    color: #f9fafb;
   }
   .copy {
-    background: #26334d;
-    color: #90caf9;
-    border-color: #1976d2;
+    background: #2b2f36;
+    color: #e5e7eb;
+    border-color: #6b7280;
   }
   .preview {
-    background-color: #181b20;
     border-color: #374151;
     border-radius: var(--border-radius);
   }
   .preview-placeholder {
     color: #b0b8c1;
+  }
+  .help {
+    color: #d1d5db;
+  }
+  .status-message {
+    color: #e5e7eb;
+  }
+  .status-message.is-error {
+    color: #e5e7eb;
+  }
+  .status-message.is-info {
+    color: #cbd5e1;
   }
   .data-uri[href=""] ~ h3::before {
     color: #f5faff;
@@ -391,25 +542,25 @@ a:hover, a:focus {
     border-radius: var(--border-radius);
   }
   .install {
-    background: #1565c0;
+    background: #374151;
     color: #fff;
   }
   footer {
-    color: #b0b8c1;
+    color: #d1d5db;
   }
   /* Subtle link colors for dark mode */
   a, a:visited {
-    color: #7bb0f7;
+    color: #d1d5db;
   }
   a:hover, a:focus {
-    color: #90caf9;
+    color: #f3f4f6;
   }
 }
 
 /* Success message for copy */
 .copy-success {
-  background: #c8e6c9 !important;
-  color: #256029 !important;
-  border-color: #388e3c !important;
+  background: #e5e7eb !important;
+  color: #111827 !important;
+  border-color: #9ca3af !important;
   transition: background 0.5s, color 0.5s;
 }
