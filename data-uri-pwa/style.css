@@ -349,16 +349,39 @@ button:focus,
   display: flex;
   align-items: center;
   justify-content: center;
+  overflow: auto;
+}
+
+.preview:hover,
+.preview:focus-within {
+  border-color: #6b7280;
+  box-shadow: 0 2px 10px rgba(17,24,39,0.12);
+}
+
+.preview.preview-media {
+  aspect-ratio: 16 / 9;
+}
+
+.preview.preview-audio {
+  min-height: 6rem;
 }
 
 .preview > * {
   max-width: 100%;
   min-height: 5rem;
   max-height: 50vh;
+  background: #f3f4f6;
+  padding: 0.5rem;
   object-fit: contain;
   border: 0 none;
   border-radius: var(--border-radius);
   box-shadow: 0 1px 4px rgba(30,144,255,0.08);
+}
+
+.preview iframe {
+  width: 100%;
+  min-height: 12rem;
+  height: auto;
 }
 
 .preview-placeholder {

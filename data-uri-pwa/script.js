@@ -221,29 +221,34 @@
   function renderPreview(uri, type) {
     const $preview = $(".preview");
     $preview.innerHTML = "";
+    $preview.classList.remove("preview-media", "preview-audio", "preview-image", "preview-video", "preview-text");
     const safeType = type || "application/octet-stream";
     const baseType = safeType.split("/")[0];
 
     switch (baseType) {
       case "video":
+        $preview.classList.add("preview-media", "preview-video");
         const $video = $("<video controls />");
         $video.src = uri;
         $preview.append($video);
         break;
       case "audio":
+        $preview.classList.add("preview-audio");
         const $audio = $("<audio controls />");
         $audio.src = uri;
         $preview.append($audio);
         break;
       case "image":
+        $preview.classList.add("preview-media", "preview-image");
         const $img = $("<img>");
         $img.src = uri;
         $preview.append($img);
         break;
       case "text":
       default:
+        $preview.classList.add("preview-text");
         const $iframe = $("<iframe/>");
-        $iframe.setAttribute("sandbox", "");
+        $iframe.setAttribute("sandbox", "allow-same-origin");
         $iframe.src = uri;
         $iframe.onload = () => resizeIframe($iframe);
         $preview.append($iframe);
