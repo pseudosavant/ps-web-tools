@@ -6,12 +6,12 @@
   "theme_color": "#CCEBFF",
   "icons": [
     {
-      "src": "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.7.2/svgs/solid/link.svg",
-      "type": "image/svg+xml",
-      "sizes": "any"
+      "src": "favicon.png",
+      "type": "image/png",
+      "sizes": "256x256"
     },
     {
-      "src": "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.7.2/svgs/solid/file-alt.svg",
+      "src": "favicon.svg",
       "type": "image/svg+xml",
       "sizes": "any"
     }
