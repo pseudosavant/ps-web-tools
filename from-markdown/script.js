@@ -1,3 +1,20 @@
+const pendingLaunchFileHandles = [];
+let onLaunchFiles = null;
+
+if ('launchQueue' in window && typeof window.launchQueue.setConsumer === 'function') {
+    window.launchQueue.setConsumer((launchParams) => {
+        const files = (launchParams && launchParams.files) ? launchParams.files : [];
+        if (!files.length) {
+            return;
+        }
+        if (typeof onLaunchFiles === 'function') {
+            onLaunchFiles(files);
+        } else {
+            pendingLaunchFileHandles.push(...files);
+        }
+    });
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     const editor = document.getElementById('editor');
     const previewFrame = document.getElementById('previewFrame');
@@ -78,6 +95,28 @@ document.addEventListener('DOMContentLoaded', () => {
                 renderPreview(currentHtml);
             }
         }, 0);
+    }
+
+    function startStartupSyncWatcher() {
+        let attempts = 0;
+        const maxAttempts = 30;
+        const intervalMs = 200;
+
+        const timerId = setInterval(() => {
+            attempts += 1;
+
+            const hasMarkdown = Boolean(editor.value.trim());
+            if (hasMarkdown) {
+                const previewLooksEmpty = !previewFrame.srcdoc || previewFrame.srcdoc.includes('<body></body>');
+                if (!currentHtml.trim() || previewLooksEmpty) {
+                    convertToHtml();
+                }
+            }
+
+            if (attempts >= maxAttempts) {
+                clearInterval(timerId);
+            }
+        }, intervalMs);
     }
 
     function showTransientSuccess(message) {
@@ -383,6 +422,30 @@ document.addEventListener('DOMContentLoaded', () => {
         copySuccessEl.style.display = 'none';
     });
 
+    async function handleLaunchFiles(files) {
+        if (!files || !files.length) {
+            return;
+        }
+        try {
+            const firstHandle = files[0];
+            const file = await firstHandle.getFile();
+            await loadMarkdownFile(file);
+            scheduleRenderSync();
+            requestAnimationFrame(() => {
+                scheduleRenderSync();
+            });
+        } catch (err) {
+            pasteError.innerHTML = `
+                <i class="fas fa-exclamation-triangle"></i>
+                Unable to open launch file.
+            `;
+            pasteError.style.display = 'block';
+            setTimeout(() => {
+                pasteError.style.display = 'none';
+            }, 3000);
+        }
+    }
+
     initTooltips();
     if (editor.value.trim()) {
         convertToHtml();
@@ -390,6 +453,7 @@ document.addEventListener('DOMContentLoaded', () => {
         renderPreview('');
     }
     scheduleRenderSync();
+    startStartupSyncWatcher();
     registerServiceWorker();
 
     window.addEventListener('pageshow', () => {
@@ -402,25 +466,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    if ('launchQueue' in window && typeof window.launchQueue.setConsumer === 'function') {
-        window.launchQueue.setConsumer(async (launchParams) => {
-            if (!launchParams || !launchParams.files || !launchParams.files.length) {
-                return;
-            }
-            try {
-                const firstHandle = launchParams.files[0];
-                const file = await firstHandle.getFile();
-                await loadMarkdownFile(file);
-            } catch (err) {
-                pasteError.innerHTML = `
-                    <i class="fas fa-exclamation-triangle"></i>
-                    Unable to open launch file.
-                `;
-                pasteError.style.display = 'block';
-                setTimeout(() => {
-                    pasteError.style.display = 'none';
-                }, 3000);
-            }
-        });
+    onLaunchFiles = (files) => {
+        handleLaunchFiles(files);
+    };
+
+    if (pendingLaunchFileHandles.length) {
+        const queued = pendingLaunchFileHandles.splice(0);
+        handleLaunchFiles(queued);
     }
 });
