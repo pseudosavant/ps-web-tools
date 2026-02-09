@@ -1,21 +1,50 @@
 const pendingLaunchFileHandles = [];
 let onLaunchFiles = null;
+const stageLogBuffer = [];
+
+function stageLog(stage, details = {}) {
+    const entry = {
+        ts: new Date().toISOString(),
+        stage,
+        ...details
+    };
+    stageLogBuffer.push(entry);
+    window.__fromMarkdownStageLogs = stageLogBuffer;
+    console.log(`[from-markdown] ${entry.ts} ${stage}`, details);
+}
+
+stageLog('script-eval-start', {
+    readyState: document.readyState,
+    href: window.location.href
+});
 
 if ('launchQueue' in window && typeof window.launchQueue.setConsumer === 'function') {
+    stageLog('launch-consumer-register-top-level');
     window.launchQueue.setConsumer((launchParams) => {
         const files = (launchParams && launchParams.files) ? launchParams.files : [];
+        stageLog('launch-consumer-fired', {
+            fileCount: files.length,
+            hasLaunchHandler: typeof onLaunchFiles === 'function'
+        });
         if (!files.length) {
             return;
         }
         if (typeof onLaunchFiles === 'function') {
+            stageLog('launch-consumer-dispatch-immediate', { fileCount: files.length });
             onLaunchFiles(files);
         } else {
+            stageLog('launch-consumer-queued-pending', { fileCount: files.length });
             pendingLaunchFileHandles.push(...files);
         }
     });
+} else {
+    stageLog('launch-consumer-unavailable');
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+    stageLog('domcontentloaded-start', {
+        pendingLaunchFileCount: pendingLaunchFileHandles.length
+    });
     const editor = document.getElementById('editor');
     const previewFrame = document.getElementById('previewFrame');
     const convertClipboardBtn = document.getElementById('convertClipboardBtn');
@@ -30,11 +59,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function registerServiceWorker() {
         if (!('serviceWorker' in navigator)) {
+            stageLog('sw-register-skipped-no-support');
             return;
         }
+        stageLog('sw-register-start');
         try {
             await navigator.serviceWorker.register('./sw.js');
+            stageLog('sw-register-success');
         } catch (err) {
+            stageLog('sw-register-failed', { error: err.message });
             console.log('Service worker registration failed:', err.message);
         }
     }
@@ -55,6 +88,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function renderPreview(html) {
+        stageLog('render-preview-start', {
+            htmlLength: html.length
+        });
         const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
         const frameCss = prefersDark
             ? 'body{background:#2a2a2a;color:#e0e0e0;}a{color:#7db8ff;}code,pre{background:#1f1f1f;color:#e0e0e0;border:1px solid #3a3a3a;}blockquote{border-left:4px solid #555;color:#cfcfcf;}table,th,td{border:1px solid #555;}th{background:#333;}'
@@ -73,26 +109,45 @@ document.addEventListener('DOMContentLoaded', () => {
 
         previewFrame.setAttribute('sandbox', '');
         previewFrame.srcdoc = srcDoc;
+        stageLog('render-preview-set-srcdoc', {
+            srcDocLength: srcDoc.length
+        });
     }
 
     function convertToHtml() {
+        stageLog('convert-start', {
+            markdownLength: editor.value.length,
+            sanitized: sanitizedToggle.checked
+        });
         const parsedHtml = markdownToHtml(editor.value);
         currentHtml = sanitizedToggle.checked ? sanitizeHtml(parsedHtml) : parsedHtml;
+        stageLog('convert-finish', {
+            parsedHtmlLength: parsedHtml.length,
+            currentHtmlLength: currentHtml.length
+        });
         renderPreview(currentHtml);
     }
 
     function scheduleRenderSync() {
+        stageLog('render-sync-scheduled');
         setTimeout(() => {
             if (!editor.value.trim()) {
+                stageLog('render-sync-skip-no-markdown');
                 return;
             }
             if (!currentHtml.trim()) {
+                stageLog('render-sync-convert-needed');
                 convertToHtml();
                 return;
             }
             const bodyIsEmpty = !previewFrame.srcdoc || previewFrame.srcdoc.includes('<body></body>');
             if (bodyIsEmpty) {
+                stageLog('render-sync-reapply-preview', {
+                    currentHtmlLength: currentHtml.length
+                });
                 renderPreview(currentHtml);
+            } else {
+                stageLog('render-sync-skip-preview-has-content');
             }
         }, 0);
     }
@@ -101,6 +156,10 @@ document.addEventListener('DOMContentLoaded', () => {
         let attempts = 0;
         const maxAttempts = 30;
         const intervalMs = 200;
+        stageLog('startup-sync-watcher-start', {
+            maxAttempts,
+            intervalMs
+        });
 
         const timerId = setInterval(() => {
             attempts += 1;
@@ -109,12 +168,21 @@ document.addEventListener('DOMContentLoaded', () => {
             if (hasMarkdown) {
                 const previewLooksEmpty = !previewFrame.srcdoc || previewFrame.srcdoc.includes('<body></body>');
                 if (!currentHtml.trim() || previewLooksEmpty) {
+                    stageLog('startup-sync-watcher-convert', {
+                        attempt: attempts,
+                        hasCurrentHtml: Boolean(currentHtml.trim()),
+                        previewLooksEmpty
+                    });
                     convertToHtml();
                 }
             }
 
             if (attempts >= maxAttempts) {
                 clearInterval(timerId);
+                stageLog('startup-sync-watcher-stop', {
+                    attempts,
+                    hasMarkdown
+                });
             }
         }, intervalMs);
     }
@@ -142,7 +210,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function loadMarkdownFile(file) {
+        stageLog('file-load-start', {
+            name: file && file.name ? file.name : '(unknown)',
+            type: file && file.type ? file.type : '(unknown)',
+            size: file && typeof file.size === 'number' ? file.size : -1
+        });
         if (!isSupportedTextFile(file)) {
+            stageLog('file-load-unsupported');
             pasteError.innerHTML = `
                 <i class="fas fa-exclamation-triangle"></i>
                 Unsupported file type. Drop a <kbd>.md</kbd> or <kbd>.txt</kbd> file.
@@ -156,12 +230,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             const text = await file.text();
+            stageLog('file-load-text-read', {
+                textLength: text.length
+            });
             editor.value = text;
             convertToHtml();
             scheduleRenderSync();
             showTransientSuccess(`Loaded ${file.name}`);
+            stageLog('file-load-complete', {
+                textLength: text.length,
+                currentHtmlLength: currentHtml.length
+            });
             return true;
         } catch (err) {
+            stageLog('file-load-failed', { error: err.message });
             pasteError.innerHTML = `
                 <i class="fas fa-exclamation-triangle"></i>
                 Unable to open that file.
@@ -424,17 +506,29 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function handleLaunchFiles(files) {
         if (!files || !files.length) {
+            stageLog('launch-files-handle-skip-empty');
             return;
         }
+        stageLog('launch-files-handle-start', { fileCount: files.length });
         try {
             const firstHandle = files[0];
             const file = await firstHandle.getFile();
+            stageLog('launch-files-getFile-success', {
+                name: file.name,
+                size: file.size,
+                type: file.type
+            });
             await loadMarkdownFile(file);
             scheduleRenderSync();
             requestAnimationFrame(() => {
+                stageLog('launch-files-raf-sync');
                 scheduleRenderSync();
             });
+            stageLog('launch-files-handle-complete', {
+                currentHtmlLength: currentHtml.length
+            });
         } catch (err) {
+            stageLog('launch-files-handle-failed', { error: err.message });
             pasteError.innerHTML = `
                 <i class="fas fa-exclamation-triangle"></i>
                 Unable to open launch file.
@@ -447,9 +541,14 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     initTooltips();
+    stageLog('init-tooltips-complete');
     if (editor.value.trim()) {
+        stageLog('init-convert-existing-editor-content', {
+            markdownLength: editor.value.length
+        });
         convertToHtml();
     } else {
+        stageLog('init-render-empty-preview');
         renderPreview('');
     }
     scheduleRenderSync();
@@ -457,21 +556,32 @@ document.addEventListener('DOMContentLoaded', () => {
     registerServiceWorker();
 
     window.addEventListener('pageshow', () => {
+        stageLog('event-pageshow');
         scheduleRenderSync();
     });
 
     document.addEventListener('visibilitychange', () => {
+        stageLog('event-visibilitychange', { hidden: document.hidden });
         if (!document.hidden) {
             scheduleRenderSync();
         }
     });
 
+    previewFrame.addEventListener('load', () => {
+        stageLog('event-preview-iframe-load', {
+            srcDocLength: previewFrame.srcdoc ? previewFrame.srcdoc.length : 0
+        });
+    });
+
     onLaunchFiles = (files) => {
+        stageLog('launch-handler-dispatch', { fileCount: files.length });
         handleLaunchFiles(files);
     };
+    stageLog('launch-handler-ready');
 
     if (pendingLaunchFileHandles.length) {
         const queued = pendingLaunchFileHandles.splice(0);
+        stageLog('launch-handler-drain-pending', { fileCount: queued.length });
         handleLaunchFiles(queued);
     }
 });
