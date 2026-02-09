@@ -366,6 +366,14 @@ document.addEventListener('DOMContentLoaded', () => {
         copySuccessEl.style.display = 'none';
     });
 
+    initTooltips();
+    if (editor.value.trim()) {
+        convertToHtml();
+    } else {
+        renderPreview('');
+    }
+    registerServiceWorker();
+
     if ('launchQueue' in window && typeof window.launchQueue.setConsumer === 'function') {
         window.launchQueue.setConsumer(async (launchParams) => {
             if (!launchParams || !launchParams.files || !launchParams.files.length) {
@@ -387,8 +395,4 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
-
-    initTooltips();
-    renderPreview('');
-    registerServiceWorker();
 });
