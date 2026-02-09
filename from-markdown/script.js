@@ -64,6 +64,22 @@ document.addEventListener('DOMContentLoaded', () => {
         renderPreview(currentHtml);
     }
 
+    function scheduleRenderSync() {
+        setTimeout(() => {
+            if (!editor.value.trim()) {
+                return;
+            }
+            if (!currentHtml.trim()) {
+                convertToHtml();
+                return;
+            }
+            const bodyIsEmpty = !previewFrame.srcdoc || previewFrame.srcdoc.includes('<body></body>');
+            if (bodyIsEmpty) {
+                renderPreview(currentHtml);
+            }
+        }, 0);
+    }
+
     function showTransientSuccess(message) {
         copySuccessEl.textContent = message;
         copySuccessEl.style.display = 'block';
@@ -103,6 +119,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const text = await file.text();
             editor.value = text;
             convertToHtml();
+            scheduleRenderSync();
             showTransientSuccess(`Loaded ${file.name}`);
             return true;
         } catch (err) {
@@ -372,7 +389,18 @@ document.addEventListener('DOMContentLoaded', () => {
     } else {
         renderPreview('');
     }
+    scheduleRenderSync();
     registerServiceWorker();
+
+    window.addEventListener('pageshow', () => {
+        scheduleRenderSync();
+    });
+
+    document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) {
+            scheduleRenderSync();
+        }
+    });
 
     if ('launchQueue' in window && typeof window.launchQueue.setConsumer === 'function') {
         window.launchQueue.setConsumer(async (launchParams) => {

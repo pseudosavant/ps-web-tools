@@ -54,6 +54,13 @@ body {
     text-align: center;
 }
 
+.app-footer {
+    text-align: center;
+    font-size: 0.8rem;
+    opacity: 0.65;
+    margin-top: 0.25rem;
+}
+
 .workspace {
     display: flex;
     flex-direction: column;
