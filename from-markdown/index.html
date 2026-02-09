@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Markdown to HTML Converter</title>
+    <meta name="description" content="Convert Markdown into rendered HTML with automatic conversion and safe preview support">
+    <link rel="icon" href="icon.svg" type="image/svg+xml">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js"
+        integrity="sha512-xeUh+KxNyTufZOje++oQHstlMQ8/rpyzPuM+gjMFYK3z5ILJGE7l2NvYL+XfliKURMpBIKKp1XoPN/qswlSMFA=="
+        crossorigin="anonymous"
+        referrerpolicy="no-referrer"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.6/purify.min.js"
+        integrity="sha512-jB0TkTBeQC9ZSkBqDhdmfTv1qdfbWpGE72yJ/01Srq6hEzZIz2xkz1e57p9ai7IeHMwEG7HpzG6NdptChif5Pg=="
+        crossorigin="anonymous"
+        referrerpolicy="no-referrer"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.0/css/all.min.css"
+        integrity="sha512-9xKTRVabjVeZmc+GUW8GgSmcREDunMM+Dt/GrzchfN8tkwHizc5RP4Ok/MXFFy5rIjJjzhndFScTceq5e6GvVQ=="
+        crossorigin="anonymous">
+    <link rel="stylesheet" href="styles.css">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#0066cc">
+</head>
+<body>
+    <div class="container">
+        <h1><i class="fab fa-markdown"></i> Markdown to HTML Converter</h1>
+
+        <div class="section controls">
+            <div class="button-group">
+                <button id="convertClipboardBtn" class="success"><i class="fas fa-wand-magic-sparkles"></i> Convert to HTML</button>
+                <button id="pasteBtn" class="secondary"><i class="fas fa-paste"></i> Paste</button>
+                <button id="copyHtmlBtn" class="secondary"><i class="fas fa-file-code"></i> Copy HTML</button>
+                <button id="clearBtn" class="danger"><i class="fas fa-trash"></i> Clear</button>
+                <div class="mode-switches">
+                    <div class="mode-switch">
+                        <label class="switch">
+                            <input type="checkbox" id="sanitizedToggle" checked>
+                            <span class="slider"></span>
+                        </label>
+                        <span>Sanitized</span>
+                    </div>
+                </div>
+            </div>
+            <div id="copySuccess" class="success-message">Copied to clipboard!</div>
+        </div>
+
+        <div class="workspace">
+            <div class="section pane input-pane">
+                <h2><i class="fas fa-edit"></i> Input Markdown</h2>
+                <textarea id="editor" spellcheck="false" placeholder="Paste your markdown here... Auto-converts as you type!"></textarea>
+                <div id="pasteError" class="error-message">Please use Ctrl/Cmd+V to paste content</div>
+            </div>
+
+            <div class="section pane output-pane">
+                <h2><i class="fas fa-globe"></i> Output HTML</h2>
+                <iframe id="previewFrame" title="Rendered HTML output preview" sandbox=""></iframe>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
