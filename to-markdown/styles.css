@@ -62,6 +62,13 @@ body {
     min-height: 0;
 }
 
+.app-footer {
+    text-align: center;
+    color: #6c757d;
+    font-size: 0.85rem;
+    margin-top: 0.75rem;
+}
+
 .pane {
     display: flex;
     flex-direction: column;
