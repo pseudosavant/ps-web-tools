@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#061421">
+  <meta name="description" content="AccelLab: client-only PWA for acceleration and G-force testing.">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="assets/icon.svg" type="image/svg+xml">
+  <title>AccelLab</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="bg-grid" aria-hidden="true"></div>
+  <main class="app">
+    <header class="hero">
+      <p class="kicker">Progressive Web App</p>
+      <h1>AccelLab</h1>
+      <p class="subtitle">Mounted-phone acceleration testing. Use only in a safe, legal environment.</p>
+    </header>
+
+    <section class="panel controls">
+      <div class="row wrap">
+        <label class="field">
+          <span>Test Type</span>
+          <select id="testType">
+            <option value="0-60">0-60 mph</option>
+            <option value="0-100">0-100 mph</option>
+            <option value="0-60-0">0-60-0 mph</option>
+          </select>
+        </label>
+        <button id="enableSensors" class="btn primary">Arm sensors</button>
+        <button id="calibrate" class="btn">Calibrate</button>
+        <button id="recalibrate" class="btn ghost">Reset Calibration</button>
+      </div>
+      <div class="row wrap">
+        <label class="toggle">
+          <input id="audioToggle" type="checkbox">
+          <span>Spoken Cues</span>
+        </label>
+        <label class="toggle">
+          <input id="hapticToggle" type="checkbox">
+          <span>Haptics</span>
+        </label>
+        <label class="toggle">
+          <input id="autoDisarmToggle" type="checkbox">
+          <span>Auto-disarm on complete</span>
+        </label>
+        <label class="field compact">
+          <span>Smoothing</span>
+          <select id="smoothingSelect">
+            <option value="off">Off</option>
+            <option value="normal">Normal</option>
+            <option value="high">High</option>
+          </select>
+        </label>
+        <label class="field compact">
+          <span>Weight (lb)</span>
+          <input id="vehicleWeight" type="number" min="800" step="25" placeholder="e.g. 3600">
+        </label>
+      </div>
+      <p id="statusLine" class="status neutral">Waiting for sensor access.</p>
+    </section>
+
+    <section class="panel speed-panel">
+      <div class="speed" id="speedDisplay">0.0</div>
+      <div class="speed-unit">mph</div>
+      <div id="runSignal" class="run-signal">READY</div>
+      <div class="metrics">
+        <article>
+          <h2>Longitudinal G</h2>
+          <p id="longG">0.000 g</p>
+        </article>
+        <article>
+          <h2>Lateral G</h2>
+          <p id="latG">0.000 g</p>
+        </article>
+        <article>
+          <h2>Instant Accel</h2>
+          <p id="accelMs2">0.00 m/s²</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="panel chart-panel">
+      <div class="chart-head">
+        <h2>Rolling G (30s)</h2>
+      </div>
+      <div class="chart-grid">
+        <figure>
+          <figcaption>Longitudinal G</figcaption>
+          <svg id="longChart" viewBox="0 0 640 220" role="img" aria-label="Longitudinal G chart"></svg>
+        </figure>
+        <figure>
+          <figcaption>Lateral G</figcaption>
+          <svg id="latChart" viewBox="0 0 640 220" role="img" aria-label="Lateral G chart"></svg>
+        </figure>
+      </div>
+    </section>
+
+    <section class="panel chart-panel">
+      <div class="chart-head">
+        <h2>Run Detail</h2>
+        <p id="runResult">No completed runs yet.</p>
+      </div>
+      <div class="chart-grid">
+        <figure>
+          <figcaption>Speed vs Time</figcaption>
+          <svg id="speedChart" viewBox="0 0 640 220" role="img" aria-label="Speed vs time chart"></svg>
+        </figure>
+        <figure>
+          <figcaption>Acceleration vs Time</figcaption>
+          <svg id="accelChart" viewBox="0 0 640 220" role="img" aria-label="Acceleration vs time chart"></svg>
+        </figure>
+      </div>
+      <p id="hpEstimate" class="hint">Estimated wheel horsepower appears when weight and run data are available.</p>
+      <p class="hint">Horsepower estimate is approximate and ignores drivetrain losses, wind, and road grade.</p>
+    </section>
+
+    <section class="panel history-panel">
+      <div class="chart-head">
+        <h2>Recent Runs</h2>
+      </div>
+      <ul id="historyList" class="history-list"></ul>
+    </section>
+  </main>
+
+  <script src="app.js" type="module"></script>
+</body>
+</html>
