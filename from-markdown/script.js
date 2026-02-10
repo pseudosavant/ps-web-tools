@@ -1,8 +1,12 @@
 const pendingLaunchFileHandles = [];
 let onLaunchFiles = null;
+const debut = false;
 const stageLogBuffer = [];
 
 function stageLog(stage, details = {}) {
+    if (!debut) {
+        return;
+    }
     const entry = {
         ts: new Date().toISOString(),
         stage,
