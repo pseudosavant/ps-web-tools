@@ -28,7 +28,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
 
-            if (['span', 'div'].includes(element.tagName.toLowerCase()) && 
+            if (element.tagName.toLowerCase() === 'span' && 
                 !element.attributes.length && 
                 element.parentElement) {
                 while (element.firstChild) {
@@ -39,10 +39,33 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         return div.innerHTML
-            .replace(/^\s+|\s+$/g, '')
-            .replace(/[\r\n]+/g, '\n')
-            .replace(/[ \t]+/g, ' ')
-            .replace(/<!--[\s\S]*?-->/g, '');
+            .replace(/<!--[\s\S]*?-->/g, '')
+            .trim();
+    }
+
+    function normalizeMarkdownWhitespace(markdown, { maxEmptyLines = 2 } = {}) {
+        const maxConsecutiveNewlines = Math.max(2, maxEmptyLines + 1);
+        const fencePattern = /(```[\s\S]*?```|~~~[\s\S]*?~~~)/g;
+
+        const normalized = markdown
+            .replace(/\r\n?/g, '\n')
+            .split(fencePattern)
+            .map(segment => {
+                if (!segment) return segment;
+                if (segment.startsWith('```') || segment.startsWith('~~~')) {
+                    return segment;
+                }
+
+                return segment
+                    .replace(/\u00A0/g, ' ')
+                    .replace(/[ \t]+\n/g, '\n')
+                    .replace(/([A-Za-z0-9_])(\[[^\]\n]+\]\([^)]+\))/g, '$1 $2')
+                    .replace(/(\[[^\]\n]+\]\([^)]+\))([A-Za-z0-9_@#])/g, '$1 $2')
+                    .replace(new RegExp(`\\n{${maxConsecutiveNewlines + 1},}`, 'g'), '\n'.repeat(maxConsecutiveNewlines));
+            })
+            .join('');
+
+        return normalized.trim();
     }
 
     function sanitizeHtml(html) {
@@ -211,6 +234,13 @@ document.addEventListener('DOMContentLoaded', () => {
     [fullTurndownService, simpleTurndownService].forEach((service, isSimple) => {
         const simpleMode = Boolean(isSimple);
 
+        service.addRule('lineBreak', {
+            filter: 'br',
+            replacement: function() {
+                return '\n';
+            }
+        });
+
         service.addRule('tableCell', {
             filter: ['th', 'td'],
             replacement: function(content, node) {
@@ -292,10 +322,8 @@ document.addEventListener('DOMContentLoaded', () => {
         wrapper.innerHTML = html;
         removeEmptyTables(wrapper);
         const markdown = service.turndown(wrapper.innerHTML);
-        
-        output.textContent = markdown
-            .replace(/\n{3,}/g, '\n\n')
-            .trim();
+
+        output.textContent = normalizeMarkdownWhitespace(markdown, { maxEmptyLines: 2 });
     }
 
     async function pasteFromClipboard({ autoConvertAfterPaste = true } = {}) {
