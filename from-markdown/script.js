@@ -42,8 +42,10 @@ if ('launchQueue' in window && typeof window.launchQueue.setConsumer === 'functi
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+    const hadPendingLaunchAtDomReady = pendingLaunchFileHandles.length > 0;
     stageLog('domcontentloaded-start', {
-        pendingLaunchFileCount: pendingLaunchFileHandles.length
+        pendingLaunchFileCount: pendingLaunchFileHandles.length,
+        hadPendingLaunchAtDomReady
     });
     const editor = document.getElementById('editor');
     const previewFrame = document.getElementById('previewFrame');
@@ -547,9 +549,11 @@ document.addEventListener('DOMContentLoaded', () => {
             markdownLength: editor.value.length
         });
         convertToHtml();
-    } else {
+    } else if (!hadPendingLaunchAtDomReady) {
         stageLog('init-render-empty-preview');
         renderPreview('');
+    } else {
+        stageLog('init-skip-empty-preview-due-to-pending-launch');
     }
     scheduleRenderSync();
     startStartupSyncWatcher();
