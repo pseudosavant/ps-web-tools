@@ -1,6 +1,6 @@
 # AccelLab – Progressive Web App Spec
 
-## Implementation Status & Agent Handoff (Updated 2026-02-10)
+## Implementation Status & Agent Handoff (Updated 2026-03-19)
 
 This section is the quick handoff for future agents. Treat it as operational truth for the current repo.
 
@@ -20,18 +20,29 @@ This section is the quick handoff for future agents. Treat it as operational tru
 - `[x]` Arm/Disarm capture model
   - Disarm stops sampling/calculation
   - Re-arm resets live capture state
-- `[x]` Calibration with explicit post-tap capture
-  - Tap settle delay: ~120ms
-  - Capture window: ~1.5s
-  - Movement rejection based on sample variance
-- `[x]` Auto-detected runs
-  - 0–60
-  - 0–100
-  - 0–60–0
+- `[x]` Auto-calibration after arm while stationary
+  - User arms while stopped
+  - App waits for stillness before beginning calibration
+  - Capture still includes ~120ms settle delay and ~1.5s stationary sample window
+  - Calibration rejects excessive movement/noise
+  - Calibration solves vertical/gravity only
+  - Recoverable calibration failures back off briefly before auto-retrying
+  - Unreliable calibration sample rates hard-stop and require re-arming
+- `[x]` Auto-detected straight-line stop-to-stop runs
+  - Forward axis is inferred from the first sustained launch impulse after calibration
+  - Run is rejected if launch direction confidence is too low
+  - Run is rejected if sustained lateral acceleration exceeds the straight-line threshold
+- `[x]` Two run modes
+  - `Acceleration`
+  - `Acceleration + Braking`
+- `[x]` Split reporting
+  - Acceleration splits: `0-30`, `0-45`, `0-60`, `0-100`
+  - Braking-mode splits: `60-0`, `100-0`, `0-60-0`, `0-100-0`
 - `[x]` Auto-disarm on run completion (toggleable)
 - `[x]` Live speed/G readouts
-  - Display speed uses short responsive window (last ~1s / 5 samples)
-  - Internal speed integrates longitudinal acceleration with drift controls
+  - Display speed uses a short responsive weighted window (last ~1s)
+  - Internal scoring speed integrates longitudinal acceleration with drift controls
+  - Run timing uses interpolated threshold crossings from internal speed, not display speed
 - `[x]` Rolling 30s G charts
   - Fixed-node ring buffer implementation
   - Dynamic symmetric axis scaling around 0
@@ -39,7 +50,11 @@ This section is the quick handoff for future agents. Treat it as operational tru
   - Dynamic axis scaling (accel symmetric around 0)
 - `[x]` Local run history (last 10–20, currently capped at 20)
 - `[x]` URL-based state restore/share
-  - Full v2 payload includes test type, selected run, settings, calibration, compact history
+  - v2 payload includes test type, selected run, settings, and compact history
+  - Encoder progressively reduces sample density/history and may omit calibration metadata to stay within URL length limits
+  - URL payload prefers browser-native compressed encoding when supported, with fallback to plain URL-safe JSON encoding
+  - Restore accepts both compressed and uncompressed URL payloads
+  - If no profile fits, stale URL state is cleared instead of leaving an outdated share payload behind
   - Backward-compat decode for legacy v1 payload
 - `[x]` Offline PWA support
   - Local app shell assets cached
@@ -48,6 +63,8 @@ This section is the quick handoff for future agents. Treat it as operational tru
   - Speech on thresholds
   - Haptics (default OFF)
 - `[x]` Optional wheel horsepower estimate
+- `[x]` Strict linear-acceleration requirement for run timing
+  - No synthetic gravity-subtraction fallback when `event.acceleration` is unavailable
 
 ### Known Gaps / Upcoming Work
 
@@ -58,25 +75,33 @@ This section is the quick handoff for future agents. Treat it as operational tru
 - `[ ]` Cross-device real-world tuning pass
   - Start/stop thresholds and bias adaptation per phone model
   - Validation against trusted speed references
+  - Confirm browser/device support for stable `DeviceMotionEvent.acceleration`
 - `[ ]` Optional UX refinements
   - Explicit calibration countdown/progress UI treatment improvements
   - Optional “raw vs corrected speed” debug overlay for field tuning
+  - More explicit low-confidence / lateral-reject diagnostics for failed runs
 
 ### Operational Notes For Future Agents
 
-- Calibration capture is active only after user taps calibrate (not from stale pre-tap buffer).
+- Arm starts a stillness-qualified auto-calibration flow; the app should not show `READY` until calibration is complete and the vehicle is settled at a stop.
+- Stationary calibration only solves gravity / vertical. Forward direction is inferred from the first clean launch after calibration.
+- If calibration fails due to motion/noise, the app should wait briefly before retrying. If calibration sample rate is too low for a reliable capture, the app should hard-stop and require a fresh arm.
 - If sensors are disarmed, calculations must remain paused.
+- Run timing requires browser-provided linear acceleration (`DeviceMotionEvent.acceleration`). If unavailable, the app should warn and stop timing rather than estimate it from a drifting gravity model.
+- Run scoring must use internal speed with interpolated crossings; display speed remains a short-window UI value only.
+- The product assumption is strict: mounted phone, straight-line run, start from stop, finish at stop.
+- The app should reject runs rather than salvage them when the launch direction is ambiguous or lateral acceleration indicates turning.
 - When changing runtime behavior, bump `CACHE_VERSION` in `sw.js` so mobile PWA clients pull updates.
 - Keep URL payload backward compatible where possible (`v1` decode still supported).
 
 ## Overview
 
-AccelLab is a **client-side-only Progressive Web App (PWA)** that measures vehicle acceleration, deceleration, and G-forces using mobile device sensors.  
-It focuses on **0–60, 0–100, and 0–60–0 style tests**, with rich real-time visualization and zero backend dependencies.
+AccelLab is a **client-side-only Progressive Web App (PWA)** that measures straight-line vehicle acceleration, braking, and G-forces using mobile device sensors.  
+It focuses on **stop-to-stop acceleration testing** with automatic launch-direction inference, rich real-time visualization, and zero backend dependencies.
 
 Primary goals:
-- Simple, mount-and-go experience
-- Accurate short-burst acceleration metrics
+- Simple arm-and-go experience
+- Accurate short-burst acceleration and braking metrics
 - Rich visual feedback and charts
 - Shareable state via URL
 - Fully offline-capable after install
@@ -98,10 +123,15 @@ Primary goals:
 
 ### Required (v1)
 - `DeviceMotionEvent`
-  - Accelerometer (including gravity)
-- `DeviceOrientationEvent`
-  - Alpha, beta, gamma orientation
+  - `acceleration` (linear acceleration, required for run timing)
+  - `accelerationIncludingGravity` (used for calibration)
 - `Performance.now()` for timing
+
+### Optional / Best-Effort Metadata
+- `DeviceOrientationEvent`
+  - Alpha, beta, gamma orientation snapshot when the browser exposes it
+  - Orientation permission/data must not block arming or run timing
+  - Current runtime no longer depends on or persists orientation metadata for scoring/share state
 
 ### Optional / Future
 - Geolocation API (high-accuracy mode) for long-distance runs (quarter mile)
@@ -111,50 +141,57 @@ Primary goals:
 ## Calibration (Required)
 
 ### Purpose
-Establish a **stable reference frame** for:
-- Forward / backward acceleration
-- Lateral G-forces
+Establish a **stable vertical reference frame** for:
 - Gravity compensation
+- Horizontal-plane extraction
+- Later launch-direction inference
 
 ### Flow
 1. User mounts phone securely
-2. App prompts: **“Vehicle stationary – press Calibrate”**
-3. After tap, app waits briefly (~120ms) to avoid touch-induced motion
-4. App captures stationary samples for ~1.5s
-5. App samples:
+2. User arms while the vehicle is stopped
+3. App waits until the phone/vehicle is still enough to begin calibration
+4. App waits briefly (~120ms) before capture
+5. App captures stationary samples for ~1.5s
+6. App estimates and stores:
    - Gravity vector
-   - Orientation (pitch, roll, yaw)
-6. Stores calibration transform
-7. All subsequent sensor data is transformed into:
-   - Longitudinal axis (forward/back)
-   - Lateral axis (left/right)
-   - Vertical axis (ignored after gravity removal)
+   - Vertical unit vector
+   - Optional orientation snapshot for reference/debug
+7. After calibration, app waits for a settled stop state before showing `READY`
+8. At launch, app infers the forward horizontal axis from the first sustained straight-line impulse
+9. Subsequent sensor data is transformed into:
+   - Longitudinal axis (signed acceleration/braking)
+   - Lateral axis (used for straight-line rejection)
+   - Vertical axis (not used for scoring once gravity is removed)
 
 ### Notes
-- Calibration required before any test
-- Calibration persists in localStorage
-- Re-calibration available at any time
+- Calibration is required before any run
+- Calibration persists in localStorage and may be included in URL payload when size allows
+- Knowing only “down” is not enough to score a run, but it is enough to begin. The app resolves forward automatically from post-launch data instead of asking the user to specify phone yaw.
 
 ---
 
 ## Core Measurements (v1)
 
 ### Automatically Detected Runs
-No manual start/stop.
+No manual start/stop during the run itself.
 
 #### Start detection
-- Vehicle at rest (near-zero velocity)
-- Sustained forward acceleration above threshold
+- Vehicle is calibrated
+- Vehicle is settled at a stop
+- Horizontal launch exceeds threshold
+- Forward direction can be inferred with sufficient confidence
 
 #### End detection
-- Target speed reached (e.g. 60 mph)
-- OR return to rest (for 0–60–0 tests)
+- Run completes only when the vehicle returns to a stop
+- Timeout protection still applies for overlong runs
 
-### Supported Tests
-- 0–60 mph
-- 0–100 mph
-- 0–60–0 mph
-- Rolling acceleration (future toggle)
+### Supported Modes
+- `Acceleration`
+  - Reports `0-30`, `0-45`, `0-60`, `0-100` when reached
+- `Acceleration + Braking`
+  - Reports the same acceleration splits
+  - Also reports `60-0`, `100-0`, `0-60-0`, `0-100-0` when reached
+- Rolling acceleration remains future work
 
 ---
 
@@ -162,9 +199,12 @@ No manual start/stop.
 
 ### v1
 - Speed inferred by integrating longitudinal acceleration
-- Optimized for **short durations**
+- Longitudinal axis is inferred from launch direction after stationary vertical calibration
+- Optimized for **short stop-to-stop durations**
 - Drift acceptable beyond ~10–15 seconds
 - Displayed speed is intentionally responsive (short recent sample window)
+- Run completion uses interpolated internal speed crossings rather than display speed thresholds
+- Speed chart remains non-negative; acceleration/G remains signed
 
 ### v2+
 - GPS layered for:
@@ -187,7 +227,9 @@ No manual start/stop.
 
 ### Run Charts
 - Speed vs time
+  - Non-negative speed trace
 - Acceleration vs time
+  - Signed longitudinal G trace
 - Sample resolution based on sensor frequency (smoothed)
 
 ### Implementation
@@ -202,16 +244,19 @@ No manual start/stop.
 
 ### Visual
 - Large real-time speed readout
-- Threshold-based color changes:
-  - Neutral → approaching
-  - Highlight at target (e.g. 60 mph)
-- Clear visual signal when test completes
+- Split summary chips for completed runs
+- Clear run state signals:
+  - Hold still
+  - Calibrating
+  - Ready
+  - Running
+  - Braking
+  - Complete / Rejected / Timeout
 
 ### Audio
 - Spoken cues (Web Speech API):
   - “60”
   - “100”
-  - “Brake”
 - Optional toggle
 
 ### Haptics (where supported)
@@ -225,8 +270,9 @@ No manual start/stop.
 - Stores last **10–20 runs**
 - Each run includes:
   - Timestamp
-  - Test type
-  - Time results
+  - Mode
+  - Split results
+  - Peak speed
   - Sampled data (compressed)
 
 ### No cloud sync
@@ -251,6 +297,7 @@ No manual start/stop.
   - New run
   - Run selection
   - Relevant settings/calibration changes
+- Compression format is encoded into compressed URL payloads so shared URLs restore across browsers that support the same browser-native stream format
 - Opening URL restores identical app state
 
 ---
@@ -312,7 +359,10 @@ No manual start/stop.
 
 ### v1
 - Calibration
-- 0–60 / 0–100 / 0–60–0
+- Auto-calibration after arm while stopped
+- Automatic launch-axis inference
+- Acceleration / Acceleration + Braking modes
+- Split reporting: 0-30 / 0-45 / 0-60 / 0-100 / 60-0 / 100-0 / 0-60-0 / 0-100-0
 - Charts
 - Local history
 - URL state

@@ -266,6 +266,26 @@ input[type="number"] {
   grid-template-columns: 1fr;
 }
 
+.run-splits {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin: 0.7rem 0 0.9rem;
+}
+
+.run-splits span {
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 999px;
+  padding: 0.35rem 0.7rem;
+  background: rgba(0, 11, 18, 0.52);
+  color: #d7effb;
+  font-size: 0.96rem;
+}
+
+.run-splits strong {
+  color: #ffffff;
+}
+
 figure {
   margin: 0;
 }

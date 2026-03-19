@@ -22,16 +22,13 @@
     <section class="panel controls">
       <div class="row wrap">
         <label class="field">
-          <span>Test Type</span>
+          <span>Mode</span>
           <select id="testType">
-            <option value="0-60">0-60 mph</option>
-            <option value="0-100">0-100 mph</option>
-            <option value="0-60-0">0-60-0 mph</option>
+            <option value="accel">Acceleration</option>
+            <option value="accel-brake">Acceleration + Braking</option>
           </select>
         </label>
         <button id="enableSensors" class="btn primary">Arm sensors</button>
-        <button id="calibrate" class="btn">Calibrate</button>
-        <button id="recalibrate" class="btn ghost">Reset Calibration</button>
       </div>
       <div class="row wrap">
         <label class="toggle">
@@ -65,7 +62,7 @@
     <section class="panel speed-panel">
       <div class="speed" id="speedDisplay">0.0</div>
       <div class="speed-unit">mph</div>
-      <div id="runSignal" class="run-signal">READY</div>
+      <div id="runSignal" class="run-signal">DISARMED</div>
       <div class="metrics">
         <article>
           <h2>Longitudinal G</h2>
@@ -103,6 +100,7 @@
         <h2>Run Detail</h2>
         <p id="runResult">No completed runs yet.</p>
       </div>
+      <div id="runSplits" class="run-splits" aria-live="polite"></div>
       <div class="chart-grid">
         <figure>
           <figcaption>Speed vs Time</figcaption>

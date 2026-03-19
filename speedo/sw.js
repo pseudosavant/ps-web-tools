@@ -1,4 +1,4 @@
-const CACHE_VERSION = "accellab-v1.1.2";
+const CACHE_VERSION = "accellab-v1.3.3";
 const SHELL_ASSETS = [
   "./",
   "./index.html",

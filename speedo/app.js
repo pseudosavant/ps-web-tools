@@ -6,10 +6,35 @@ const ROLLING_WINDOW_MS = 30000;
 const ROLLING_NODE_COUNT = 240;
 const ROLLING_BUCKET_MS = ROLLING_WINDOW_MS / (ROLLING_NODE_COUNT - 1);
 const SPEED_DISPLAY_WINDOW_MS = 1000;
-const SPEED_DISPLAY_SAMPLE_COUNT = 5;
+const SPEED_DISPLAY_BUFFER_MAX = 80;
+const DISPLAY_SPEED_RECENCY_FLOOR = 0.15;
 const CALIBRATION_TAP_SETTLE_MS = 120;
 const CALIBRATION_CAPTURE_MS = 1500;
+const CALIBRATION_MIN_CAPTURE_MS = 900;
+const CALIBRATION_MIN_SAMPLES = 12;
+const CALIBRATION_RETRY_BACKOFF_MS = 1200;
 const URL_MAX_LENGTH = 7000;
+const PRECAL_STILL_MS = 450;
+const PRECAL_LINEAR_STILL_MS2 = 0.18;
+const READY_STATIONARY_MS = 320;
+const LAUNCH_HORIZONTAL_THRESHOLD_MS2 = 1.05;
+const LAUNCH_INFERENCE_MIN_MS = 220;
+const LAUNCH_INFERENCE_MAX_MS = 520;
+const LAUNCH_DIRECTION_CONFIDENCE_MIN = 0.82;
+const LAUNCH_DIRECTION_MIN_IMPULSE_MPS = 0.18;
+const STOP_COMPLETE_MPH = 1.0;
+const RUN_MIN_COMPLETE_MS = 1800;
+const MAX_RUN_DURATION_MS = 30000;
+const RUN_REJECT_LATERAL_G = 0.22;
+const RUN_REJECT_LATERAL_MS = 220;
+const LINEAR_ACCEL_MISSING_LIMIT = 6;
+const MAX_LONG_ACCEL_MS2 = 14;
+const MAX_SPEED_MPH = 130;
+const SPLIT_SPEEDS_MPH = [30, 45, 60, 100];
+const URL_COMPRESSION_PREFIXES = {
+  "deflate-raw": "zdr:",
+  gzip: "zg:",
+};
 
 const STORAGE_KEYS = {
   calibration: "accellab:calibration:v1",
@@ -17,17 +42,15 @@ const STORAGE_KEYS = {
   settings: "accellab:settings:v1",
 };
 
-const SMOOTHING_ALPHA = {
-  off: 1.0,
-  normal: 0.22,
-  high: 0.12,
+const SMOOTHING_TAU_SEC = {
+  off: 0,
+  normal: 0.07,
+  high: 0.14,
 };
 
 const el = {
   testType: document.getElementById("testType"),
   enableSensors: document.getElementById("enableSensors"),
-  calibrate: document.getElementById("calibrate"),
-  recalibrate: document.getElementById("recalibrate"),
   audioToggle: document.getElementById("audioToggle"),
   hapticToggle: document.getElementById("hapticToggle"),
   autoDisarmToggle: document.getElementById("autoDisarmToggle"),
@@ -45,15 +68,14 @@ const el = {
   accelChart: document.getElementById("accelChart"),
   historyList: document.getElementById("historyList"),
   runResult: document.getElementById("runResult"),
+  runSplits: document.getElementById("runSplits"),
   hpEstimate: document.getElementById("hpEstimate"),
 };
 
 const state = {
-  testType: "0-60",
+  testType: "accel",
   sensorEnabled: false,
   lastMotionTs: 0,
-  gravityEstimate: null,
-  orientation: null,
   calibration: null,
   settings: {
     audio: true,
@@ -62,7 +84,6 @@ const state = {
     smoothing: "normal",
     vehicleWeightLb: 3600,
   },
-  motionBuffer: [],
   rolling: createRollingState(),
   filters: {
     initialized: false,
@@ -80,14 +101,24 @@ const state = {
   },
   speedDisplayWindow: [],
   calibrationCapture: null,
-  startGateMs: 0,
+  preCalStillMs: 0,
+  preCalRetryBlockedUntilTs: 0,
+  readyStillMs: 0,
+  launchInference: null,
   isRunning: false,
   currentRun: null,
   history: [],
   selectedRunId: null,
   urlSyncTimer: 0,
   lastUiDrawTs: 0,
+  lastScoreSample: null,
+  lastMotionSample: null,
+  missingLinearAccelSamples: 0,
 };
+
+const textEncoder = new TextEncoder();
+const textDecoder = new TextDecoder();
+let urlCompressionFormatPromise = null;
 
 function setStatus(message, tone = "neutral") {
   el.statusLine.textContent = message;
@@ -165,8 +196,175 @@ function mpsToMph(mps) {
   return mps * MPH_PER_MPS;
 }
 
-function base64UrlEncodeString(text) {
-  const bytes = new TextEncoder().encode(text);
+function alphaForTimeConstant(dtSec, tauSec) {
+  if (!Number.isFinite(tauSec) || tauSec <= 0) {
+    return 1;
+  }
+  return 1 - Math.exp(-dtSec / tauSec);
+}
+
+function interpolateValue(a, b, ratio) {
+  return a + (b - a) * ratio;
+}
+
+function interpolateVec(a, b, ratio) {
+  return vec(
+    interpolateValue(a.x, b.x, ratio),
+    interpolateValue(a.y, b.y, ratio),
+    interpolateValue(a.z, b.z, ratio),
+  );
+}
+
+function projectHorizontal(dynamic, vertical) {
+  return vertical ? projectOntoPlane(dynamic, vertical) : dynamic;
+}
+
+function createMotionSample(perfTs, dtSec, dynamic, vertical) {
+  const horizontal = projectHorizontal(dynamic, vertical);
+  return {
+    perfTs,
+    dtSec,
+    dynamic,
+    horizontal,
+    horizontalMagMs2: norm(horizontal),
+  };
+}
+
+function rebaseMotionSampleDt(sample, startPerfTs) {
+  return {
+    ...sample,
+    dtSec: Math.max(0, (sample.perfTs - startPerfTs) / 1000),
+  };
+}
+
+function interpolateMotionSample(prevSample, nextSample, ratio) {
+  const dynamic = interpolateVec(prevSample.dynamic, nextSample.dynamic, ratio);
+  const horizontal = interpolateVec(prevSample.horizontal, nextSample.horizontal, ratio);
+  return {
+    perfTs: interpolateValue(prevSample.perfTs, nextSample.perfTs, ratio),
+    dtSec: interpolateValue(prevSample.dtSec, nextSample.dtSec, ratio),
+    dynamic,
+    horizontal,
+    horizontalMagMs2: norm(horizontal),
+  };
+}
+
+function createScoreSample(baseSample, longMs2, latG, speedMps) {
+  return {
+    ...baseSample,
+    longMs2,
+    longG: longMs2 / G,
+    latG,
+    speedMps,
+    speedMph: mpsToMph(speedMps),
+  };
+}
+
+function interpolateScoreSample(prevSample, nextSample, ratio) {
+  return {
+    perfTs: interpolateValue(prevSample.perfTs, nextSample.perfTs, ratio),
+    dtSec: interpolateValue(prevSample.dtSec, nextSample.dtSec, ratio),
+    longMs2: interpolateValue(prevSample.longMs2, nextSample.longMs2, ratio),
+    longG: interpolateValue(prevSample.longG, nextSample.longG, ratio),
+    latG: interpolateValue(prevSample.latG, nextSample.latG, ratio),
+    speedMps: interpolateValue(prevSample.speedMps, nextSample.speedMps, ratio),
+    speedMph: interpolateValue(prevSample.speedMph, nextSample.speedMph, ratio),
+  };
+}
+
+function findMotionThresholdCrossing(prevSample, nextSample, target) {
+  if (!prevSample || !nextSample) {
+    return null;
+  }
+  const start = prevSample.horizontalMagMs2;
+  const end = nextSample.horizontalMagMs2;
+  if (!Number.isFinite(start) || !Number.isFinite(end) || !(start < target && end >= target)) {
+    return null;
+  }
+  const span = end - start;
+  if (Math.abs(span) < 1e-6) {
+    return nextSample;
+  }
+  return interpolateMotionSample(prevSample, nextSample, clamp((target - start) / span, 0, 1));
+}
+
+function findScoreThresholdCrossing(prevSample, nextSample, key, target, direction = "either") {
+  if (!prevSample || !nextSample) {
+    return null;
+  }
+  const start = prevSample[key];
+  const end = nextSample[key];
+  if (!Number.isFinite(start) || !Number.isFinite(end)) {
+    return null;
+  }
+
+  const crossed = direction === "rising"
+    ? start < target && end >= target
+    : direction === "falling"
+      ? start > target && end <= target
+      : (start < target && end >= target) || (start > target && end <= target);
+  if (!crossed) {
+    return null;
+  }
+
+  const span = end - start;
+  if (Math.abs(span) < 1e-6) {
+    return nextSample;
+  }
+  const ratio = clamp((target - start) / span, 0, 1);
+  return interpolateScoreSample(prevSample, nextSample, ratio);
+}
+
+function appendRunSample(run, sample) {
+  const entry = {
+    t: Math.max(0, sample.perfTs - run.startPerfTs),
+    longG: sample.longG,
+    latG: sample.latG,
+    speedMph: sample.speedMph,
+  };
+  const last = run.samples[run.samples.length - 1];
+  if (last && Math.abs(last.t - entry.t) < 0.5) {
+    run.samples[run.samples.length - 1] = entry;
+    return;
+  }
+  run.samples.push(entry);
+  if (run.samples.length > 3000) {
+    run.samples.shift();
+  }
+}
+
+function createLaunchInference(anchorSample) {
+  return {
+    startPerfTs: anchorSample.perfTs,
+    anchorSample,
+    samples: [],
+    vectorImpulse: vec(0, 0, 0),
+    totalImpulse: 0,
+  };
+}
+
+function resetLaunchInference() {
+  state.launchInference = null;
+}
+
+function captureLaunchInferenceSample(sample) {
+  if (!state.launchInference) {
+    return;
+  }
+  const last = state.launchInference.samples[state.launchInference.samples.length - 1];
+  if (!last || Math.abs(last.perfTs - sample.perfTs) >= 0.5) {
+    state.launchInference.samples.push(sample);
+  } else {
+    state.launchInference.samples[state.launchInference.samples.length - 1] = sample;
+  }
+  state.launchInference.vectorImpulse = add(
+    state.launchInference.vectorImpulse,
+    scale(sample.horizontal, sample.dtSec),
+  );
+  state.launchInference.totalImpulse += sample.horizontalMagMs2 * sample.dtSec;
+}
+
+function base64UrlEncodeBytes(bytes) {
   let binary = "";
   for (const b of bytes) {
     binary += String.fromCharCode(b);
@@ -174,7 +372,7 @@ function base64UrlEncodeString(text) {
   return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
 }
 
-function base64UrlDecodeString(encoded) {
+function base64UrlDecodeBytes(encoded) {
   const pad = "=".repeat((4 - (encoded.length % 4)) % 4);
   const b64 = encoded.replace(/-/g, "+").replace(/_/g, "/") + pad;
   const binary = atob(b64);
@@ -182,7 +380,102 @@ function base64UrlDecodeString(encoded) {
   for (let i = 0; i < binary.length; i += 1) {
     bytes[i] = binary.charCodeAt(i);
   }
-  return new TextDecoder().decode(bytes);
+  return bytes;
+}
+
+function base64UrlEncodeString(text) {
+  return base64UrlEncodeBytes(textEncoder.encode(text));
+}
+
+function base64UrlDecodeString(encoded) {
+  return textDecoder.decode(base64UrlDecodeBytes(encoded));
+}
+
+async function readStreamBytes(stream) {
+  const response = new Response(stream);
+  const buffer = await response.arrayBuffer();
+  return new Uint8Array(buffer);
+}
+
+async function compressBytes(bytes, format) {
+  const stream = new Blob([bytes]).stream().pipeThrough(new CompressionStream(format));
+  return readStreamBytes(stream);
+}
+
+async function decompressBytes(bytes, format) {
+  const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream(format));
+  return readStreamBytes(stream);
+}
+
+async function detectUrlCompressionFormat() {
+  if (typeof CompressionStream !== "function" || typeof DecompressionStream !== "function") {
+    return null;
+  }
+  for (const format of ["deflate-raw", "gzip"]) {
+    try {
+      const probeInput = textEncoder.encode("accellab");
+      const compressed = await compressBytes(probeInput, format);
+      const restored = await decompressBytes(compressed, format);
+      if (textDecoder.decode(restored) === "accellab") {
+        return format;
+      }
+    } catch {
+      // Try the next supported format.
+    }
+  }
+  return null;
+}
+
+function getUrlCompressionFormat() {
+  if (!urlCompressionFormatPromise) {
+    urlCompressionFormatPromise = detectUrlCompressionFormat();
+  }
+  return urlCompressionFormatPromise;
+}
+
+function getCompressionPrefix(format) {
+  return URL_COMPRESSION_PREFIXES[format] || null;
+}
+
+function parseCompressedUrlPrefix(encoded) {
+  for (const [format, prefix] of Object.entries(URL_COMPRESSION_PREFIXES)) {
+    if (encoded.startsWith(prefix)) {
+      return { format, encodedPayload: encoded.slice(prefix.length) };
+    }
+  }
+  return null;
+}
+
+async function encodePayloadForUrl(payload) {
+  const json = JSON.stringify(payload);
+  const plain = base64UrlEncodeString(json);
+  const format = await getUrlCompressionFormat();
+  if (!format) {
+    return plain;
+  }
+
+  try {
+    const compressed = await compressBytes(textEncoder.encode(json), format);
+    const prefix = getCompressionPrefix(format);
+    if (!prefix) {
+      return plain;
+    }
+    const encodedCompressed = `${prefix}${base64UrlEncodeBytes(compressed)}`;
+    return encodedCompressed.length < plain.length ? encodedCompressed : plain;
+  } catch {
+    return plain;
+  }
+}
+
+async function decodePayloadFromUrl(encoded) {
+  const compressedMeta = parseCompressedUrlPrefix(encoded);
+  if (!compressedMeta) {
+    return safeJsonParse(base64UrlDecodeString(encoded));
+  }
+
+  const compressedBytes = base64UrlDecodeBytes(compressedMeta.encodedPayload);
+  const restored = await decompressBytes(compressedBytes, compressedMeta.format);
+  return safeJsonParse(textDecoder.decode(restored));
 }
 
 function safeJsonParse(text) {
@@ -281,6 +574,62 @@ function unpackSamples(packed) {
     speedMph: (Number(row[3]) || 0) / 10,
   }));
 }
+
+function normalizeRunMode(value) {
+  return value === "accel-brake" ? "accel-brake" : "accel";
+}
+
+function packSplits(splits) {
+  if (!splits || typeof splits !== "object") {
+    return [];
+  }
+  return Object.entries(splits)
+    .filter(([, value]) => Number.isFinite(value) && value > 0)
+    .map(([label, value]) => [label, Math.round(value * 1000)]);
+}
+
+function unpackSplits(packed) {
+  const splits = {};
+  if (Array.isArray(packed)) {
+    for (const entry of packed) {
+      if (!Array.isArray(entry) || entry.length < 2) {
+        continue;
+      }
+      const label = String(entry[0] || "");
+      const value = Number(entry[1]);
+      if (label && Number.isFinite(value) && value > 0) {
+        splits[label] = value / 1000;
+      }
+    }
+    return splits;
+  }
+  if (packed && typeof packed === "object") {
+    for (const [label, value] of Object.entries(packed)) {
+      const numeric = Number(value);
+      if (Number.isFinite(numeric) && numeric > 0) {
+        splits[label] = numeric;
+      }
+    }
+  }
+  return splits;
+}
+
+function primaryResultForRun(run) {
+  if (!run) {
+    return { label: "Run", seconds: 0 };
+  }
+  const splits = run.splits || {};
+  const priorities = run.testType === "accel-brake"
+    ? ["0-100-0", "0-60-0", "100-0", "60-0", "0-100", "0-60", "0-45", "0-30"]
+    : ["0-100", "0-60", "0-45", "0-30"];
+  for (const label of priorities) {
+    if (Number.isFinite(splits[label])) {
+      return { label, seconds: splits[label] };
+    }
+  }
+  return { label: "Run", seconds: Number(run.resultSeconds) || 0 };
+}
+
 function downsampleSamples(samples, targetCount) {
   if (targetCount <= 0 || samples.length <= targetCount) {
     return samples;
@@ -300,14 +649,16 @@ function downsampleSamples(samples, targetCount) {
 function serializeRun(run, { sampleCap = 2000, downsampleTarget = 0 } = {}) {
   const clipped = run.samples.slice(-sampleCap);
   const finalSamples = downsampleTarget > 0 ? downsampleSamples(clipped, downsampleTarget) : clipped;
+  const primary = primaryResultForRun(run);
   return {
     id: run.id,
     timestamp: run.timestamp,
-    testType: run.testType,
-    resultSeconds: run.resultSeconds,
+    testType: normalizeRunMode(run.testType),
+    resultSeconds: primary.seconds,
+    resultLabel: primary.label,
     completion: run.completion,
-    reached60: Boolean(run.reached60),
-    reached100: Boolean(run.reached100),
+    peakSpeedMph: Math.round((Number(run.peakSpeedMph) || 0) * 10) / 10,
+    splits: packSplits(run.splits),
     samples: packSamples(finalSamples),
   };
 }
@@ -316,16 +667,33 @@ function deserializeRun(payload) {
   if (!payload || typeof payload !== "object") {
     return null;
   }
-  return {
+  const testType = normalizeRunMode(payload.testType);
+  const splits = unpackSplits(payload.splits);
+  const resultSeconds = Number(payload.resultSeconds) || 0;
+  if (!Object.keys(splits).length && resultSeconds > 0) {
+    if (payload.testType === "0-60" || payload.resultLabel === "0-60") {
+      splits["0-60"] = resultSeconds;
+    } else if (payload.testType === "0-100" || payload.resultLabel === "0-100") {
+      splits["0-100"] = resultSeconds;
+    } else if (payload.testType === "0-60-0" || payload.resultLabel === "0-60-0") {
+      splits["0-60-0"] = resultSeconds;
+    }
+  }
+  const run = {
     id: String(payload.id || `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`),
     timestamp: Number(payload.timestamp) || Date.now(),
-    testType: String(payload.testType || "0-60"),
-    resultSeconds: Number(payload.resultSeconds) || 0,
+    testType,
+    resultSeconds,
+    resultLabel: String(payload.resultLabel || ""),
     completion: String(payload.completion || "complete"),
-    reached60: Boolean(payload.reached60),
-    reached100: Boolean(payload.reached100),
+    peakSpeedMph: Number(payload.peakSpeedMph) || 0,
+    splits,
     samples: unpackSamples(payload.samples),
   };
+  const primary = primaryResultForRun(run);
+  run.resultSeconds = primary.seconds;
+  run.resultLabel = primary.label;
+  return run;
 }
 
 function compactVec(v) {
@@ -390,10 +758,17 @@ function loadCalibration() {
     return;
   }
   const parsed = safeJsonParse(raw);
-  if (!parsed) {
+  const gravity = parsed ? expandVec(parsed.gravity) : null;
+  const vertical = parsed ? expandVec(parsed.vertical) : null;
+  if (!gravity || !vertical) {
+    localStorage.removeItem(STORAGE_KEYS.calibration);
     return;
   }
-  state.calibration = parsed;
+  state.calibration = {
+    timestamp: Number(parsed.timestamp) || Date.now(),
+    gravity,
+    vertical,
+  };
 }
 
 function saveSettings() {
@@ -431,12 +806,42 @@ function getSelectedRun() {
   return state.history.find((run) => run.id === state.selectedRunId) || null;
 }
 
+function modeLabel(mode) {
+  return mode === "accel-brake" ? "Acceleration + Braking" : "Acceleration";
+}
+
 function formatResult(run) {
   if (!run) {
     return "No run";
   }
+  const primary = primaryResultForRun(run);
   const suffix = run.completion === "timeout" ? " (timeout)" : "";
-  return `${run.testType}: ${run.resultSeconds.toFixed(3)}s${suffix}`;
+  if (primary.seconds > 0) {
+    return `${modeLabel(run.testType)} · ${primary.label}: ${primary.seconds.toFixed(3)}s${suffix}`;
+  }
+  return `${modeLabel(run.testType)}${suffix}`;
+}
+
+function splitLabelsForRun(run) {
+  return run.testType === "accel-brake"
+    ? ["0-30", "0-45", "0-60", "0-100", "60-0", "100-0", "0-60-0", "0-100-0"]
+    : ["0-30", "0-45", "0-60", "0-100"];
+}
+
+function renderRunSplits(run) {
+  if (!run || !el.runSplits) {
+    return;
+  }
+  const labels = splitLabelsForRun(run);
+  const pieces = labels
+    .filter((label) => Number.isFinite(run.splits?.[label]))
+    .map((label) => `<span><strong>${label}</strong> ${run.splits[label].toFixed(3)}s</span>`);
+  if (Number.isFinite(run.peakSpeedMph) && run.peakSpeedMph > 0) {
+    pieces.push(`<span><strong>Peak</strong> ${run.peakSpeedMph.toFixed(1)} mph</span>`);
+  }
+  el.runSplits.innerHTML = pieces.length
+    ? pieces.join("")
+    : `<span><strong>${modeLabel(run.testType)}</strong> completed with no standard split reached.</span>`;
 }
 
 function renderHistory() {
@@ -482,16 +887,32 @@ function estimateWheelHp(run) {
   return maxPowerW / 745.7;
 }
 
+function nextSplitTarget(run) {
+  if (!run || !run.splits) {
+    return 60;
+  }
+  for (const target of SPLIT_SPEEDS_MPH) {
+    if (!Number.isFinite(run.splits[`0-${target}`])) {
+      return target;
+    }
+  }
+  return 100;
+}
+
 function renderSelectedRun() {
   const run = getSelectedRun();
   if (!run) {
     el.runResult.textContent = "No completed runs yet.";
+    if (el.runSplits) {
+      el.runSplits.innerHTML = "";
+    }
     el.hpEstimate.textContent = "Estimated wheel horsepower appears when weight and run data are available.";
     drawRunCharts(null);
     return;
   }
   const date = new Date(run.timestamp).toLocaleString();
   el.runResult.textContent = `${formatResult(run)} - ${date}`;
+  renderRunSplits(run);
   const hp = estimateWheelHp(run);
   if (hp) {
     el.hpEstimate.textContent = `Estimated wheel horsepower: ${Math.round(hp)} whp`;
@@ -519,12 +940,8 @@ function pulseHaptic(pattern = [40]) {
   navigator.vibrate(pattern);
 }
 
-function targetMphForMode(mode) {
-  return mode === "0-100" ? 100 : 60;
-}
-
 function updateSpeedColors(speedMph) {
-  const target = targetMphForMode(state.testType);
+  const target = nextSplitTarget(state.currentRun);
   if (speedMph >= target) {
     el.speedDisplay.style.color = "#38ffa0";
     return;
@@ -555,8 +972,6 @@ function resetFilterState() {
 
 function resetLiveCaptureState() {
   state.lastMotionTs = 0;
-  state.gravityEstimate = null;
-  state.motionBuffer = [];
   resetRollingState();
   resetFilterState();
   state.live.longG = 0;
@@ -565,17 +980,18 @@ function resetLiveCaptureState() {
   state.live.speedMps = 0;
   state.live.displaySpeedMps = 0;
   state.speedDisplayWindow = [];
-  state.startGateMs = 0;
+  state.preCalStillMs = 0;
+  state.preCalRetryBlockedUntilTs = 0;
+  state.readyStillMs = 0;
+  resetLaunchInference();
   state.isRunning = false;
   state.currentRun = null;
   state.lastUiDrawTs = 0;
+  state.lastScoreSample = null;
+  state.lastMotionSample = null;
+  state.missingLinearAccelSamples = 0;
   updateLiveUi();
   drawRollingCharts();
-}
-
-function setCalibrateButtonBusy(isBusy) {
-  el.calibrate.disabled = isBusy;
-  el.calibrate.textContent = isBusy ? "Calibrating..." : "Calibrate";
 }
 
 function clearCalibrationCaptureTimers(capture) {
@@ -600,48 +1016,58 @@ function cancelCalibrationCapture(statusMessage = "", tone = "neutral") {
   }
   clearCalibrationCaptureTimers(capture);
   state.calibrationCapture = null;
-  setCalibrateButtonBusy(false);
   if (statusMessage) {
     setStatus(statusMessage, tone);
   }
 }
 
 function buildCalibrationFromSamples(samples) {
-  if (samples.length < 35) {
-    return { error: "not enough sensor samples. Hold still and retry." };
+  if (samples.length < CALIBRATION_MIN_SAMPLES) {
+    return {
+      error: "not enough sensor samples for a reliable capture. Re-arm and try again.",
+      errorCode: "sample-rate",
+    };
+  }
+
+  const captureDurationMs = samples.length > 1
+    ? samples[samples.length - 1].t - samples[0].t
+    : 0;
+  if (captureDurationMs < CALIBRATION_MIN_CAPTURE_MS) {
+    return {
+      error: "sensor sample rate was too low for calibration. Re-arm and try again.",
+      errorCode: "sample-rate",
+    };
   }
 
   let avg = vec(0, 0, 0);
-  for (const raw of samples) {
-    avg = add(avg, raw);
+  for (const sample of samples) {
+    avg = add(avg, sample.raw);
   }
   avg = scale(avg, 1 / samples.length);
 
   let variance = 0;
-  for (const raw of samples) {
-    const diff = sub(raw, avg);
+  for (const sample of samples) {
+    const diff = sub(sample.raw, avg);
     variance += dot(diff, diff);
   }
   const rms = Math.sqrt(variance / samples.length);
   if (rms > 0.45) {
-    return { error: "phone moved during capture. Keep device still and retry." };
+    return {
+      error: "phone moved during capture. Keep device still and retry.",
+      errorCode: "motion",
+    };
   }
 
   const vertical = normalize(avg);
-  let forward = normalize(projectOntoPlane(vec(0, 1, 0), vertical));
-  if (norm(forward) < 0.15) {
-    forward = normalize(projectOntoPlane(vec(1, 0, 0), vertical));
-  }
-  const lateral = normalize(cross(vertical, forward));
-
-  if (norm(forward) < 0.1 || norm(lateral) < 0.1) {
-    return { error: "unstable orientation. Keep the phone fixed and retry." };
+  if (norm(vertical) < 0.1) {
+    return {
+      error: "could not resolve gravity direction. Hold still and retry.",
+      errorCode: "gravity",
+    };
   }
 
   return {
     gravity: avg,
-    forward,
-    lateral,
     vertical,
   };
 }
@@ -654,24 +1080,36 @@ function finalizeCalibrationCapture() {
 
   clearCalibrationCaptureTimers(capture);
   state.calibrationCapture = null;
-  setCalibrateButtonBusy(false);
 
   const result = buildCalibrationFromSamples(capture.samples);
   if (result.error) {
+    state.preCalStillMs = 0;
+    if (result.errorCode === "sample-rate") {
+      disarmSensors({
+        preserveData: false,
+        statusMessage: `Calibration failed: ${result.error}`,
+        tone: "warn",
+        signalMessage: "UNSUPPORTED",
+        signalMode: "alert",
+      });
+      return;
+    }
+    state.preCalRetryBlockedUntilTs = nowPerf() + CALIBRATION_RETRY_BACKOFF_MS;
     setStatus(`Calibration failed: ${result.error}`, "warn");
+    setRunSignal("HOLD STILL", "ready");
     return;
   }
 
   state.calibration = {
     timestamp: Date.now(),
     gravity: result.gravity,
-    orientation: state.orientation,
-    forward: result.forward,
-    lateral: result.lateral,
     vertical: result.vertical,
   };
   saveCalibration();
-  setStatus("Calibration complete. Automatic run detection is active.", "ok");
+  state.preCalStillMs = 0;
+  state.readyStillMs = READY_STATIONARY_MS;
+  setRunSignal("READY", "ready");
+  setStatus("Calibration complete. Ready for a straight launch from a stop.", "ok");
   scheduleUrlSync();
 }
 
@@ -685,11 +1123,11 @@ function disarmSensors({
   const hadActiveRun = state.isRunning;
   cancelCalibrationCapture();
   window.removeEventListener("devicemotion", onDeviceMotion);
-  window.removeEventListener("deviceorientation", onDeviceOrientation);
   state.sensorEnabled = false;
   state.isRunning = false;
   state.currentRun = null;
-  state.startGateMs = 0;
+  resetLaunchInference();
+  state.lastMotionSample = null;
   if (!preserveData) {
     resetLiveCaptureState();
   }
@@ -797,17 +1235,89 @@ function drawRollingCharts() {
   drawRollingChart(el.latChart, state.rolling.lat, "#ff8f6e");
 }
 
-function beginRun(startPerfTs) {
+function updateStillnessCounter(currentMs, dtSec, magnitudeMs2, thresholdMs2, { hardReset = false } = {}) {
+  if (magnitudeMs2 < thresholdMs2) {
+    return currentMs + dtSec * 1000;
+  }
+  if (hardReset) {
+    return 0;
+  }
+  return Math.max(0, currentMs - dtSec * 520);
+}
+
+function resetRunScoringState() {
+  resetRollingState();
+  resetFilterState();
+  state.live.longG = 0;
+  state.live.latG = 0;
+  state.live.longMs2 = 0;
+  state.live.speedMps = 0;
+  state.live.displaySpeedMps = 0;
+  state.speedDisplayWindow = [];
+  state.lastScoreSample = null;
+  state.readyStillMs = 0;
+}
+
+function startCalibrationCapture() {
+  if (!state.sensorEnabled || state.calibration || state.calibrationCapture) {
+    return;
+  }
+
+  state.preCalStillMs = 0;
+  state.preCalRetryBlockedUntilTs = 0;
+  setRunSignal("CALIBRATING", "ready");
+  setStatus("Calibrating... keep the vehicle and phone still.", "neutral");
+
+  const capture = {
+    phase: "settling",
+    samples: [],
+    startPerfTs: 0,
+    startTimerId: 0,
+    finishTimerId: 0,
+    progressTimerId: 0,
+  };
+  state.calibrationCapture = capture;
+
+  capture.startTimerId = window.setTimeout(() => {
+    if (state.calibrationCapture !== capture) {
+      return;
+    }
+    capture.phase = "capturing";
+    capture.startPerfTs = nowPerf();
+
+    capture.progressTimerId = window.setInterval(() => {
+      if (state.calibrationCapture !== capture) {
+        return;
+      }
+      const elapsed = nowPerf() - capture.startPerfTs;
+      const pct = clamp(Math.round((elapsed / CALIBRATION_CAPTURE_MS) * 100), 0, 100);
+      setStatus(`Calibrating... ${pct}%`, "neutral");
+    }, 120);
+
+    capture.finishTimerId = window.setTimeout(() => {
+      if (state.calibrationCapture !== capture) {
+        return;
+      }
+      finalizeCalibrationCapture();
+    }, CALIBRATION_CAPTURE_MS);
+  }, CALIBRATION_TAP_SETTLE_MS);
+}
+
+function beginRun(startPerfTs, forward, lateral) {
   state.isRunning = true;
   state.currentRun = {
     id: `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
     timestamp: Date.now(),
-    testType: state.testType,
+    testType: normalizeRunMode(state.testType),
     resultSeconds: 0,
+    resultLabel: "",
     completion: "complete",
-    reached60: false,
-    reached100: false,
-    phase60Done: false,
+    peakSpeedMph: 0,
+    splits: {},
+    downCrossings: {},
+    lateralRejectMs: 0,
+    forward,
+    lateral,
     startPerfTs,
     samples: [],
   };
@@ -815,15 +1325,73 @@ function beginRun(startPerfTs) {
   setStatus("Run started. Keep focus on the road.", "ok");
 }
 
+function rejectRun(reason) {
+  resetLaunchInference();
+  disarmSensors({
+    preserveData: false,
+    statusMessage: reason,
+    tone: "warn",
+    signalMessage: "REJECTED",
+    signalMode: "alert",
+  });
+}
+
+function confidenceForInference(inference) {
+  if (!inference || inference.totalImpulse <= 1e-6) {
+    return 0;
+  }
+  return clamp(norm(inference.vectorImpulse) / inference.totalImpulse, 0, 1);
+}
+
+function beginRunFromInference() {
+  const inference = state.launchInference;
+  if (!inference || !state.calibration) {
+    return false;
+  }
+
+  const confidence = confidenceForInference(inference);
+  const forward = normalize(inference.vectorImpulse);
+  const lateral = normalize(cross(state.calibration.vertical, forward));
+  if (inference.totalImpulse < LAUNCH_DIRECTION_MIN_IMPULSE_MPS
+    || confidence < LAUNCH_DIRECTION_CONFIDENCE_MIN
+    || norm(forward) < 0.1
+    || norm(lateral) < 0.1) {
+    return false;
+  }
+
+  const replaySamples = inference.samples.filter(Boolean);
+  if (!replaySamples.length) {
+    return false;
+  }
+  resetRunScoringState();
+  beginRun(inference.startPerfTs, forward, lateral);
+  resetLaunchInference();
+
+  for (const motionSample of replaySamples) {
+    const scoredSample = processRunMotionSample(motionSample, forward, lateral);
+    evaluateRun(scoredSample);
+    state.lastScoreSample = scoredSample;
+    if (!state.isRunning) {
+      break;
+    }
+  }
+  return true;
+}
+
 function completeRun(endPerfTs, completion = "complete") {
   if (!state.currentRun) {
     return;
   }
   const run = state.currentRun;
-  const elapsed = Math.max(0, (endPerfTs - run.startPerfTs) / 1000);
-  run.resultSeconds = elapsed;
   run.completion = completion;
-  delete run.phase60Done;
+  run.elapsedSeconds = Math.max(0, (endPerfTs - run.startPerfTs) / 1000);
+  const primary = primaryResultForRun(run);
+  run.resultSeconds = primary.seconds;
+  run.resultLabel = primary.label;
+  delete run.downCrossings;
+  delete run.forward;
+  delete run.lateral;
+  delete run.lateralRejectMs;
   delete run.startPerfTs;
 
   state.history.unshift(run);
@@ -839,98 +1407,166 @@ function completeRun(endPerfTs, completion = "complete") {
 
   if (completion === "timeout") {
     setRunSignal("TIMEOUT", "alert");
-    setStatus(`Run timed out at ${elapsed.toFixed(2)}s.`, "warn");
+    setStatus(`Run timed out after ${run.elapsedSeconds.toFixed(2)}s.`, "warn");
     return;
   }
+
+  state.live.longG = 0;
+  state.live.latG = 0;
+  state.live.longMs2 = 0;
+  state.live.speedMps = 0;
+  state.live.displaySpeedMps = 0;
+  state.speedDisplayWindow = [];
+  updateLiveUi();
 
   setRunSignal("COMPLETE", "alert");
   if (state.settings.autoDisarmOnComplete && state.sensorEnabled) {
     disarmSensors({
       preserveData: true,
-      statusMessage: `Run complete: ${elapsed.toFixed(3)}s. Sensors auto-disarmed.`,
+      statusMessage: `Run complete: ${formatResult(run)}. Sensors auto-disarmed.`,
       tone: "ok",
       signalMessage: "COMPLETE",
       signalMode: "alert",
     });
   } else {
-    setStatus(`Run complete: ${elapsed.toFixed(3)}s`, "ok");
+    setStatus(`Run complete: ${formatResult(run)}.`, "ok");
   }
 }
 
-function evaluateRun(samplePerfTs, longG, latG, speedMph) {
-  if (!state.calibration) {
+function processRunMotionSample(motionSample, forward, lateral) {
+  const longRawMs2 = dot(motionSample.dynamic, forward);
+  const latRawMs2 = dot(motionSample.dynamic, lateral);
+
+  applySmoothing(motionSample.dtSec, longRawMs2, latRawMs2);
+  updateStationaryAndBias(motionSample.dtSec, state.filters.longEmaMs2, state.filters.latEmaMs2);
+
+  const correctedLongMs2 = clamp(
+    state.filters.longEmaMs2 - state.filters.biasMs2,
+    -MAX_LONG_ACCEL_MS2,
+    MAX_LONG_ACCEL_MS2,
+  );
+  const integratedLongMs2 = integrateSpeed(motionSample.dtSec, correctedLongMs2);
+  updateDisplaySpeed(motionSample.perfTs);
+
+  state.live.longMs2 = integratedLongMs2;
+  state.live.longG = integratedLongMs2 / G;
+  state.live.latG = state.filters.latEmaMs2 / G;
+
+  ingestRollingSeries(state.rolling.long, state.live.longG, motionSample.perfTs);
+  ingestRollingSeries(state.rolling.lat, state.live.latG, motionSample.perfTs);
+  return createScoreSample(motionSample, state.live.longMs2, state.live.latG, state.live.speedMps);
+}
+
+function recordAccelerationSplits(run, previousSample, sample) {
+  for (const target of SPLIT_SPEEDS_MPH) {
+    const label = `0-${target}`;
+    if (Number.isFinite(run.splits[label])) {
+      continue;
+    }
+    const crossing = findScoreThresholdCrossing(previousSample, sample, "speedMph", target, "rising")
+      || (!previousSample && sample.speedMph >= target ? sample : null);
+    if (!crossing) {
+      continue;
+    }
+    appendRunSample(run, crossing);
+    run.splits[label] = Math.max(0, (crossing.perfTs - run.startPerfTs) / 1000);
+    if (target === 60) {
+      speakCue("60");
+      pulseHaptic([40, 40, 40]);
+    } else if (target === 100) {
+      speakCue("100");
+      pulseHaptic([60, 50, 60]);
+    }
+  }
+}
+
+function recordBrakingMarkers(run, previousSample, sample) {
+  if (run.testType !== "accel-brake") {
     return;
   }
-  if (!state.isRunning) {
-    const atRest = speedMph < 1 && Math.abs(longG) < 0.06;
-    if (atRest && state.live.longMs2 > 1.15) {
-      state.startGateMs += 16;
-    } else {
-      state.startGateMs = 0;
+  for (const target of [100, 60]) {
+    if (run.downCrossings[target]) {
+      continue;
     }
-    if (state.startGateMs > 260) {
-      state.startGateMs = 0;
-      beginRun(samplePerfTs);
+    const crossing = findScoreThresholdCrossing(previousSample, sample, "speedMph", target, "falling");
+    if (crossing) {
+      appendRunSample(run, crossing);
+      run.downCrossings[target] = crossing.perfTs;
     }
-    return;
+  }
+}
+
+function maybeCompleteRunAtStop(run, previousSample, sample) {
+  const stopCrossing = findScoreThresholdCrossing(previousSample, sample, "speedMph", STOP_COMPLETE_MPH, "falling")
+    || (!previousSample && sample.speedMph <= STOP_COMPLETE_MPH ? sample : null);
+  if (!stopCrossing) {
+    return false;
+  }
+  if (stopCrossing.perfTs - run.startPerfTs < RUN_MIN_COMPLETE_MS || run.peakSpeedMph < 12) {
+    return false;
   }
 
+  appendRunSample(run, stopCrossing);
+  if (run.testType === "accel-brake") {
+    if (run.downCrossings[60]) {
+      run.splits["60-0"] = Math.max(0, (stopCrossing.perfTs - run.downCrossings[60]) / 1000);
+    }
+    if (run.downCrossings[100]) {
+      run.splits["100-0"] = Math.max(0, (stopCrossing.perfTs - run.downCrossings[100]) / 1000);
+    }
+    if (Number.isFinite(run.splits["0-60"])) {
+      run.splits["0-60-0"] = Math.max(0, (stopCrossing.perfTs - run.startPerfTs) / 1000);
+    }
+    if (Number.isFinite(run.splits["0-100"])) {
+      run.splits["0-100-0"] = Math.max(0, (stopCrossing.perfTs - run.startPerfTs) / 1000);
+    }
+  }
+  completeRun(stopCrossing.perfTs, "complete");
+  return true;
+}
+
+function evaluateRun(sample) {
+  if (!state.currentRun) {
+    return;
+  }
   const run = state.currentRun;
-  const elapsedMs = samplePerfTs - run.startPerfTs;
-  run.samples.push({ t: elapsedMs, longG, latG, speedMph });
-  if (run.samples.length > 3000) {
-    run.samples.shift();
-  }
+  const previousSample = state.lastScoreSample;
 
-  if (speedMph >= 60 && !run.reached60) {
-    run.reached60 = true;
-    speakCue("60");
-    pulseHaptic([40, 40, 40]);
-  }
-  if (speedMph >= 100 && !run.reached100) {
-    run.reached100 = true;
-    speakCue("100");
-    pulseHaptic([60, 50, 60]);
-  }
+  run.peakSpeedMph = Math.max(run.peakSpeedMph, sample.speedMph);
+  recordAccelerationSplits(run, previousSample, sample);
+  recordBrakingMarkers(run, previousSample, sample);
 
-  if (run.testType === "0-60" && speedMph >= 60) {
-    completeRun(samplePerfTs, "complete");
+  if (sample.speedMph > 10 && Math.abs(sample.latG) > RUN_REJECT_LATERAL_G) {
+    run.lateralRejectMs += sample.dtSec * 1000;
+  } else {
+    run.lateralRejectMs = Math.max(0, run.lateralRejectMs - sample.dtSec * 700);
+  }
+  if (run.lateralRejectMs >= RUN_REJECT_LATERAL_MS) {
+    rejectRun("Run rejected: too much lateral acceleration for a straight-line test.");
     return;
   }
-  if (run.testType === "0-100" && speedMph >= 100) {
-    completeRun(samplePerfTs, "complete");
+
+  if (run.testType === "accel-brake" && sample.longG < -0.08 && sample.speedMph > 20) {
+    setRunSignal("BRAKING", "alert");
+  }
+
+  if (maybeCompleteRunAtStop(run, previousSample, sample)) {
     return;
   }
-  if (run.testType === "0-60-0") {
-    if (!run.phase60Done && speedMph >= 60) {
-      run.phase60Done = true;
-      setRunSignal("BRAKE", "alert");
-      speakCue("Brake");
-      pulseHaptic([120]);
-    }
-    if (run.phase60Done && speedMph <= 1.0 && elapsedMs > 1500) {
-      completeRun(samplePerfTs, "complete");
-      return;
-    }
-  }
-  if (elapsedMs > 22000) {
-    completeRun(samplePerfTs, "timeout");
+
+  appendRunSample(run, sample);
+
+  const elapsedMs = sample.perfTs - run.startPerfTs;
+  if (elapsedMs > MAX_RUN_DURATION_MS) {
+    completeRun(sample.perfTs, "timeout");
   }
 }
-function onDeviceOrientation(event) {
-  state.orientation = {
-    alpha: event.alpha,
-    beta: event.beta,
-    gamma: event.gamma,
-  };
+function getSmoothingTauSec() {
+  return SMOOTHING_TAU_SEC[state.settings.smoothing] ?? SMOOTHING_TAU_SEC.normal;
 }
 
-function getSmoothingAlpha() {
-  return SMOOTHING_ALPHA[state.settings.smoothing] ?? SMOOTHING_ALPHA.normal;
-}
-
-function applySmoothing(rawLongMs2, rawLatMs2) {
-  const alpha = getSmoothingAlpha();
+function applySmoothing(dtSec, rawLongMs2, rawLatMs2) {
+  const alpha = alphaForTimeConstant(dtSec, getSmoothingTauSec());
   if (!state.filters.initialized) {
     state.filters.longEmaMs2 = rawLongMs2;
     state.filters.latEmaMs2 = rawLatMs2;
@@ -953,9 +1589,8 @@ function updateStationaryAndBias(dtSec, longMs2, latMs2) {
     state.filters.stationaryMs = Math.max(0, state.filters.stationaryMs - dtSec * 420);
   }
   if (lowExcitation) {
-    const biasAlpha = speedMph < 8
-      ? clamp(dtSec * 0.35, 0, 0.035)
-      : clamp(dtSec * 0.08, 0, 0.01);
+    const biasTauSec = speedMph < 8 ? 2.8 : 12;
+    const biasAlpha = alphaForTimeConstant(dtSec, biasTauSec);
     state.filters.biasMs2 += (longMs2 - state.filters.biasMs2) * biasAlpha;
   }
 }
@@ -965,8 +1600,8 @@ function integrateSpeed(dtSec, correctedLongMs2) {
   if (Math.abs(longMs2) < 0.12) {
     longMs2 = 0;
   }
-  longMs2 = clamp(longMs2, -8.5, 5.9);
-  state.live.speedMps = clamp(state.live.speedMps + longMs2 * dtSec, 0, mphToMps(130));
+  longMs2 = clamp(longMs2, -MAX_LONG_ACCEL_MS2, MAX_LONG_ACCEL_MS2);
+  state.live.speedMps = clamp(state.live.speedMps + longMs2 * dtSec, 0, mphToMps(MAX_SPEED_MPH));
 
   if (!state.isRunning && state.filters.stationaryMs > 180) {
     const settle = 1 - clamp(dtSec * 2.4, 0, 0.22);
@@ -985,7 +1620,7 @@ function updateDisplaySpeed(samplePerfTs) {
   state.speedDisplayWindow.push({ t: samplePerfTs, v: state.live.speedMps });
   const cutoff = samplePerfTs - SPEED_DISPLAY_WINDOW_MS;
   while (state.speedDisplayWindow.length > 0
-    && (state.speedDisplayWindow[0].t < cutoff || state.speedDisplayWindow.length > SPEED_DISPLAY_SAMPLE_COUNT)) {
+    && (state.speedDisplayWindow[0].t < cutoff || state.speedDisplayWindow.length > SPEED_DISPLAY_BUFFER_MAX)) {
     state.speedDisplayWindow.shift();
   }
 
@@ -996,9 +1631,10 @@ function updateDisplaySpeed(samplePerfTs) {
 
   let weightedSpeed = 0;
   let weightSum = 0;
-  for (let i = 0; i < state.speedDisplayWindow.length; i += 1) {
-    const weight = i + 1;
-    weightedSpeed += state.speedDisplayWindow[i].v * weight;
+  for (const sample of state.speedDisplayWindow) {
+    const ageMs = samplePerfTs - sample.t;
+    const weight = clamp(1 - ageMs / SPEED_DISPLAY_WINDOW_MS, DISPLAY_SPEED_RECENCY_FLOOR, 1);
+    weightedSpeed += sample.v * weight;
     weightSum += weight;
   }
   state.live.displaySpeedMps = weightSum > 0 ? weightedSpeed / weightSum : state.live.speedMps;
@@ -1022,51 +1658,118 @@ function onDeviceMotion(event) {
   state.lastMotionTs = samplePerfTs;
 
   const raw = vec(accIncl.x, accIncl.y, accIncl.z);
-  state.motionBuffer.push({ t: samplePerfTs, raw });
-  if (state.motionBuffer.length > 260) {
-    state.motionBuffer.shift();
-  }
   if (state.calibrationCapture && state.calibrationCapture.phase === "capturing") {
-    state.calibrationCapture.samples.push(raw);
+    state.calibrationCapture.samples.push({ t: samplePerfTs, raw });
   }
 
-  if (!state.gravityEstimate) {
-    state.gravityEstimate = raw;
-  } else {
-    const gravityAlpha = clamp(dt * 1.7, 0.02, 0.18);
-    state.gravityEstimate = add(scale(state.gravityEstimate, 1 - gravityAlpha), scale(raw, gravityAlpha));
+  const linearAccel = event.acceleration;
+  const hasLinearAcceleration = linearAccel
+    && linearAccel.x != null
+    && linearAccel.y != null
+    && linearAccel.z != null;
+  if (!hasLinearAcceleration) {
+    state.missingLinearAccelSamples += 1;
+    if (state.missingLinearAccelSamples >= LINEAR_ACCEL_MISSING_LIMIT) {
+      disarmSensors({
+        preserveData: true,
+        statusMessage: "Browser does not expose stable linear acceleration. Run timing is disabled on this device/browser.",
+        tone: "warn",
+        signalMessage: "UNSUPPORTED",
+        signalMode: "alert",
+      });
+    }
+    return;
+  }
+  state.missingLinearAccelSamples = 0;
+
+  const dynamic = vec(linearAccel.x, linearAccel.y, linearAccel.z);
+  if (!state.calibration) {
+    if (samplePerfTs < state.preCalRetryBlockedUntilTs) {
+      state.lastMotionSample = null;
+      if (samplePerfTs - state.lastUiDrawTs > 48) {
+        updateLiveUi();
+        drawRollingCharts();
+        state.lastUiDrawTs = samplePerfTs;
+      }
+      return;
+    }
+    state.preCalStillMs = updateStillnessCounter(
+      state.preCalStillMs,
+      dt,
+      norm(dynamic),
+      PRECAL_LINEAR_STILL_MS2,
+      { hardReset: true },
+    );
+    if (!state.calibrationCapture && state.preCalStillMs >= PRECAL_STILL_MS) {
+      startCalibrationCapture();
+    }
+    state.lastMotionSample = null;
+    if (samplePerfTs - state.lastUiDrawTs > 48) {
+      updateLiveUi();
+      drawRollingCharts();
+      state.lastUiDrawTs = samplePerfTs;
+    }
+    return;
   }
 
-  let dynamic = vec(0, 0, 0);
-  if (event.acceleration && event.acceleration.x != null) {
-    dynamic = vec(event.acceleration.x, event.acceleration.y, event.acceleration.z);
-  } else {
-    dynamic = sub(raw, state.gravityEstimate);
+  const motionSample = createMotionSample(samplePerfTs, dt, dynamic, state.calibration.vertical);
+  let runStartedThisSample = false;
+
+  if (!state.isRunning) {
+    const wasReady = state.readyStillMs >= READY_STATIONARY_MS;
+    state.readyStillMs = updateStillnessCounter(
+      state.readyStillMs,
+      dt,
+      motionSample.horizontalMagMs2,
+      0.16,
+      { hardReset: true },
+    );
+    const isReady = state.readyStillMs >= READY_STATIONARY_MS;
+
+    if (!state.launchInference) {
+      setRunSignal(isReady ? "READY" : "HOLD STILL", "ready");
+      if (isReady && !wasReady) {
+        setStatus("Ready. Launch straight from a stop.", "ok");
+      } else if (!isReady && wasReady) {
+        setStatus("Hold still at a stop until the app shows Ready.", "neutral");
+      }
+      if (isReady
+        && motionSample.horizontalMagMs2 >= LAUNCH_HORIZONTAL_THRESHOLD_MS2) {
+        const anchor = findMotionThresholdCrossing(
+          state.lastMotionSample,
+          motionSample,
+          LAUNCH_HORIZONTAL_THRESHOLD_MS2,
+        ) || motionSample;
+        state.launchInference = createLaunchInference(anchor);
+        captureLaunchInferenceSample(rebaseMotionSampleDt(motionSample, anchor.perfTs));
+        setRunSignal("LOCKING", "running");
+        setStatus("Launch detected. Locking the straight-line direction...", "neutral");
+      }
+    } else {
+      captureLaunchInferenceSample(motionSample);
+      const inferenceAgeMs = motionSample.perfTs - state.launchInference.startPerfTs;
+      const confidence = confidenceForInference(state.launchInference);
+      if (inferenceAgeMs >= LAUNCH_INFERENCE_MIN_MS
+        && state.launchInference.totalImpulse >= LAUNCH_DIRECTION_MIN_IMPULSE_MPS
+        && confidence >= LAUNCH_DIRECTION_CONFIDENCE_MIN) {
+        runStartedThisSample = beginRunFromInference();
+      } else if (inferenceAgeMs >= LAUNCH_INFERENCE_MAX_MS) {
+        rejectRun("Run rejected: could not lock a clean straight launch direction.");
+        return;
+      }
+    }
   }
 
-  let longRawMs2 = dynamic.y;
-  let latRawMs2 = dynamic.x;
-  if (state.calibration) {
-    const f = vec(state.calibration.forward.x, state.calibration.forward.y, state.calibration.forward.z);
-    const l = vec(state.calibration.lateral.x, state.calibration.lateral.y, state.calibration.lateral.z);
-    longRawMs2 = dot(dynamic, f);
-    latRawMs2 = dot(dynamic, l);
+  if (state.isRunning && state.currentRun && !runStartedThisSample) {
+    const scoredSample = processRunMotionSample(
+      motionSample,
+      state.currentRun.forward,
+      state.currentRun.lateral,
+    );
+    evaluateRun(scoredSample);
+    state.lastScoreSample = scoredSample;
   }
-
-  applySmoothing(longRawMs2, latRawMs2);
-  updateStationaryAndBias(dt, state.filters.longEmaMs2, state.filters.latEmaMs2);
-
-  const correctedLongMs2 = clamp(state.filters.longEmaMs2 - state.filters.biasMs2, -9, 9);
-  const integratedLongMs2 = integrateSpeed(dt, correctedLongMs2);
-  updateDisplaySpeed(samplePerfTs);
-
-  state.live.longMs2 = integratedLongMs2;
-  state.live.longG = integratedLongMs2 / G;
-  state.live.latG = state.filters.latEmaMs2 / G;
-
-  ingestRollingSeries(state.rolling.long, state.live.longG, samplePerfTs);
-  ingestRollingSeries(state.rolling.lat, state.live.latG, samplePerfTs);
-  evaluateRun(samplePerfTs, state.live.longG, state.live.latG, mpsToMph(state.live.displaySpeedMps));
+  state.lastMotionSample = motionSample;
 
   if (samplePerfTs - state.lastUiDrawTs > 48) {
     updateLiveUi();
@@ -1083,12 +1786,6 @@ async function requestSensorPermission() {
     const motion = await DeviceMotionEvent.requestPermission();
     if (motion !== "granted") {
       throw new Error("Motion permission denied.");
-    }
-  }
-  if ("DeviceOrientationEvent" in window && typeof DeviceOrientationEvent.requestPermission === "function") {
-    const orientation = await DeviceOrientationEvent.requestPermission();
-    if (orientation !== "granted") {
-      throw new Error("Orientation permission denied.");
     }
   }
 }
@@ -1111,73 +1808,15 @@ async function enableSensors() {
   }
 
   window.addEventListener("devicemotion", onDeviceMotion, { passive: true });
-  window.addEventListener("deviceorientation", onDeviceOrientation, { passive: true });
   state.sensorEnabled = true;
   resetLiveCaptureState();
-  updateArmButton();
-  setRunSignal("ARMED", "ready");
-  if (state.calibration) {
-    setStatus("Sensors armed. Calibration found. Launch detection is active.", "ok");
-  } else {
-    setStatus("Sensors armed. Keep the vehicle stationary, then calibrate.", "ok");
-  }
-}
-
-function clearCalibration() {
   cancelCalibrationCapture();
   state.calibration = null;
   localStorage.removeItem(STORAGE_KEYS.calibration);
-  setStatus("Calibration removed. Recalibrate before starting tests.", "warn");
+  updateArmButton();
+  setRunSignal("HOLD STILL", "ready");
+  setStatus("Sensors armed. Hold still at a stop so auto-calibration can complete.", "neutral");
   scheduleUrlSync();
-}
-
-function calibrateFromBuffer() {
-  if (!state.sensorEnabled) {
-    setStatus("Arm sensors first.", "warn");
-    return;
-  }
-  if (state.calibrationCapture) {
-    setStatus("Calibration already in progress. Hold still.", "neutral");
-    return;
-  }
-
-  setCalibrateButtonBusy(true);
-  setStatus("Hold still. Starting calibration...", "neutral");
-
-  const capture = {
-    phase: "settling",
-    samples: [],
-    startPerfTs: 0,
-    startTimerId: 0,
-    finishTimerId: 0,
-    progressTimerId: 0,
-  };
-  state.calibrationCapture = capture;
-
-  capture.startTimerId = window.setTimeout(() => {
-    if (state.calibrationCapture !== capture) {
-      return;
-    }
-    capture.phase = "capturing";
-    capture.startPerfTs = nowPerf();
-    setStatus("Calibrating... keep the device still.", "neutral");
-
-    capture.progressTimerId = window.setInterval(() => {
-      if (state.calibrationCapture !== capture) {
-        return;
-      }
-      const elapsed = nowPerf() - capture.startPerfTs;
-      const pct = clamp(Math.round((elapsed / CALIBRATION_CAPTURE_MS) * 100), 0, 100);
-      setStatus(`Calibrating... ${pct}%`, "neutral");
-    }, 120);
-
-    capture.finishTimerId = window.setTimeout(() => {
-      if (state.calibrationCapture !== capture) {
-        return;
-      }
-      finalizeCalibrationCapture();
-    }, CALIBRATION_CAPTURE_MS);
-  }, CALIBRATION_TAP_SETTLE_MS);
 }
 
 function clearCharts() {
@@ -1188,12 +1827,21 @@ function scheduleUrlSync() {
   if (state.urlSyncTimer) {
     clearTimeout(state.urlSyncTimer);
   }
-  state.urlSyncTimer = window.setTimeout(syncStateToUrl, 160);
+  state.urlSyncTimer = window.setTimeout(() => {
+    syncStateToUrl().catch(() => {});
+  }, 160);
 }
 
 function buildUrlPayload(profile) {
   const selectedRunId = state.selectedRunId;
-  const runs = state.history.slice(0, profile.maxRuns).map((run) => serializeRun(run, {
+  const selectedRun = selectedRunId
+    ? state.history.find((run) => run.id === selectedRunId) || null
+    : null;
+  let runsForPayload = state.history.slice(0, profile.maxRuns);
+  if (selectedRun && profile.maxRuns > 0 && !runsForPayload.some((run) => run.id === selectedRun.id)) {
+    runsForPayload = [...runsForPayload.slice(0, Math.max(0, profile.maxRuns - 1)), selectedRun];
+  }
+  const runs = runsForPayload.map((run) => serializeRun(run, {
     sampleCap: 2400,
     downsampleTarget: run.id === selectedRunId ? profile.selectedSamples : profile.otherSamples,
   }));
@@ -1201,7 +1849,7 @@ function buildUrlPayload(profile) {
   const payload = {
     v: 2,
     testType: state.testType,
-    selectedRunId,
+    selectedRunId: runs.some((run) => run.id === selectedRunId) ? selectedRunId : null,
     settings: {
       audio: state.settings.audio,
       haptics: state.settings.haptics,
@@ -1209,37 +1857,42 @@ function buildUrlPayload(profile) {
       smoothing: state.settings.smoothing,
       vehicleWeightLb: state.settings.vehicleWeightLb,
     },
-    calibration: state.calibration ? {
+    calibration: profile.includeCalibration !== false && state.calibration ? {
       timestamp: Number(state.calibration.timestamp) || Date.now(),
       gravity: compactVec(state.calibration.gravity),
-      forward: compactVec(state.calibration.forward),
-      lateral: compactVec(state.calibration.lateral),
       vertical: compactVec(state.calibration.vertical),
-      orientation: state.calibration.orientation ?? null,
     } : null,
     history: runs,
   };
   return payload;
 }
 
-function syncStateToUrl() {
+async function syncStateToUrl() {
   const profiles = [
-    { selectedSamples: 420, otherSamples: 48, maxRuns: 20 },
-    { selectedSamples: 280, otherSamples: 28, maxRuns: 20 },
-    { selectedSamples: 220, otherSamples: 18, maxRuns: 14 },
-    { selectedSamples: 160, otherSamples: 12, maxRuns: 10 },
-    { selectedSamples: 120, otherSamples: 8, maxRuns: 6 },
+    { selectedSamples: 420, otherSamples: 48, maxRuns: 20, includeCalibration: true },
+    { selectedSamples: 280, otherSamples: 28, maxRuns: 20, includeCalibration: true },
+    { selectedSamples: 220, otherSamples: 18, maxRuns: 14, includeCalibration: true },
+    { selectedSamples: 160, otherSamples: 12, maxRuns: 10, includeCalibration: true },
+    { selectedSamples: 120, otherSamples: 8, maxRuns: 6, includeCalibration: true },
+    { selectedSamples: 96, otherSamples: 0, maxRuns: 1, includeCalibration: false },
+    { selectedSamples: 48, otherSamples: 0, maxRuns: 1, includeCalibration: false },
+    { selectedSamples: 0, otherSamples: 0, maxRuns: 0, includeCalibration: false },
   ];
 
-  let encoded = "";
+  let encoded = null;
   for (const profile of profiles) {
     const payload = buildUrlPayload(profile);
-    const next = base64UrlEncodeString(JSON.stringify(payload));
+    const next = await encodePayloadForUrl(payload);
     if (next.length <= URL_MAX_LENGTH) {
       encoded = next;
       break;
     }
-    encoded = next;
+  }
+  if (encoded == null) {
+    const url = new URL(window.location.href);
+    url.searchParams.delete("s");
+    window.history.replaceState(null, "", url);
+    return;
   }
 
   const url = new URL(window.location.href);
@@ -1268,25 +1921,20 @@ function applyCalibrationFromPayload(payloadCalibration) {
     return;
   }
   const gravity = expandVec(payloadCalibration.gravity);
-  const forward = expandVec(payloadCalibration.forward);
-  const lateral = expandVec(payloadCalibration.lateral);
   const vertical = expandVec(payloadCalibration.vertical);
-  if (!gravity || !forward || !lateral || !vertical) {
+  if (!gravity || !vertical) {
     return;
   }
   state.calibration = {
     timestamp: Number(payloadCalibration.timestamp) || Date.now(),
     gravity,
-    forward,
-    lateral,
     vertical,
-    orientation: payloadCalibration.orientation ?? null,
   };
 }
 
 function restoreV2State(payload) {
-  if (payload.testType && ["0-60", "0-100", "0-60-0"].includes(payload.testType)) {
-    state.testType = payload.testType;
+  if (payload.testType) {
+    state.testType = normalizeRunMode(payload.testType);
   }
 
   applySettingsFromPayload(payload.settings);
@@ -1320,8 +1968,8 @@ function restoreV2State(payload) {
 }
 
 function restoreLegacyV1State(payload) {
-  if (payload.testType && ["0-60", "0-100", "0-60-0"].includes(payload.testType)) {
-    state.testType = payload.testType;
+  if (payload.testType) {
+    state.testType = normalizeRunMode(payload.testType);
   }
   const run = deserializeRun(payload.run);
   if (!run) {
@@ -1338,13 +1986,13 @@ function restoreLegacyV1State(payload) {
   saveHistory();
 }
 
-function restoreStateFromUrl() {
+async function restoreStateFromUrl() {
   const encoded = new URL(window.location.href).searchParams.get("s");
   if (!encoded) {
     return;
   }
   try {
-    const payload = safeJsonParse(base64UrlDecodeString(encoded));
+    const payload = await decodePayloadFromUrl(encoded);
     if (!payload || typeof payload !== "object") {
       return;
     }
@@ -1361,8 +2009,6 @@ function restoreStateFromUrl() {
 }
 function bindEvents() {
   el.enableSensors.addEventListener("click", enableSensors);
-  el.calibrate.addEventListener("click", calibrateFromBuffer);
-  el.recalibrate.addEventListener("click", clearCalibration);
 
   el.testType.addEventListener("change", () => {
     state.testType = el.testType.value;
@@ -1421,23 +2067,19 @@ async function registerServiceWorker() {
   }
 }
 
-function init() {
+async function init() {
   loadSettings();
   loadCalibration();
   loadHistory();
-  restoreStateFromUrl();
+  await restoreStateFromUrl();
 
-  state.testType = ["0-60", "0-100", "0-60-0"].includes(state.testType) ? state.testType : "0-60";
+  state.testType = normalizeRunMode(state.testType);
   el.testType.value = state.testType;
   applySettingsToUi();
   updateArmButton();
   bindEvents();
 
-  if (state.calibration) {
-    setStatus("Calibration restored. Arm sensors to start sampling.", "neutral");
-  } else {
-    setStatus("Sensors are disarmed. Arm to begin sampling.", "neutral");
-  }
+  setStatus("Sensors are disarmed. Arm at a stop to auto-calibrate.", "neutral");
 
   renderHistory();
   renderSelectedRun();
