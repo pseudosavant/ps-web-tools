@@ -135,9 +135,9 @@ The tool uses information theory to calculate the expected information gain for 
 ## 🔧 Customization
 
 ### Modifying Word Lists
-Update the CSV URL in `script.js`:
+Update the JSON URL in `script.js`:
 ```javascript
-const response = await fetch("your-word-list-url.csv");
+const response = await fetch("your-word-list-url.json");
 ```
 
 ### Styling

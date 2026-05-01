@@ -446,35 +446,27 @@ function debounce(func, wait, immediate) {
     };
 }
 
-// Load word list from CSV
+// Load word list from JSON
 async function loadWordList() {
     try {
         showLoading(true);
-        console.log('Attempting to load word list from ./valid-words.csv');
+        console.log('Attempting to load word list from ./official-valid-words.json');
         
-        const response = await fetch("./valid-words.csv");
+        const response = await fetch("./official-valid-words.json");
         
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
         
-        const text = await response.text();
-        console.log(`Raw CSV text length: ${text.length}`);
-        console.log(`First 200 characters: ${text.substring(0, 200)}`);
-        
-        // More robust parsing - handle different line endings and formats
-        const words = text.split(/[\r\n]+/)
-            .map(word => word.toLowerCase().trim())
-            .filter(word => word.length === 5 && /^[a-z]+$/.test(word)); // Only alphabetic 5-letter words
-        
-        console.log(`Parsed ${words.length} valid words`);
-        console.log(`First 10 words: ${words.slice(0, 10).join(', ')}`);
-        
-        if (words.length === 0) {
-            throw new Error('No valid 5-letter words found in CSV file. Please check the file format.');
+        const rawWords = await response.json();
+        if (!Array.isArray(rawWords)) {
+            throw new Error('Word list JSON must be an array of words.');
+        }
+        if (!rawWords.every(word => typeof word === 'string' && /^[a-z]{5}$/.test(word))) {
+            throw new Error('Word list JSON must contain only lowercase 5-letter words.');
         }
         
-        WORD_LIST = words;
+        WORD_LIST = rawWords;
         gameState.remainingWords = [...WORD_LIST];
         showLoading(false);
         updateStats();
@@ -487,9 +479,9 @@ async function loadWordList() {
         // Provide more specific error messages
         let errorMessage = 'Failed to load word list. ';
         if (error.message.includes('HTTP 404')) {
-            errorMessage += 'The file "valid-words.csv" was not found in the same directory as this HTML file.';
-        } else if (error.message.includes('No valid')) {
-            errorMessage += 'The CSV file was found but contains no valid 5-letter words. Please check the file format.';
+            errorMessage += 'The file "official-valid-words.json" was not found in the same directory as this HTML file.';
+        } else if (error.message.includes('JSON')) {
+            errorMessage += 'The JSON file was found but is not a valid array of lowercase 5-letter words. Please check the file format.';
         } else {
             errorMessage += `Error: ${error.message}`;
         }
@@ -497,9 +489,9 @@ async function loadWordList() {
         showError(errorMessage);
         
         // Try to provide a fallback or helpful suggestion
-        console.log('Suggestion: Make sure "valid-words.csv" exists in the same folder as index.html');
-        console.log('The CSV should contain one word per line, like:');
-        console.log('arose\\nabout\\nadieu\\naudio\\n...');
+        console.log('Suggestion: Make sure "official-valid-words.json" exists in the same folder as index.html');
+        console.log('The JSON should contain an array of words, like:');
+        console.log('["arose", "about", "adieu", "audio"]');
     }
 }
 
