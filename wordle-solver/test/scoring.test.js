@@ -41,6 +41,29 @@ scoringSuite.test('should calculate information gain for small word sets', () =>
     assert.true(info2 >= 0, 'Information gain should be non-negative');
 });
 
+scoringSuite.test('should calculate expected elimination score', () => {
+    gameState.remainingWords = ['house', 'mouse'];
+
+    const usefulScore = calculateExpectedEliminationScore('house');
+    const uselessScore = calculateExpectedEliminationScore('zzzzz');
+
+    assert.equals(usefulScore, 50, 'Perfectly splitting two answers should eliminate 50% in expectation');
+    assert.equals(uselessScore, 0, 'A guess with one indistinguishable outcome should eliminate 0% in expectation');
+    assert.greaterThan(usefulScore, uselessScore, 'More discriminating guesses should score higher');
+});
+
+scoringSuite.test('should calculate composite guess metrics', () => {
+    gameState.remainingWords = ['house', 'mouse'];
+
+    const metrics = calculateGuessMetrics('house');
+
+    assert.equals(metrics.eliminationPercent, 50, 'Should expose expected elimination percentage');
+    assert.equals(metrics.entropyBits, 1, 'Two equally likely outcomes should provide one bit');
+    assert.equals(metrics.worstCaseRemaining, 1, 'Worst case should be one word for a perfect split');
+    assert.equals(metrics.expectedRemaining, 1, 'Expected remaining should be one word for a perfect split');
+    assert.greaterThan(metrics.score, metrics.eliminationPercent, 'Composite should include entropy and worst-case signals');
+});
+
 scoringSuite.test('should use approximation for large word sets', () => {
     // Create large word set to trigger approximation
     gameState.remainingWords = Array(150).fill().map((_, i) => `word${i.toString().padStart(2, '0')}`);

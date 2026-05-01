@@ -702,22 +702,9 @@ function getResponsePatternOptimized(guess, answer) {
     return pattern;
 }
 
-// Adaptive weights based on game state
-function getAdaptiveWeights(remainingWordsCount) {
-    if (remainingWordsCount > 50) {
-        // Early game: prioritize information gain
-        return { information: 0.7, speed: 0.1, risk: 0.1, frequency: 0.1 };
-    } else if (remainingWordsCount > 10) {
-        // Mid game: balance information and speed
-        return { information: 0.5, speed: 0.3, risk: 0.1, frequency: 0.1 };
-    } else {
-        // End game: prioritize solution speed and reduce risk
-        return { information: 0.3, speed: 0.5, risk: 0.2, frequency: 0.0 };
-    }
-}
-
 // Web Worker for heavy calculations
 let calculationWorker = null;
+let calculationRequestId = 0;
 
 function initializeWebWorker() {
     const workerCode = `
@@ -730,6 +717,15 @@ function initializeWebWorker() {
             'v': 0.00978, 'k': 0.00772, 'j': 0.00153, 'x': 0.00150, 'q': 0.00095, 'z': 0.00074
         };
 
+        function getCompositeWeights(remainingWordsCount) {
+            if (remainingWordsCount > 50) {
+                return { elimination: 0.6, entropy: 0.3, worstCase: 0.1 };
+            } else if (remainingWordsCount > 10) {
+                return { elimination: 0.65, entropy: 0.2, worstCase: 0.15 };
+            }
+            return { elimination: 0.7, entropy: 0.1, worstCase: 0.2 };
+        }
+
         function calculateLetterFrequencyScore(word) {
             const uniqueLetters = new Set(word);
             let score = 0;
@@ -737,6 +733,61 @@ function initializeWebWorker() {
                 score += ENGLISH_LETTER_FREQ[letter] || 0.01;
             });
             return score;
+        }
+
+        function calculatePositionFrequencies(words) {
+            const positionFrequency = [{}, {}, {}, {}, {}];
+            const positionTotals = [0, 0, 0, 0, 0];
+
+            words.forEach(word => {
+                for (let i = 0; i < 5; i++) {
+                    const letter = word[i];
+                    positionFrequency[i][letter] = (positionFrequency[i][letter] || 0) + 1;
+                    positionTotals[i]++;
+                }
+            });
+
+            return { positionFrequency, positionTotals };
+        }
+
+        function calculatePositionScore(word, positionData) {
+            let score = 0;
+            for (let i = 0; i < 5; i++) {
+                const letter = word[i];
+                const positionFreq = positionData.positionFrequency[i][letter] || 0;
+                const totalWordsInPosition = positionData.positionTotals[i] || 0;
+                if (totalWordsInPosition > 0) {
+                    score += positionFreq / totalWordsInPosition;
+                }
+            }
+            return score / 5;
+        }
+
+        function selectCandidatePool(remainingWords) {
+            let candidatePool = [...remainingWords];
+            const positionData = calculatePositionFrequencies(remainingWords);
+
+            if (remainingWords.length > 500) {
+                const quickScored = remainingWords.map(word => ({
+                    word,
+                    quickScore: calculateLetterFrequencyScore(word) + calculatePositionScore(word, positionData)
+                })).sort((a, b) => b.quickScore - a.quickScore);
+
+                candidatePool = quickScored.slice(0, 50).map(item => item.word);
+            } else if (remainingWords.length > 200) {
+                const quickScored = remainingWords.map(word => ({
+                    word,
+                    quickScore: calculateLetterFrequencyScore(word) + calculatePositionScore(word, positionData)
+                })).sort((a, b) => b.quickScore - a.quickScore);
+
+                candidatePool = quickScored.slice(0, 100).map(item => item.word);
+            }
+
+            if (candidatePool.length > 100) {
+                candidatePool = candidatePool.slice(0, 100);
+            }
+
+            return candidatePool;
         }
 
         function getResponsePattern(guess, answer) {
@@ -767,41 +818,63 @@ function initializeWebWorker() {
             return pattern;
         }
 
-        function calculateExpectedInformation(guess, remainingWords) {
-            if (remainingWords.length <= 1) return 0;
-            
+        function calculateGuessMetrics(guess, remainingWords) {
+            const totalWords = remainingWords.length;
+            if (totalWords <= 1) {
+                return {
+                    score: 100,
+                    eliminationPercent: 100,
+                    entropyBits: 0,
+                    worstCaseRemaining: totalWords,
+                    expectedRemaining: totalWords
+                };
+            }
+
             const outcomes = new Map();
-            
             remainingWords.forEach(answer => {
                 const pattern = getResponsePattern(guess, answer);
                 const key = pattern.join('');
                 outcomes.set(key, (outcomes.get(key) || 0) + 1);
             });
 
-            let expectedInfo = 0;
-            const totalWords = remainingWords.length;
-            
+            let expectedRemaining = 0;
+            let entropyBits = 0;
+            let worstCaseRemaining = 0;
             outcomes.forEach(count => {
                 const probability = count / totalWords;
-                if (probability > 0) {
-                    const information = -Math.log2(probability);
-                    expectedInfo += probability * information;
-                }
+                expectedRemaining += probability * count;
+                entropyBits -= probability * Math.log2(probability);
+                worstCaseRemaining = Math.max(worstCaseRemaining, count);
             });
 
-            return expectedInfo;
+            const eliminationPercent = 100 * (1 - expectedRemaining / totalWords);
+            const maxEntropyBits = Math.log2(totalWords);
+            const entropyScore = maxEntropyBits > 0 ? 100 * (entropyBits / maxEntropyBits) : 0;
+            const worstCaseScore = 100 * (1 - worstCaseRemaining / totalWords);
+            const weights = getCompositeWeights(totalWords);
+            const score = (weights.elimination * eliminationPercent) +
+                (weights.entropy * entropyScore) +
+                (weights.worstCase * worstCaseScore);
+
+            return {
+                score,
+                eliminationPercent,
+                entropyBits,
+                worstCaseRemaining,
+                expectedRemaining
+            };
         }
 
         self.onmessage = function(e) {
             const { type, data } = e.data;
             
             if (type === 'calculateOptimalGuesses') {
-                const { candidatePool, remainingWords } = data;
+                const { remainingWords, requestId, startedAt } = data;
+                const candidatePool = selectCandidatePool(remainingWords);
                 
                 const scored = candidatePool.map(word => ({
                     word,
-                    score: calculateLetterFrequencyScore(word) + 
-                           (remainingWords.length <= 100 ? calculateExpectedInformation(word, remainingWords) * 0.1 : 0),
+                    ...calculateGuessMetrics(word, remainingWords),
                     type: remainingWords.includes(word) ? 'answer' : 'strategic'
                 }));
 
@@ -809,7 +882,11 @@ function initializeWebWorker() {
                 
                 self.postMessage({
                     type: 'optimalGuessesResult',
-                    data: scored.slice(0, 10)
+                    data: scored.slice(0, 10),
+                    requestId,
+                    startedAt,
+                    candidateCount: candidatePool.length,
+                    remainingCount: remainingWords.length
                 });
             }
         };
@@ -819,153 +896,64 @@ function initializeWebWorker() {
     calculationWorker = new Worker(URL.createObjectURL(blob));
     
     calculationWorker.onmessage = function(e) {
-        const { type, data } = e.data;
+        const { type, data, requestId, startedAt, candidateCount, remainingCount } = e.data;
         
         if (type === 'optimalGuessesResult') {
+            if (requestId !== calculationRequestId) return;
             gameState.optimalGuesses = data;
             updateOptimalGuesses();
             showLoading(false);
+            logOptimalGuessTiming(startedAt, candidateCount, remainingCount, true);
         }
     };
     
     calculationWorker.onerror = function(error) {
         console.error('Worker error:', error);
         showLoading(false);
-        // Fallback to main thread calculation
-        calculateOptimalGuessesSync();
+        showError('Optimal guess calculation failed. Please reload the page and try again.');
     };
 }
 
 // Enhanced optimal guess calculation with Web Worker support
 function calculateOptimalGuesses() {
+    const startedAt = performance.now();
+    const requestId = ++calculationRequestId;
+
     if (gameState.remainingWords.length === 0) {
         gameState.optimalGuesses = [];
+        logOptimalGuessTiming(startedAt, 0, 0, false);
         return;
     }
 
-    if (gameState.remainingWords.length <= 2) {
+    if (gameState.remainingWords.length === 1) {
         gameState.optimalGuesses = gameState.remainingWords.map(word => ({
             word,
-            score: 1.0,
+            score: 100,
+            eliminationPercent: 100,
+            entropyBits: 0,
+            worstCaseRemaining: 1,
+            expectedRemaining: 1,
             type: 'answer'
         }));
+        logOptimalGuessTiming(startedAt, 1, 1, false);
         return;
     }
 
-    // Show loading for heavy calculations
-    if (gameState.remainingWords.length > 100) {
-        showLoading(true);
-    }
-
-    // ONLY use remaining words that match constraints - no strategic words from full list
-    let candidatePool = [...gameState.remainingWords];
-    
-    // For very large sets, limit to top candidates but keep them all as valid answers
-    if (gameState.remainingWords.length > 500) {
-        const quickScored = gameState.remainingWords.map(word => ({
-            word,
-            quickScore: calculateLetterFrequencyScore(word)
-        })).sort((a, b) => b.quickScore - a.quickScore);
-        
-        candidatePool = quickScored.slice(0, 50).map(item => item.word);
-    } else if (gameState.remainingWords.length > 200) {
-        const quickScored = gameState.remainingWords.map(word => ({
-            word,
-            quickScore: calculateLetterFrequencyScore(word) + calculatePositionScore(word)
-        })).sort((a, b) => b.quickScore - a.quickScore);
-        
-        candidatePool = quickScored.slice(0, 100).map(item => item.word);
-    }
-    
-    // Always limit total candidates to prevent performance issues
-    if (candidatePool.length > 100) {
-        candidatePool = candidatePool.slice(0, 100);
-    }
-
-    // Use Web Worker for heavy calculations
-    if (calculationWorker && gameState.remainingWords.length > 50) {
-        calculationWorker.postMessage({
-            type: 'calculateOptimalGuesses',
-            data: {
-                candidatePool,
-                remainingWords: gameState.remainingWords
-            }
-        });
+    if (!calculationWorker) {
+        console.error('Optimal guess worker is not initialized.');
+        showError('Optimal guess worker is not available. Please reload the page and try again.');
+        logOptimalGuessTiming(startedAt, 0, gameState.remainingWords.length, false);
         return;
     }
 
-    // Fallback to synchronous calculation for small sets
-    calculateOptimalGuessesSync(candidatePool);
-}
-
-// Synchronous calculation fallback
-function calculateOptimalGuessesSync(candidatePool = null) {
-    if (!candidatePool) {
-        candidatePool = gameState.remainingWords.slice(0, 50);
-    }
-
-    // Ensure all candidates are from remaining words (valid answers only)
-    candidatePool = candidatePool.filter(word => gameState.remainingWords.includes(word));
-
-    const scored = candidatePool.map(word => ({
-        word,
-        score: calculateSimplifiedScore(word),
-        type: 'answer' // All candidates are now valid answers
-    }));
-
-    scored.sort((a, b) => b.score - a.score);
-
-    gameState.optimalGuesses = scored.slice(0, 10);
-    showLoading(false);
-}
-
-// Simplified scoring for better performance
-function calculateSimplifiedScore(word) {
-    const remainingCount = gameState.remainingWords.length;
-    
-    // For large sets, use simple frequency-based scoring to avoid hanging
-    if (remainingCount > 200) {
-        return calculateLetterFrequencyScore(word) + calculatePositionScore(word);
-    }
-    
-    // For medium sets, use lightweight scoring
-    if (remainingCount > 50) {
-        const letterScore = calculateLetterFrequencyScore(word);
-        const positionScore = calculatePositionScore(word);
-        const commonBonus = COMMON_WORDS.has(word) ? 0.1 : 0;
-        return letterScore + positionScore + commonBonus;
-    }
-    
-    // Only use full advanced scoring for small sets
-    return calculateAdvancedScore(word);
-}
-
-// Multi-objective scoring function
-function calculateAdvancedScore(word) {
-    const weights = getAdaptiveWeights(gameState.remainingWords.length);
-    
-    const metrics = {
-        information: calculateExpectedInformation(word),
-        speed: calculateExpectedSolutionSteps(word),
-        risk: calculateWorstCaseScenario(word),
-        frequency: calculateLetterFrequencyScore(word)
-    };
-    
-    // Normalize information score (it can be quite high)
-    metrics.information = Math.min(metrics.information / 5, 1);
-    
-    // Calculate weighted combination
-    let score = 0;
-    Object.entries(metrics).forEach(([key, value]) => {
-        score += value * weights[key];
+    calculationWorker.postMessage({
+        type: 'calculateOptimalGuesses',
+        data: {
+            remainingWords: gameState.remainingWords,
+            requestId,
+            startedAt
+        }
     });
-    
-    // Add common word bonus
-    if (COMMON_WORDS.has(word)) {
-        score += 0.05;
-    }
-    
-    return score;
 }
 
 // Lightweight expected information calculation for performance
@@ -1022,37 +1010,60 @@ function calculateExpectedInformation(guess) {
     return expectedInfo;
 }
 
-// Simplified solution steps calculation
-function calculateExpectedSolutionSteps(guess) {
-    // Skip expensive variance calculation for large sets
-    if (gameState.remainingWords.length > 100) {
-        return 0.5; // Default neutral score
+function getCompositeWeights(remainingWordsCount) {
+    if (remainingWordsCount > 50) {
+        return { elimination: 0.6, entropy: 0.3, worstCase: 0.1 };
+    } else if (remainingWordsCount > 10) {
+        return { elimination: 0.65, entropy: 0.2, worstCase: 0.15 };
     }
-    
+    return { elimination: 0.7, entropy: 0.1, worstCase: 0.2 };
+}
+
+function calculateGuessMetrics(guess) {
+    const totalWords = gameState.remainingWords.length;
+    if (totalWords <= 1) {
+        return {
+            score: 100,
+            eliminationPercent: 100,
+            entropyBits: 0,
+            worstCaseRemaining: totalWords,
+            expectedRemaining: totalWords
+        };
+    }
+
     const outcomes = new Map();
-    
     gameState.remainingWords.forEach(answer => {
         const pattern = getResponsePatternOptimized(guess, answer);
         const key = pattern.join('');
         outcomes.set(key, (outcomes.get(key) || 0) + 1);
     });
-    
-    const sizes = Array.from(outcomes.values());
-    const maxSize = Math.max(...sizes);
-    const totalWords = gameState.remainingWords.length;
-    
-    // Simple heuristic: prefer guesses that don't leave large groups
-    return 1 - (maxSize / totalWords);
-}
 
-// Simplified risk calculation
-function calculateWorstCaseScenario(guess) {
-    // Skip for large sets to improve performance
-    if (gameState.remainingWords.length > 100) {
-        return 0.5; // Default neutral score
-    }
-    
-    return calculateExpectedSolutionSteps(guess); // Reuse the simpler calculation
+    let expectedRemaining = 0;
+    let entropyBits = 0;
+    let worstCaseRemaining = 0;
+    outcomes.forEach(count => {
+        const probability = count / totalWords;
+        expectedRemaining += probability * count;
+        entropyBits -= probability * Math.log2(probability);
+        worstCaseRemaining = Math.max(worstCaseRemaining, count);
+    });
+
+    const eliminationPercent = 100 * (1 - expectedRemaining / totalWords);
+    const maxEntropyBits = Math.log2(totalWords);
+    const entropyScore = maxEntropyBits > 0 ? 100 * (entropyBits / maxEntropyBits) : 0;
+    const worstCaseScore = 100 * (1 - worstCaseRemaining / totalWords);
+    const weights = getCompositeWeights(totalWords);
+    const score = (weights.elimination * eliminationPercent) +
+        (weights.entropy * entropyScore) +
+        (weights.worstCase * worstCaseScore);
+
+    return {
+        score,
+        eliminationPercent,
+        entropyBits,
+        worstCaseRemaining,
+        expectedRemaining
+    };
 }
 
 // Get response pattern for a guess against an answer
@@ -1139,6 +1150,20 @@ function analyzeWords() {
     scheduleUrlUpdate();
 }
 
+function logOptimalGuessTiming(startedAt, candidateCount, remainingCount, usedWorker) {
+    const elapsed = performance.now() - startedAt;
+    const thread = usedWorker ? 'worker' : 'main thread';
+    console.log(
+        `Optimal guess calculation took ${elapsed.toFixed(2)} ms ` +
+        `(${thread}, ${candidateCount} candidates, ${remainingCount} remaining words)`
+    );
+}
+
+// Backward-compatible helper: expected percentage of remaining answers eliminated.
+function calculateExpectedEliminationScore(guess) {
+    return calculateGuessMetrics(guess).eliminationPercent;
+}
+
 // Debounced analysis for high-frequency input (typing/cycling in the grid)
 // Keep this >= 250ms to avoid lag while typing.
 const debouncedAnalyze = debounce(analyzeWords, 250);
@@ -1201,9 +1226,11 @@ function updateOptimalGuesses() {
 
     container.innerHTML = gameState.optimalGuesses.map(item => 
         `<div class="word-item" onclick="selectGuess('${item.word}')">
-            <span style="font-weight: bold;">${item.word.toUpperCase()}</span>
-            <span class="word-score">
-                ${item.score.toFixed(2)} 
+            <span class="word-label">${item.word.toUpperCase()}</span>
+            <span class="word-score" title="Composite ${item.score.toFixed(2)}">
+                <span>${item.eliminationPercent.toFixed(1)}% elim</span>
+                <span>${item.entropyBits.toFixed(2)} bits</span>
+                <span>worst ${item.worstCaseRemaining}</span>
                 <i class="fas fa-${item.type === 'answer' ? 'star' : 'search'}" 
                    title="${item.type === 'answer' ? 'Possible answer' : 'Strategic guess'}"></i>
             </span>
@@ -1588,6 +1615,8 @@ async function initializeApp() {
     // Initialize Web Worker for better performance
     if (typeof Worker !== 'undefined') {
         initializeWebWorker();
+    } else {
+        showError('Optimal guess worker is not available in this browser.');
     }
     
     await loadWordList();

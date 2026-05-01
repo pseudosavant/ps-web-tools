@@ -1,11 +1,20 @@
 const integrationSuite = new TestSuite('Integration Tests');
 
+async function waitForOptimalGuesses() {
+    for (let i = 0; i < 50; i++) {
+        if (gameState.optimalGuesses.length > 0) return;
+        await new Promise(resolve => setTimeout(resolve, 10));
+    }
+}
+
 integrationSuite.test('should calculate optimal guesses from remaining words', async () => {
     // Setup test scenario
     WORD_LIST = ['about', 'house', 'mouse', 'table', 'cable'];
     gameState.remainingWords = ['house', 'mouse'];
     
+    if (!calculationWorker) initializeWebWorker();
     calculateOptimalGuesses();
+    await waitForOptimalGuesses();
     
     assert.greaterThan(gameState.optimalGuesses.length, 0, 'Should generate optimal guesses');
     assert.true(gameState.optimalGuesses.every(g => g.type === 'answer'), 'All guesses should be valid answers');
@@ -42,7 +51,9 @@ integrationSuite.test('should handle complete workflow', async () => {
     // Run complete analysis
     filterWords();
     calculateLetterFrequency();
+    if (!calculationWorker) initializeWebWorker();
     calculateOptimalGuesses();
+    await waitForOptimalGuesses();
     
     // Verify filtering worked
     gameState.remainingWords.forEach(word => {
@@ -65,7 +76,7 @@ integrationSuite.test('should handle edge case with very few remaining words', (
     
     assert.equals(gameState.optimalGuesses.length, 1, 'Should have exactly one guess');
     assert.equals(gameState.optimalGuesses[0].word, 'about', 'Should suggest the only remaining word');
-    assert.equals(gameState.optimalGuesses[0].score, 1.0, 'Should have perfect score');
+    assert.equals(gameState.optimalGuesses[0].score, 100, 'Should have perfect score');
 });
 
 integrationSuite.test('should handle no remaining words', () => {

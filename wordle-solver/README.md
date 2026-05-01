@@ -1,6 +1,6 @@
 # Wordle Solver
 
-A sophisticated Wordle puzzle solver powered by information theory and strategic analysis. This tool helps you solve Wordle puzzles more efficiently by providing optimal word suggestions, letter frequency analysis, and position-based insights.
+A sophisticated Wordle puzzle solver powered by expected elimination scoring and strategic analysis. This tool helps you solve Wordle puzzles more efficiently by providing optimal word suggestions, letter frequency analysis, and position-based insights.
 
 ## 🌟 Features
 
@@ -8,12 +8,12 @@ A sophisticated Wordle puzzle solver powered by information theory and strategic
 - **Real-time Analysis**: Solutions update as you type your constraints
 - **Wordle-style Guess Grid**: Type guesses directly into a 5×6 grid (like Wordle)
 - **Click/Space Color Cycling**: Mark each tile gray → yellow → green by clicking it or pressing Space
-- **Information Theory Optimization**: Suggests words that eliminate the most possibilities
+- **Expected Elimination Optimization**: Suggests words that are expected to eliminate the most possibilities
 - **Multi-letter Yellow Support**: Enter multiple letters per position for complex scenarios
-- **Complete Word Database**: Uses the official Wordle word list (12,000+ words)
+- **Complete Word Database**: Uses the official Wordle word list (14,000+ words)
 
 ### Analysis Tools
-- **Optimal Next Guesses**: Strategic word recommendations with information gain scores
+- **Optimal Next Guesses**: Strategic word recommendations with expected elimination scores
 - **Letter Frequency Chart**: Visual breakdown of most common letters in remaining words  
 - **Letter Position Heatmap**: Shows top 3 most frequent letters for each position
 - **Smart Statistics**: Real-time word count and elimination percentage
@@ -58,7 +58,7 @@ Simply visit the deployed application URL and start entering your Wordle constra
 
 ### Advanced Features
 - **Hard Mode Support**: Follows Wordle's hard mode rules automatically
-- **Strategic Scoring**: Each suggestion shows expected information gain
+- **Strategic Scoring**: Each suggestion shows expected elimination, entropy, and worst-case metrics
 - **Position Analysis**: Identify which letters are most likely in each position
 
 ## ⌨️ Keyboard Shortcuts
@@ -93,19 +93,20 @@ Simply visit the deployed application URL and start entering your Wordle constra
 
 ### Performance
 - **Debounced Analysis**: 250ms delay prevents excessive calculations while typing/cycling tiles
-- **Efficient Algorithms**: Information theory calculations optimized for real-time use
+- **Worker-based Scoring**: Non-trivial optimal guess calculations run in a Web Worker
 - **Lazy Loading**: Large word lists loaded asynchronously
 - **Mobile Optimized**: Compact layouts and touch-friendly interfaces
 
 ## 🎯 Algorithm Details
 
-### Information Theory Scoring
-The tool uses information theory to calculate the expected information gain for each potential guess:
+### Expected Elimination Scoring
+The tool simulates each potential guess and ranks it with a composite score based on expected elimination, entropy, and worst-case remaining words:
 
 1. **Pattern Analysis**: For each guess, simulate all possible response patterns
-2. **Entropy Calculation**: Measure how much each guess reduces uncertainty
-3. **Strategic Ranking**: Prioritize guesses that eliminate the most possibilities
-4. **Answer vs. Guess**: Distinguish between possible answers and strategic elimination words
+2. **Expected Remaining Words**: Calculate how many answers are expected to remain after the guess
+3. **Entropy**: Reward guesses that produce high-information feedback patterns
+4. **Worst Case**: Penalize guesses that can leave a large answer bucket
+5. **Strategic Ranking**: Sort by a weighted composite while showing the raw metrics
 
 ### Word Filtering
 - **Exact Position Matching**: Green letters must be in correct positions
@@ -127,8 +128,8 @@ The tool uses information theory to calculate the expected information gain for 
 - Responsive design prevents overlap on mobile devices
 
 ### Optimal Guesses
-- Information theory-based word recommendations
-- Scored by expected information gain (higher = better)
+- Composite-ranked word recommendations
+- Shows expected elimination percentage, entropy bits, and worst-case remaining words
 - Distinguishes between possible answers (⭐) and strategic guesses (🔍)
 - Limited to top 10 suggestions for clarity
 

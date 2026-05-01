@@ -489,6 +489,7 @@ input, textarea {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    gap: 10px;
     padding: 6px 10px;
     margin: 1px 0;
     background: #FFFFFF;
@@ -499,15 +500,26 @@ input, textarea {
     transition: all 0.3s ease;
 }
 
+.word-label {
+    font-weight: bold;
+    flex: 0 0 auto;
+}
+
 .word-item:hover {
     background: #f8f9fa;
     transform: translateX(3px);
 }
 
 .word-score {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    flex-wrap: wrap;
     font-size: 0.85rem;
     color: #666;
     font-weight: bold;
+    text-align: right;
 }
 
 .heatmap {
@@ -798,6 +810,15 @@ input, textarea {
     .word-item {
         padding: 4px 6px;
         font-size: 0.85rem;
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 3px;
+    }
+
+    .word-score {
+        justify-content: flex-start;
+        gap: 6px;
+        text-align: left;
     }
     
     .analysis-card h3 {
