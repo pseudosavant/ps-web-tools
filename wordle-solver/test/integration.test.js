@@ -26,6 +26,49 @@ integrationSuite.test('should calculate optimal guesses from remaining words', a
     });
 });
 
+integrationSuite.test('should coalesce optimal guess requests while worker is busy', () => {
+    const originalWorker = calculationWorker;
+    const originalWorkerBusy = calculationWorkerBusy;
+    const originalPendingRequest = pendingOptimalGuessRequest;
+    const originalRequestId = calculationRequestId;
+    const postedMessages = [];
+
+    calculationWorker = {
+        postMessage(message) {
+            postedMessages.push(message);
+        }
+    };
+    calculationWorkerBusy = false;
+    pendingOptimalGuessRequest = null;
+    calculationRequestId = 0;
+
+    try {
+        gameState.remainingWords = ['about', 'house', 'mouse'];
+        calculateOptimalGuesses();
+        assert.equals(postedMessages.length, 1, 'First request should be posted immediately');
+        assert.true(calculationWorkerBusy, 'Worker should be marked busy after posting');
+
+        gameState.remainingWords = ['house', 'mouse'];
+        calculateOptimalGuesses();
+        gameState.remainingWords = ['mouse', 'table'];
+        calculateOptimalGuesses();
+
+        assert.equals(postedMessages.length, 1, 'Busy worker should not receive stale intermediate requests');
+        assert.equals(pendingOptimalGuessRequest.requestId, 3, 'Only the latest request should remain pending');
+
+        calculationWorkerBusy = false;
+        flushPendingOptimalGuessRequest();
+
+        assert.equals(postedMessages.length, 2, 'Latest pending request should post after worker becomes available');
+        assert.equals(postedMessages[1].data.requestId, 3, 'Posted pending request should be the latest one');
+    } finally {
+        calculationWorker = originalWorker;
+        calculationWorkerBusy = originalWorkerBusy;
+        pendingOptimalGuessRequest = originalPendingRequest;
+        calculationRequestId = originalRequestId;
+    }
+});
+
 integrationSuite.test('should update letter frequencies after filtering', () => {
     WORD_LIST = ['about', 'house', 'mouse', 'shout'];
     testData.setInputs(['', '', '', '', 't']); // Must end with 't'

@@ -206,8 +206,8 @@ function initializeGrid() {
 
 // Convert grid content into existing inputs
 function syncGridToInputs() {
-    const cells = getGridCells();
-    if (!cells.length) return;
+    const grid = document.querySelector('.wordle-grid');
+    if (!grid) return;
 
     const greenByPos = Array(GRID_COLS).fill('');
     const yellowByPos = Array.from({ length: GRID_COLS }, () => new Set());
@@ -215,9 +215,9 @@ function syncGridToInputs() {
     const includedLetters = new Set(); // letters seen as green/yellow anywhere
 
     // Process from top to bottom; last green for a column wins naturally if earlier empty
-        for (let row = 0; row < GRID_ROWS; row++) {
+    for (let row = 0; row < GRID_ROWS; row++) {
         for (let col = 0; col < GRID_COLS; col++) {
-            const cell = document.querySelector(`.grid-cell[data-row="${row}"][data-col="${col}"]`);
+            const cell = getGridCell(row, col);
             if (!cell) continue;
             const letter = (cell.value || '').toLowerCase();
             if (!letter) continue;
@@ -705,6 +705,10 @@ function getResponsePatternOptimized(guess, answer) {
 // Web Worker for heavy calculations
 let calculationWorker = null;
 let calculationRequestId = 0;
+let calculationWorkerBusy = false;
+let pendingOptimalGuessRequest = null;
+
+const ANALYZE_DEBOUNCE_MS = 500;
 
 function initializeWebWorker() {
     const workerCode = `
@@ -899,19 +903,39 @@ function initializeWebWorker() {
         const { type, data, requestId, startedAt, candidateCount, remainingCount } = e.data;
         
         if (type === 'optimalGuessesResult') {
-            if (requestId !== calculationRequestId) return;
-            gameState.optimalGuesses = data;
-            updateOptimalGuesses();
-            showLoading(false);
-            logOptimalGuessTiming(startedAt, candidateCount, remainingCount, true);
+            calculationWorkerBusy = false;
+
+            if (requestId === calculationRequestId) {
+                gameState.optimalGuesses = data;
+                updateOptimalGuesses();
+                showLoading(false);
+                logOptimalGuessTiming(startedAt, candidateCount, remainingCount, true);
+            }
+
+            flushPendingOptimalGuessRequest();
         }
     };
-    
+
     calculationWorker.onerror = function(error) {
         console.error('Worker error:', error);
+        calculationWorkerBusy = false;
+        pendingOptimalGuessRequest = null;
         showLoading(false);
         showError('Optimal guess calculation failed. Please reload the page and try again.');
     };
+}
+
+function flushPendingOptimalGuessRequest() {
+    if (!calculationWorker || calculationWorkerBusy || !pendingOptimalGuessRequest) return;
+
+    const request = pendingOptimalGuessRequest;
+    pendingOptimalGuessRequest = null;
+    calculationWorkerBusy = true;
+
+    calculationWorker.postMessage({
+        type: 'calculateOptimalGuesses',
+        data: request
+    });
 }
 
 // Enhanced optimal guess calculation with Web Worker support
@@ -920,12 +944,14 @@ function calculateOptimalGuesses() {
     const requestId = ++calculationRequestId;
 
     if (gameState.remainingWords.length === 0) {
+        pendingOptimalGuessRequest = null;
         gameState.optimalGuesses = [];
         logOptimalGuessTiming(startedAt, 0, 0, false);
         return;
     }
 
     if (gameState.remainingWords.length === 1) {
+        pendingOptimalGuessRequest = null;
         gameState.optimalGuesses = gameState.remainingWords.map(word => ({
             word,
             score: 100,
@@ -946,14 +972,12 @@ function calculateOptimalGuesses() {
         return;
     }
 
-    calculationWorker.postMessage({
-        type: 'calculateOptimalGuesses',
-        data: {
-            remainingWords: gameState.remainingWords,
-            requestId,
-            startedAt
-        }
-    });
+    pendingOptimalGuessRequest = {
+        remainingWords: gameState.remainingWords,
+        requestId,
+        startedAt
+    };
+    flushPendingOptimalGuessRequest();
 }
 
 // Lightweight expected information calculation for performance
@@ -1165,8 +1189,8 @@ function calculateExpectedEliminationScore(guess) {
 }
 
 // Debounced analysis for high-frequency input (typing/cycling in the grid)
-// Keep this >= 250ms to avoid lag while typing.
-const debouncedAnalyze = debounce(analyzeWords, 250);
+// Keep this high enough that normal typing does not repeatedly queue worker work.
+const debouncedAnalyze = debounce(analyzeWords, ANALYZE_DEBOUNCE_MS);
 
 // Reset function
 function resetInputs() {
