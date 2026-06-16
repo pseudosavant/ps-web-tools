@@ -1,6 +1,6 @@
 # AccelLab – Progressive Web App Spec
 
-## Implementation Status & Agent Handoff (Updated 2026-03-19)
+## Implementation Status & Agent Handoff (Updated 2026-06-15)
 
 This section is the quick handoff for future agents. Treat it as operational truth for the current repo.
 
@@ -24,14 +24,19 @@ This section is the quick handoff for future agents. Treat it as operational tru
   - User arms while stopped
   - App waits for stillness before beginning calibration
   - Capture still includes ~120ms settle delay and ~1.5s stationary sample window
-  - Calibration rejects excessive movement/noise
+  - Calibration rejects excessive movement/noise, implausible gravity magnitude, sparse samples, and irregular sample gaps
   - Calibration solves vertical/gravity only
   - Recoverable calibration failures back off briefly before auto-retrying
   - Unreliable calibration sample rates hard-stop and require re-arming
+- `[x]` Sensor quality gates
+  - Motion timestamps prefer stable event timestamps with `performance.now()` fallback
+  - Low effective sample rate, repeated timing gaps, non-finite values, implausible magnitudes, and stuck-zero linear acceleration fail closed
+  - Completed runs retain timing/sensor-quality metadata for inspection
 - `[x]` Auto-detected straight-line stop-to-stop runs
   - Forward axis is inferred from the first sustained launch impulse after calibration
   - Run is rejected if launch direction confidence is too low
   - Run is rejected if sustained lateral acceleration exceeds the straight-line threshold
+  - Sustained quiet-stop detection can apply a zero-velocity completion when integration drift misses the exact 1 mph crossing
 - `[x]` Two run modes
   - `Acceleration`
   - `Acceleration + Braking`
@@ -65,13 +70,21 @@ This section is the quick handoff for future agents. Treat it as operational tru
 - `[x]` Optional wheel horsepower estimate
 - `[x]` Strict linear-acceleration requirement for run timing
   - No synthetic gravity-subtraction fallback when `event.acceleration` is unavailable
+- `[x]` Raw trace import/export
+  - Export writes a versioned, reviewable JSON `accellab-raw-trace` file for the selected in-memory run
+  - Trace includes raw `devicemotion` acceleration samples, calibration capture where available, settings, prior result, and quality metadata
+  - Import replays raw samples through the current analyzer and saves the newly analyzed run to local history
 
 ### Known Gaps / Upcoming Work
 
-- `[ ]` GPS-assisted distance runs (quarter mile, long-run correction) (v2)
+- `[ ]` GPS-assisted validation and distance runs (v2)
+  - Use browser geolocation as a low-rate boundary condition for start/stop sanity, drift checks, and future quarter-mile/distance runs
 - `[ ]` Vehicle database lookup (v3)
 - `[ ]` Enhanced horsepower modeling beyond simple acceleration-power estimate (v3)
-- `[ ]` Export/share formats beyond URL state (v3)
+- `[ ]` Export/share formats beyond URL state and raw trace JSON (v3)
+- `[ ]` Fixture-based real-world regression suite
+  - Add 5-10 exported real-run traces under `fixtures/`
+  - Replay fixtures after sensor/scoring changes and compare split/quality behavior
 - `[ ]` Cross-device real-world tuning pass
   - Start/stop thresholds and bias adaptation per phone model
   - Validation against trusted speed references
@@ -89,6 +102,8 @@ This section is the quick handoff for future agents. Treat it as operational tru
 - If sensors are disarmed, calculations must remain paused.
 - Run timing requires browser-provided linear acceleration (`DeviceMotionEvent.acceleration`). If unavailable, the app should warn and stop timing rather than estimate it from a drifting gravity model.
 - Run scoring must use internal speed with interpolated crossings; display speed remains a short-window UI value only.
+- Bias correction is seeded from quiet pre-launch samples projected onto the inferred launch axis and should not adapt during active scoring.
+- Imported raw traces should be replayed through the same analyzer path as live samples.
 - The product assumption is strict: mounted phone, straight-line run, start from stop, finish at stop.
 - The app should reject runs rather than salvage them when the launch direction is ambiguous or lateral acceleration indicates turning.
 - When changing runtime behavior, bump `CACHE_VERSION` in `sw.js` so mobile PWA clients pull updates.
