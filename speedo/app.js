@@ -1283,7 +1283,7 @@ function safeTraceFileName(run) {
     .toISOString()
     .replace(/[:.]/g, "-");
   const label = String(run?.resultLabel || "run").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-  return `accellab-${stamp}-${label || "run"}.json`;
+  return `speedo-${stamp}-${label || "run"}.json`;
 }
 
 function buildRawTracePayload(run) {
@@ -1292,11 +1292,11 @@ function buildRawTracePayload(run) {
   }
   const calibration = run.calibration || state.calibration;
   return {
-    format: "accellab-raw-trace",
+    format: "speedo-raw-trace",
     version: 1,
     exportedAt: new Date().toISOString(),
     app: {
-      name: "AccelLab",
+      name: "speedo",
       userAgent: navigator.userAgent,
     },
     testType: normalizeRunMode(run.testType),
@@ -1421,7 +1421,7 @@ function restoreSettingsForTrace(payload) {
 }
 
 function replayRawTrace(payload) {
-  if (!payload || payload.format !== "accellab-raw-trace") {
+  if (!payload || !["speedo-raw-trace", "accellab-raw-trace"].includes(payload.format)) {
     throw new Error("Unsupported trace file format.");
   }
   const rawSamples = Array.isArray(payload.rawSamples)

@@ -1,4 +1,4 @@
-# AccelLab – Progressive Web App Spec
+# speedo – Progressive Web App Spec
 
 ## Implementation Status & Agent Handoff (Updated 2026-06-15)
 
@@ -71,7 +71,8 @@ This section is the quick handoff for future agents. Treat it as operational tru
 - `[x]` Strict linear-acceleration requirement for run timing
   - No synthetic gravity-subtraction fallback when `event.acceleration` is unavailable
 - `[x]` Raw trace import/export
-  - Export writes a versioned, reviewable JSON `accellab-raw-trace` file for the selected in-memory run
+  - Export writes a versioned, reviewable JSON `speedo-raw-trace` file for the selected in-memory run
+  - Import remains backward-compatible with earlier `accellab-raw-trace` files
   - Trace includes raw `devicemotion` acceleration samples, calibration capture where available, settings, prior result, and quality metadata
   - Import replays raw samples through the current analyzer and saves the newly analyzed run to local history
 
@@ -111,7 +112,7 @@ This section is the quick handoff for future agents. Treat it as operational tru
 
 ## Overview
 
-AccelLab is a **client-side-only Progressive Web App (PWA)** that measures straight-line vehicle acceleration, braking, and G-forces using mobile device sensors.  
+speedo is a **client-side-only Progressive Web App (PWA)** that measures straight-line vehicle acceleration, braking, and G-forces using mobile device sensors.
 It focuses on **stop-to-stop acceleration testing** with automatic launch-direction inference, rich real-time visualization, and zero backend dependencies.
 
 Primary goals:

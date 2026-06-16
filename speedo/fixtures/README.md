@@ -1,6 +1,6 @@
-# AccelLab Raw Trace Fixtures
+# speedo Raw Trace Fixtures
 
-Place exported `accellab-raw-trace` JSON files in this folder when collecting
+Place exported `speedo-raw-trace` JSON files in this folder when collecting
 real runs for regression work.
 
 Suggested fixture naming:

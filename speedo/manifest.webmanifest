@@ -1,6 +1,6 @@
 {
-  "name": "AccelLab",
-  "short_name": "AccelLab",
+  "name": "speedo",
+  "short_name": "speedo",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

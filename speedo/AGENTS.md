@@ -1,7 +1,7 @@
 # Agent Instructions for `speedo`
 
 ## Purpose
-This repo contains **AccelLab**, a client-only PWA for vehicle acceleration testing.  
+This repo contains **speedo**, a client-only PWA for vehicle acceleration testing.
 Use this file as the authoritative agent handoff/instruction file for future work.
 
 ## First Read

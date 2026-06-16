@@ -1,4 +1,4 @@
-const CACHE_VERSION = "accellab-v1.4.0";
+const CACHE_VERSION = "speedo-v0.4.1";
 const SHELL_ASSETS = [
   "./",
   "./index.html",

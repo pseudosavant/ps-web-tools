@@ -50,14 +50,6 @@ body {
   padding: 1rem 0.4rem 0.2rem;
 }
 
-.kicker {
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  font-size: 0.84rem;
-  color: var(--muted);
-  margin: 0;
-}
-
 h1 {
   margin: 0;
   font-family: "Impact", "Arial Black", "Bahnschrift", sans-serif;
@@ -345,6 +337,13 @@ svg {
 .history-item button.active {
   border-color: rgba(28, 229, 216, 0.9);
   box-shadow: 0 0 0 1px rgba(28, 229, 216, 0.45) inset;
+}
+
+.app-footer {
+  color: var(--muted);
+  font-size: 0.85rem;
+  letter-spacing: 0.04em;
+  text-align: center;
 }
 
 @media (min-width: 900px) {
