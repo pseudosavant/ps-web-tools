@@ -139,6 +139,12 @@ const testData = {
         greenInputs.forEach((input, i) => input.value = green[i] || '');
         yellowInputs.forEach((input, i) => input.value = yellow[i] || '');
         if (excludedInput) excludedInput.value = excluded;
+
+        if (typeof gameState !== 'undefined') {
+            gameState.greenLetters = Array.from({ length: 5 }, (_, i) => (green[i] || '').toLowerCase());
+            gameState.yellowLetters = Array.from({ length: 5 }, (_, i) => (yellow[i] || '').toLowerCase());
+            gameState.excludedLetters = (excluded || '').toLowerCase();
+        }
     },
 
     resetInputs() {

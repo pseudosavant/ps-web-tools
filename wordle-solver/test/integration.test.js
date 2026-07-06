@@ -7,6 +7,39 @@ async function waitForOptimalGuesses() {
     }
 }
 
+function setupGridForTest() {
+    testData.setupDOM();
+
+    let grid = document.querySelector('.wordle-grid');
+    if (!grid) {
+        grid = document.createElement('div');
+        grid.className = 'wordle-grid';
+        document.getElementById('testContainer').appendChild(grid);
+    }
+
+    grid.innerHTML = '';
+    for (let row = 0; row < GRID_ROWS; row++) {
+        for (let col = 0; col < GRID_COLS; col++) {
+            const cell = document.createElement('input');
+            cell.className = 'grid-cell';
+            cell.type = 'text';
+            cell.setAttribute('data-row', String(row));
+            cell.setAttribute('data-col', String(col));
+            grid.appendChild(cell);
+        }
+    }
+
+    refreshGridCaches();
+}
+
+function setGridCellForTest(row, col, value, state) {
+    const cell = getGridCell(row, col);
+    cell.value = value;
+    if (value) cell.classList.add('has-letter');
+    if (state) setCellState(cell, state);
+    return cell;
+}
+
 integrationSuite.test('should calculate optimal guesses from remaining words', async () => {
     // Setup test scenario
     WORD_LIST = ['about', 'house', 'mouse', 'table', 'cable'];
@@ -66,6 +99,99 @@ integrationSuite.test('should coalesce optimal guess requests while worker is bu
         calculationWorkerBusy = originalWorkerBusy;
         pendingOptimalGuessRequest = originalPendingRequest;
         calculationRequestId = originalRequestId;
+    }
+});
+
+integrationSuite.test('should apply prior green and yellow feedback to new grid entries', () => {
+    initTestEnvironment();
+    setupGridForTest();
+
+    setGridCellForTest(0, 1, 'A', 'green');
+    setGridCellForTest(0, 3, 'R', 'yellow');
+
+    const knownGreenSamePosition = setGridCellForTest(1, 1, 'A', '');
+    setCellStateFromPriorFeedback(knownGreenSamePosition);
+    assert.equals(getCellState(knownGreenSamePosition), 'green', 'Known green in the same position should stay green');
+
+    const knownGreenDifferentPosition = setGridCellForTest(1, 2, 'A', '');
+    setCellStateFromPriorFeedback(knownGreenDifferentPosition);
+    assert.equals(getCellState(knownGreenDifferentPosition), 'yellow', 'Known present letter in a different position should default to yellow');
+
+    const knownYellow = setGridCellForTest(1, 4, 'R', '');
+    setCellStateFromPriorFeedback(knownYellow);
+    assert.equals(getCellState(knownYellow), 'yellow', 'Previously yellow letters should default to yellow');
+
+    const unknownLetter = setGridCellForTest(1, 0, 'B', '');
+    setCellStateFromPriorFeedback(unknownLetter);
+    assert.equals(getCellState(unknownLetter), 'gray', 'Unknown letters should still default to gray');
+});
+
+integrationSuite.test('should cancel stale remaining word renders', () => {
+    initTestEnvironment();
+
+    const originalRequestIdleCallback = window.requestIdleCallback;
+    const originalCancelIdleCallback = window.cancelIdleCallback;
+    const callbacks = [];
+    const cancelledIds = [];
+
+    window.requestIdleCallback = (callback) => {
+        callbacks.push(callback);
+        return callbacks.length;
+    };
+    window.cancelIdleCallback = (id) => {
+        cancelledIds.push(id);
+    };
+
+    try {
+        gameState.remainingWords = Array.from({ length: 300 }, (_, idx) => `aa${String(idx).padStart(3, '0')}`).slice(0, 300);
+        updateRemainingWords();
+
+        gameState.remainingWords = ['about'];
+        updateRemainingWords();
+
+        callbacks[0]();
+        assert.equals(document.querySelectorAll('#remainingWordsList .word-item').length, 0, 'Cancelled render should not append stale words');
+        assert.includes(cancelledIds, 1, 'First idle render should be cancelled');
+
+        callbacks[1]();
+        assert.equals(document.querySelectorAll('#remainingWordsList .word-item').length, 1, 'Latest render should append current words');
+    } finally {
+        window.requestIdleCallback = originalRequestIdleCallback;
+        window.cancelIdleCallback = originalCancelIdleCallback;
+        cancelRemainingWordsRender();
+    }
+});
+
+integrationSuite.test('should cap remaining words preview to ranked results', () => {
+    initTestEnvironment();
+
+    const originalRequestIdleCallback = window.requestIdleCallback;
+    const originalCancelIdleCallback = window.cancelIdleCallback;
+    const callbacks = [];
+
+    window.requestIdleCallback = (callback) => {
+        callbacks.push(callback);
+        return callbacks.length;
+    };
+    window.cancelIdleCallback = () => {};
+
+    try {
+        gameState.remainingWords = Array.from({ length: 150 }, (_, idx) => {
+            const first = String.fromCharCode(97 + Math.floor(idx / 26));
+            const second = String.fromCharCode(97 + (idx % 26));
+            return `aa${first}${second}e`;
+        });
+        calculateLetterFrequency();
+        updateRemainingWords();
+
+        callbacks[0]();
+
+        assert.equals(document.querySelectorAll('#remainingWordsList .word-item').length, 100, 'Should render only the capped preview');
+        assert.equals(document.querySelectorAll('#remainingWordsList .remaining-words-summary').length, 0, 'Preview should not render a separate summary row');
+    } finally {
+        window.requestIdleCallback = originalRequestIdleCallback;
+        window.cancelIdleCallback = originalCancelIdleCallback;
+        cancelRemainingWordsRender();
     }
 });
 

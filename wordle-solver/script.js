@@ -23,6 +23,11 @@ const rowRemainingCache = {
 };
 const gridCellCache = Array.from({ length: GRID_ROWS }, () => Array(GRID_COLS).fill(null));
 let rowRemainingElements = Array(GRID_ROWS).fill(null);
+let remainingWordsRenderToken = 0;
+let remainingWordsRenderHandle = null;
+
+const REMAINING_WORDS_RENDER_CHUNK_SIZE = 250;
+const REMAINING_WORDS_DISPLAY_LIMIT = 100;
 
 function getGridCells() {
     return Array.from(document.querySelectorAll('.wordle-grid .grid-cell'));
@@ -62,6 +67,80 @@ function cycleCellState(cell) {
     setCellState(cell, next);
 }
 
+function getPriorFeedbackStateForLetter(letter, row, col) {
+    if (!letter || row <= 0) return '';
+
+    const normalized = letter.toUpperCase();
+    let hasKnownPresentLetter = false;
+
+    for (let priorRow = 0; priorRow < row; priorRow++) {
+        for (let priorCol = 0; priorCol < GRID_COLS; priorCol++) {
+            const priorCell = getGridCell(priorRow, priorCol);
+            if (!priorCell || (priorCell.value || '').toUpperCase() !== normalized) continue;
+
+            const priorState = getCellState(priorCell);
+            if (priorState === 'green' && priorCol === col) {
+                return 'green';
+            }
+            if (priorState === 'green' || priorState === 'yellow') {
+                hasKnownPresentLetter = true;
+            }
+        }
+    }
+
+    return hasKnownPresentLetter ? 'yellow' : '';
+}
+
+function setCellStateFromPriorFeedback(cell) {
+    const letter = (cell.value || '').toUpperCase();
+    if (!letter) return;
+
+    const { row, col } = getCellIndex(cell);
+    const priorState = getPriorFeedbackStateForLetter(letter, row, col);
+    setCellState(cell, priorState || 'gray');
+}
+
+function scheduleRemainingWordsRenderChunk(callback) {
+    if (typeof window !== 'undefined' && typeof window.requestIdleCallback === 'function') {
+        return {
+            type: 'idle',
+            id: window.requestIdleCallback(callback, { timeout: 80 })
+        };
+    }
+
+    return {
+        type: 'timeout',
+        id: setTimeout(() => callback({ didTimeout: true, timeRemaining: () => 0 }), 0)
+    };
+}
+
+function cancelRemainingWordsRender() {
+    remainingWordsRenderToken++;
+
+    if (!remainingWordsRenderHandle) return;
+
+    if (
+        remainingWordsRenderHandle.type === 'idle' &&
+        typeof window !== 'undefined' &&
+        typeof window.cancelIdleCallback === 'function'
+    ) {
+        window.cancelIdleCallback(remainingWordsRenderHandle.id);
+    } else {
+        clearTimeout(remainingWordsRenderHandle.id);
+    }
+
+    remainingWordsRenderHandle = null;
+}
+
+function cancelPendingRemainingWordsUpdate() {
+    if (
+        typeof debouncedUpdateRemainingWords === 'function' &&
+        typeof debouncedUpdateRemainingWords.cancel === 'function'
+    ) {
+        debouncedUpdateRemainingWords.cancel();
+    }
+}
+
 function initializeGrid() {
     const grid = document.querySelector('.wordle-grid');
     if (!grid) return;
@@ -86,10 +165,7 @@ function initializeGrid() {
             // Toggle has-letter class for cursor and styling
             if (e.target.value) {
                 e.target.classList.add('has-letter');
-                // Default new letters to gray state unless already colored
-                if (!getCellState(e.target)) {
-                    setCellState(e.target, 'gray');
-                }
+                setCellStateFromPriorFeedback(e.target);
             } else {
                 e.target.classList.remove('has-letter');
                 clearCellState(e.target);
@@ -208,6 +284,9 @@ function initializeGrid() {
 function syncGridToInputs() {
     const grid = document.querySelector('.wordle-grid');
     if (!grid) return;
+
+    cancelPendingRemainingWordsUpdate();
+    cancelRemainingWordsRender();
 
     const greenByPos = Array(GRID_COLS).fill('');
     const yellowByPos = Array.from({ length: GRID_COLS }, () => new Set());
@@ -433,7 +512,7 @@ const isNumber = (v) => typeof v === 'number';
 
 function debounce(func, wait, immediate) {
     var timeout;
-    return function() {
+    const debounced = function() {
         var context = this, args = arguments;
         var later = function() {
             timeout = null;
@@ -444,6 +523,13 @@ function debounce(func, wait, immediate) {
         timeout = setTimeout(later, wait);
         if (callNow) func.apply(context, args);
     };
+
+    debounced.cancel = function() {
+        clearTimeout(timeout);
+        timeout = null;
+    };
+
+    return debounced;
 }
 
 // Load word list from JSON
@@ -469,8 +555,6 @@ async function loadWordList() {
         WORD_LIST = rawWords;
         gameState.remainingWords = [...WORD_LIST];
         showLoading(false);
-        updateStats();
-        updateDisplay();
         console.log(`Successfully loaded ${WORD_LIST.length} words`);
     } catch (error) {
         showLoading(false);
@@ -708,7 +792,7 @@ let calculationRequestId = 0;
 let calculationWorkerBusy = false;
 let pendingOptimalGuessRequest = null;
 
-const ANALYZE_DEBOUNCE_MS = 500;
+const APP_DEBOUNCE_MS = 500;
 
 function initializeWebWorker() {
     const workerCode = `
@@ -1190,7 +1274,7 @@ function calculateExpectedEliminationScore(guess) {
 
 // Debounced analysis for high-frequency input (typing/cycling in the grid)
 // Keep this high enough that normal typing does not repeatedly queue worker work.
-const debouncedAnalyze = debounce(analyzeWords, ANALYZE_DEBOUNCE_MS);
+const debouncedAnalyze = debounce(analyzeWords, APP_DEBOUNCE_MS);
 
 // Reset function
 function resetInputs() {
@@ -1321,24 +1405,83 @@ function updateHeatmap() {
     container.innerHTML = heatmapData.join('');
 }
 
+function createRemainingWordItem(word) {
+    const item = document.createElement('div');
+    item.className = 'word-item';
+    item.addEventListener('click', () => selectGuess(word));
+
+    const label = document.createElement('span');
+    label.style.fontWeight = 'bold';
+    label.textContent = word.toUpperCase();
+    item.appendChild(label);
+
+    return item;
+}
+
+function getRemainingWordDisplayScore(word) {
+    const remainingCount = Math.max(gameState.remainingWords.length, 1);
+    const uniqueLetters = new Set(word);
+    let currentLetterScore = 0;
+
+    uniqueLetters.forEach((letter) => {
+        currentLetterScore += (gameState.letterFrequency[letter] || 0) / remainingCount;
+    });
+
+    return currentLetterScore + calculatePositionScore(word) + calculateLetterFrequencyScore(word);
+}
+
+function rankRemainingWordsForDisplay(words, limit = REMAINING_WORDS_DISPLAY_LIMIT) {
+    return words
+        .map((word) => ({
+            word,
+            score: getRemainingWordDisplayScore(word)
+        }))
+        .sort((a, b) => b.score - a.score || a.word.localeCompare(b.word))
+        .slice(0, limit)
+        .map((item) => item.word);
+}
+
 // Update remaining words list
 function updateRemainingWords() {
     const container = document.getElementById('remainingWordsList');
-    
+    if (!container) return;
+
+    cancelRemainingWordsRender();
+
     if (gameState.remainingWords.length === 0) {
         container.innerHTML = '<div class="loading"><i class="fas fa-exclamation-triangle"></i> No words match the constraints</div>';
         return;
     }
 
-    // Display all remaining words
-    container.innerHTML = gameState.remainingWords.map(word => 
-        `<div class="word-item" onclick="selectGuess('${word}')">
-            <span style="font-weight: bold;">${word.toUpperCase()}</span>
-        </div>`
-    ).join('');
+    const words = rankRemainingWordsForDisplay(gameState.remainingWords);
+    const renderToken = remainingWordsRenderToken;
+    let index = 0;
+
+    container.textContent = '';
+
+    const renderChunk = () => {
+        if (renderToken !== remainingWordsRenderToken) return;
+
+        const fragment = document.createDocumentFragment();
+        const end = Math.min(index + REMAINING_WORDS_RENDER_CHUNK_SIZE, words.length);
+
+        for (; index < end; index++) {
+            fragment.appendChild(createRemainingWordItem(words[index]));
+        }
+
+        container.appendChild(fragment);
+
+        if (index < words.length && renderToken === remainingWordsRenderToken) {
+            remainingWordsRenderHandle = scheduleRemainingWordsRenderChunk(renderChunk);
+        } else {
+            remainingWordsRenderHandle = null;
+        }
+    };
+
+    remainingWordsRenderHandle = scheduleRemainingWordsRenderChunk(renderChunk);
 }
 
-const debouncedUpdateRemainingWords = debounce(updateRemainingWords, 150);
+const debouncedUpdateRemainingWords = debounce(updateRemainingWords, APP_DEBOUNCE_MS);
 
 // URL state management
 function updateUrl() {
@@ -1379,7 +1522,7 @@ function updateUrl() {
     }
 }
 
-const debouncedUpdateUrl = debounce(updateUrl, 200);
+const debouncedUpdateUrl = debounce(updateUrl, APP_DEBOUNCE_MS);
 
 function scheduleUrlUpdate() {
     if (__restoringUrl) {
@@ -1646,7 +1789,6 @@ async function initializeApp() {
     await loadWordList();
     restoreValuesFromUrl();
     focusFirstGridCellIfEmpty();
-    analyzeWords();
 }
 
 // Start the app when page loads - but only if not in test environment
