@@ -1,0 +1,350 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Estimate whether an open-weight LLM fits in accelerator memory and its ideal batch-1 decode throughput ceiling.">
+  <meta name="color-scheme" content="light dark">
+  <title>Local LLM Throughput Calculator</title>
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <a class="skip-link" href="#calculator-results">Skip to results</a>
+
+  <header class="site-header">
+    <div class="header-inner">
+      <a class="back-link" href="../" aria-label="Back to all tools">
+        <i class="fa-solid fa-arrow-left" aria-hidden="true"></i>
+        <span>All tools</span>
+      </a>
+      <div class="header-actions">
+        <button class="button button-quiet" id="copy-link" type="button">
+          <i class="fa-solid fa-link" aria-hidden="true"></i>
+          <span>Copy link</span>
+        </button>
+        <button class="button button-quiet" id="reset-calculator" type="button">
+          <i class="fa-solid fa-rotate-left" aria-hidden="true"></i>
+          <span>Reset</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="page-shell">
+    <section class="intro" aria-labelledby="page-title">
+      <div class="eyebrow"><i class="fa-solid fa-gauge-high" aria-hidden="true"></i> Batch-1 interactive decode</div>
+      <h1 id="page-title">Local LLM throughput calculator</h1>
+      <p>Check whether a model fits in one accelerator’s memory, then estimate its ideal output-token ceiling from memory bandwidth and peak compute.</p>
+    </section>
+
+    <div class="calculator-layout">
+      <form class="controls" id="calculator-form" aria-describedby="input-validation-note">
+        <section class="panel control-panel" aria-labelledby="hardware-heading">
+          <div class="panel-heading">
+            <span class="step-number">1</span>
+            <div>
+              <h2 id="hardware-heading">Hardware</h2>
+              <p>One discrete GPU or one unified-memory system.</p>
+            </div>
+          </div>
+
+          <label class="field">
+            <span class="field-label">Accelerator preset</span>
+            <select id="hardware-preset" name="hardware"></select>
+          </label>
+
+          <div class="preset-summary" id="hardware-summary"></div>
+
+          <div class="custom-fields" id="custom-hardware-fields" hidden>
+            <div class="field-grid two-columns">
+              <label class="field">
+                <span class="field-label">Memory type</span>
+                <select id="custom-memory-type">
+                  <option value="discrete">GPU VRAM</option>
+                  <option value="unified">Unified memory</option>
+                </select>
+              </label>
+              <label class="field">
+                <span class="field-label">Memory capacity</span>
+                <span class="input-with-unit"><input id="custom-memory-gb" type="number" min="1" step="1" value="32"><span>GB</span></span>
+              </label>
+              <label class="field">
+                <span class="field-label">Memory bandwidth</span>
+                <span class="input-with-unit"><input id="custom-bandwidth" type="number" min="1" step="1" value="1000"><span>GB/s</span></span>
+              </label>
+              <label class="field">
+                <span class="field-label">Peak low-precision compute <span class="optional">optional</span></span>
+                <span class="input-with-unit"><input id="custom-compute" type="number" min="0" step="1" placeholder="e.g. 800"><span>TOPS</span></span>
+              </label>
+              <label class="field">
+                <span class="field-label">Compute precision</span>
+                <select id="custom-compute-bits">
+                  <option value="4">4-bit</option>
+                  <option value="8">8-bit</option>
+                  <option value="16">16-bit</option>
+                  <option value="32">32-bit</option>
+                </select>
+              </label>
+              <label class="check-field">
+                <input id="custom-compute-sparse" type="checkbox">
+                <span>TOPS figure assumes 2:4 sparsity</span>
+              </label>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel control-panel" aria-labelledby="model-heading">
+          <div class="panel-heading">
+            <span class="step-number">2</span>
+            <div>
+              <h2 id="model-heading">Model</h2>
+              <p>Total parameters determine fit; active parameters determine decode traffic.</p>
+            </div>
+          </div>
+
+          <label class="field">
+            <span class="field-label">Model preset</span>
+            <select id="model-preset" name="model"></select>
+          </label>
+
+          <div class="preset-summary" id="model-summary"></div>
+
+          <div class="custom-fields" id="custom-model-fields" hidden>
+            <div class="field-grid two-columns">
+              <label class="field">
+                <span class="field-label">Total parameters</span>
+                <span class="input-with-unit"><input id="custom-total-params" type="number" min="0.1" step="0.1" value="30"><span>B</span></span>
+              </label>
+              <label class="field">
+                <span class="field-label">Active parameters / token</span>
+                <span class="input-with-unit"><input id="custom-active-params" type="number" min="0.1" step="0.1" value="30"><span>B</span></span>
+              </label>
+              <label class="field field-span-two">
+                <span class="field-label">FP16 KV cache at 1K context</span>
+                <span class="input-with-unit"><input id="custom-kv-mib" type="number" min="0" step="1" value="256"><span>MiB</span></span>
+                <span class="field-help">A linear approximation for custom architectures.</span>
+              </label>
+            </div>
+          </div>
+
+          <div class="field-grid two-columns model-settings">
+            <label class="field">
+              <span class="field-label">Weight format</span>
+              <select id="quantization" name="quantization"></select>
+            </label>
+            <label class="field">
+              <span class="field-label">Context in use</span>
+              <span class="input-with-unit"><input id="context-length" name="context" type="number" min="128" max="1048576" step="1"><span>tokens</span></span>
+            </label>
+          </div>
+
+          <div class="quick-values" aria-label="Context presets">
+            <span>Quick context:</span>
+            <button type="button" data-context="8192">8K</button>
+            <button type="button" data-context="32768">32K</button>
+            <button type="button" data-context="65536">64K</button>
+            <button type="button" data-context="131072">128K</button>
+          </div>
+        </section>
+
+        <section class="panel control-panel" aria-labelledby="comparison-heading">
+          <div class="panel-heading">
+            <span class="step-number">3</span>
+            <div>
+              <h2 id="comparison-heading">Optional cloud comparison</h2>
+              <p>Compare streamed output speed; first-token latency is excluded.</p>
+            </div>
+          </div>
+
+          <div class="field-grid comparison-grid">
+            <label class="field">
+              <span class="field-label">Reference</span>
+              <select id="cloud-preset" name="cloud"></select>
+            </label>
+            <label class="field">
+              <span class="field-label">Observed speed</span>
+              <span class="input-with-unit"><input id="cloud-speed" name="cloudSpeed" type="number" min="0.1" step="0.1"><span>tok/s</span></span>
+            </label>
+          </div>
+          <p class="source-note" id="cloud-source-note"></p>
+        </section>
+
+        <details class="panel advanced-panel" id="advanced-settings">
+          <summary>
+            <span><i class="fa-solid fa-sliders" aria-hidden="true"></i> Advanced assumptions</span>
+            <i class="fa-solid fa-chevron-down chevron" aria-hidden="true"></i>
+          </summary>
+          <div class="advanced-content">
+            <div class="field-grid two-columns">
+              <label class="field">
+                <span class="field-label">KV cache precision</span>
+                <select id="kv-precision">
+                  <option value="16">FP16 / BF16</option>
+                  <option value="8">8-bit</option>
+                  <option value="4">4-bit</option>
+                </select>
+              </label>
+              <label class="field">
+                <span class="field-label">Actual model file size <span class="optional">optional override</span></span>
+                <span class="input-with-unit"><input id="model-size-override" type="number" min="0" step="0.1" placeholder="Auto"><span>GB</span></span>
+              </label>
+              <label class="field">
+                <span class="field-label">Decode compute precision</span>
+                <select id="compute-precision">
+                  <option value="auto">Auto from weight format</option>
+                  <option value="32">32-bit</option>
+                  <option value="16">16-bit</option>
+                  <option value="8">8-bit</option>
+                  <option value="4">4-bit</option>
+                  <option value="2">2-bit / ternary kernel</option>
+                </select>
+              </label>
+              <label class="field">
+                <span class="field-label">Memory reserve <span class="optional">OS + runtime</span></span>
+                <span class="input-with-unit"><input id="memory-reserve" type="number" min="0" step="0.1" placeholder="Auto"><span>GB</span></span>
+              </label>
+            </div>
+            <p class="advanced-note">Peak compute is a second theoretical ceiling. Preset marketing figures that explicitly use structured sparsity are divided by two before use.</p>
+          </div>
+        </details>
+        <p class="validation-note" id="input-validation-note" role="alert" hidden>Check the highlighted values before relying on this estimate.</p>
+      </form>
+
+      <section class="results" id="calculator-results" aria-labelledby="results-heading">
+        <div class="panel result-hero">
+          <div class="result-heading-row">
+            <div>
+              <div class="eyebrow result-eyebrow" id="result-status-label">Ideal output speed</div>
+              <h2 id="results-heading"><span id="throughput-value">—</span> <small>tokens/sec</small></h2>
+            </div>
+            <div class="hero-badges">
+              <div class="fit-badge" id="fit-badge"><i class="fa-solid fa-circle-check" aria-hidden="true"></i><span>Fits in memory</span></div>
+              <div class="limit-badge" id="bottleneck-badge" hidden></div>
+            </div>
+          </div>
+          <p class="hero-explanation" id="hero-explanation">Choose hardware and a model to see an estimate.</p>
+          <p class="result-guidance" id="result-guidance"></p>
+          <p class="sr-only" id="result-announcement" aria-live="polite" aria-atomic="true"></p>
+        </div>
+
+        <div class="core-metrics">
+          <article class="panel metric-card capacity-card">
+            <div class="metric-icon"><i class="fa-solid fa-memory" aria-hidden="true"></i></div>
+            <div>
+              <span class="metric-label">Can it fit?</span>
+              <strong id="footprint-value">—</strong>
+              <small id="headroom-value">—</small>
+              <p class="metric-driver" id="capacity-driver">—</p>
+            </div>
+          </article>
+          <article class="panel metric-card bandwidth-card">
+            <div class="metric-icon"><i class="fa-solid fa-water" aria-hidden="true"></i></div>
+            <div>
+              <span class="metric-label">Memory speed</span>
+              <strong id="bandwidth-ceiling">—</strong>
+              <small id="bandwidth-detail">—</small>
+              <p class="metric-driver" id="bandwidth-driver">—</p>
+            </div>
+          </article>
+          <article class="panel metric-card compute-card">
+            <div class="metric-icon"><i class="fa-solid fa-microchip" aria-hidden="true"></i></div>
+            <div>
+              <span class="metric-label">Compute speed</span>
+              <strong id="compute-ceiling">—</strong>
+              <small id="compute-detail">—</small>
+              <p class="metric-driver" id="compute-driver">—</p>
+            </div>
+          </article>
+        </div>
+
+        <details class="panel memory-panel">
+          <summary>
+            <span><i class="fa-solid fa-memory" aria-hidden="true"></i> Memory fit</span>
+            <strong class="memory-summary-value" id="usable-memory-value">—</strong>
+            <i class="fa-solid fa-chevron-down chevron" aria-hidden="true"></i>
+          </summary>
+          <div class="memory-content">
+            <p class="memory-title" id="memory-title">Estimated allocation inside usable accelerator memory.</p>
+            <div class="memory-bar" id="memory-bar" aria-hidden="true">
+              <div class="memory-segment weights-segment" id="weights-segment"></div>
+              <div class="memory-segment kv-segment" id="kv-segment"></div>
+            </div>
+            <div class="memory-legend">
+              <span><i class="legend-dot weights-dot"></i> Weights <strong id="weights-memory">—</strong></span>
+              <span><i class="legend-dot kv-dot"></i> KV cache <strong id="kv-memory">—</strong></span>
+              <span><i class="legend-dot free-dot"></i> Headroom <strong id="free-memory">—</strong></span>
+            </div>
+          </div>
+        </details>
+
+        <details class="panel cloud-panel">
+          <summary>
+            <span><i class="fa-solid fa-cloud" aria-hidden="true"></i> Compare with cloud</span>
+            <i class="fa-solid fa-chevron-down chevron" aria-hidden="true"></i>
+          </summary>
+          <div class="cloud-content">
+            <div class="speed-comparison" id="speed-comparison">
+              <div class="speed-labels">
+                <span>Local ceiling</span>
+                <span id="cloud-speed-label">Cloud reference</span>
+              </div>
+              <div class="speed-track" aria-hidden="true">
+                <div class="speed-bar local-speed-bar" id="local-speed-bar"></div>
+                <div class="cloud-marker" id="cloud-marker"></div>
+              </div>
+              <p id="comparison-copy"></p>
+            </div>
+            <article class="cloud-result">
+              <span class="metric-label">Versus cloud</span>
+              <strong id="cloud-ratio">—</strong>
+              <small id="cloud-detail">—</small>
+            </article>
+          </div>
+        </details>
+
+        <details class="panel math-panel">
+          <summary>
+            <span><i class="fa-solid fa-square-root-variable" aria-hidden="true"></i> Show the math</span>
+            <i class="fa-solid fa-chevron-down chevron" aria-hidden="true"></i>
+          </summary>
+          <div class="math-content">
+            <dl class="math-list">
+              <div><dt>Weight storage</dt><dd id="math-weights">—</dd></div>
+              <div><dt>KV cache</dt><dd id="math-kv">—</dd></div>
+              <div><dt>Bytes read per output token</dt><dd id="math-traffic">—</dd></div>
+              <div><dt>Bandwidth ceiling</dt><dd id="math-bandwidth">—</dd></div>
+              <div><dt>Compute work</dt><dd id="math-ops">—</dd></div>
+              <div><dt>Compute ceiling</dt><dd id="math-compute">—</dd></div>
+            </dl>
+            <div class="assumption-box">
+              <strong>This is an upper bound, not a benchmark.</strong>
+              <ul>
+                <li>Assumes one accelerator, batch size 1, weights resident in accelerator-accessible memory, and ideal sustained bandwidth.</li>
+                <li>Bandwidth traffic uses active—not total—parameters for MoE decode, plus the readable KV cache at the selected context.</li>
+                <li>Compute uses approximately two operations per active parameter. Kernel, framework, routing, sampling, and recurrent-state overheads are omitted.</li>
+                <li>Native ternary is modeled as 1.585 bits per weight only when purpose-built storage and kernels actually exist.</li>
+              </ul>
+            </div>
+          </div>
+        </details>
+      </section>
+    </div>
+
+    <section class="method-note">
+      <i class="fa-solid fa-circle-info" aria-hidden="true"></i>
+      <p><strong>How to read the answer:</strong> Capacity determines what fits. RAM bandwidth and compute determine the ideal speed limit. Real software will be slower.</p>
+    </section>
+  </main>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <footer class="site-footer">
+    <p>Preset specifications are linked to vendor or model sources in the calculator. Cloud speeds are editable benchmark snapshots, updated <span id="data-updated">—</span>.</p>
+  </footer>
+
+  <script src="presets.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
