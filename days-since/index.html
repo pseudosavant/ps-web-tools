@@ -1,52 +1,66 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
-    <title>Days Since</title>
+    <title>Days since {what} {when}</title>
     <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="description" content="Count the days since an important date and save it in a shareable URL.">
-    <meta name="theme-color" content="#f9f9f9" media="(prefers-color-scheme: light)">
-    <meta name="theme-color" content="#081521" media="(prefers-color-scheme: dark)">
+    <meta name="description" content="Count the days since an important date.">
     <link rel="shortcut icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='3' y='6' width='26' height='23' rx='4' fill='%231d6fa8'/%3E%3Cpath d='M3 12h26M9 3v6m14-6v6' stroke='%23fff' stroke-width='3'/%3E%3C/svg%3E">
-    <link rel="stylesheet" href="style.css?v=2">
-    <script src="script.js?v=2" defer></script>
+    <link rel="stylesheet" href="style.css?v=3">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <script src="script.js?v=3" defer></script>
   </head>
   <body>
-    <button
-      id="config-toggle"
-      class="config-toggle"
-      type="button"
-      aria-controls="config-panel"
-      aria-expanded="false"
-      aria-label="Show options">
-      <svg aria-hidden="true" viewBox="0 0 24 24" width="24" height="24">
-        <path d="M12 8.75A3.25 3.25 0 1 0 12 15.25 3.25 3.25 0 0 0 12 8.75Zm8.25 3.25c0-.5-.05-.98-.14-1.45l1.78-1.39-2-3.46-2.1.85a8.41 8.41 0 0 0-2.51-1.45L15 2.85h-4l-.28 2.25A8.41 8.41 0 0 0 8.2 6.55L6.1 5.7l-2 3.46 1.78 1.39A7.87 7.87 0 0 0 5.75 12c0 .5.05.98.14 1.45L4.1 14.84l2 3.46 2.1-.85a8.41 8.41 0 0 0 2.51 1.45L11 21.15h4l.28-2.25a8.41 8.41 0 0 0 2.51-1.45l2.1.85 2-3.46-1.78-1.39c.09-.47.14-.95.14-1.45Z"/>
-      </svg>
-    </button>
+    <div class="countdown-gear">
+      <button
+        class="config-toggle"
+        title="Show options"
+        aria-label="Show options"
+        aria-controls="config-panel"
+        aria-expanded="false"
+        type="button">
+        <i class="fa-solid fa-gear" aria-hidden="true"></i>
+      </button>
+    </div>
 
     <main class="countdown-main">
-      <article class="countdown-card" aria-labelledby="event-name">
-        <p class="eyebrow">Days since</p>
-        <p id="day-count" class="days" aria-live="polite">&hellip;</p>
-        <h1 id="event-name" class="countdown-what">An important day</h1>
-        <time id="event-date" class="countdown-when"></time>
-        <p id="extra" class="extra"></p>
-        <p id="page-status" class="page-status" role="status" aria-live="polite"></p>
-      </article>
+      <div class="countdown-content" aria-live="polite">
+        <div class="days"></div>
+        <div class="countdown-what"></div>
+        <div class="countdown-when"></div>
+        <div class="extra"></div>
+      </div>
 
-      <form id="config-panel" class="countdown-form" action="" method="get" hidden>
-        <h2>Options</h2>
-        <p class="form-help">Save a name and past date in the URL so this countdown can be bookmarked or shared.</p>
-
-        <label for="name">Event name</label>
-        <input required type="text" id="name" name="name" maxlength="80" placeholder="An important day">
-
-        <label for="date">Event date</label>
-        <input required type="date" id="date" name="date">
-
+      <form id="config-panel" class="countdown-form config-panel" action="" method="get">
+        <h3><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i> Options</h3>
+        <div class="options-row">
+          <label for="name">
+            <i class="fa-solid fa-tag" aria-hidden="true"></i>
+            <span class="sr-only">Name</span>
+          </label>
+          <input required type="text" id="name" name="name" placeholder="Name">
+        </div>
+        <div class="options-row">
+          <label for="date">
+            <i class="fa-solid fa-calendar" aria-hidden="true"></i>
+            <span class="sr-only">Date</span>
+          </label>
+          <input required type="date" id="date" name="date" placeholder="YYYY-MM-DD" pattern="\d{4}-\d{2}-\d{2}">
+        </div>
+        <div class="options-row">
+          <label for="themeHue">
+            <i class="fa-solid fa-palette" aria-hidden="true"></i>
+            <span class="sr-only">Theme hue</span>
+          </label>
+          <input required type="range" id="themeHue" name="themeHue" min="0" max="360" step="1">
+        </div>
         <div class="form-actions">
-          <button type="submit">Save countdown</button>
-          <button type="button" id="reset-options" class="secondary-button">Reset</button>
+          <button type="submit"><i class="fa-solid fa-paper-plane" aria-hidden="true"></i> Save</button>
+          <button type="button" id="reset-options"><i class="fa-solid fa-rotate-left" aria-hidden="true"></i> Reset</button>
         </div>
       </form>
     </main>
