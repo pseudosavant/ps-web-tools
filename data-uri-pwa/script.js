@@ -1,95 +1,200 @@
-(async function(global) {
-  const $dataURI = $(".data-uri");
-  const $status = $(".status-message");
-  const LARGE_FILE_WARNING_BYTES = 5 * 1024 * 1024;
+import {
+  LARGE_FILE_WARNING_BYTES,
+  TEXT_PREVIEW_LIMIT_BYTES,
+  createRevisionTracker,
+  formatBytes,
+  getPreviewKind,
+  normalizeMimeType,
+  textToDataURI
+} from "./core.js?v=5";
+
+(async function() {
   const LARGE_PREVIEW_BYTES = 1024 * 1024;
-  let statusTimeoutId = null;
-  let lastDataURI = "";
-  let lastDataType = "";
+
+  const $dataURI = document.querySelector(".data-uri");
+  const $copyButton = document.querySelector(".copy");
+  const $copyMessage = document.querySelector(".copy-message");
+  const $outputMeta = document.querySelector(".output-meta");
+  const $status = document.querySelector(".status-message");
+  const $preview = document.querySelector(".preview");
+  const $local = document.querySelector(".local");
+  const $fileButton = document.querySelector(".btn-file");
+  const $dropWidget = document.querySelector(".drop-widget");
+  const $drop = document.querySelector(".drop");
+  const $pasteButton = document.querySelector(".btn-paste");
+  const $remote = document.querySelector(".remote");
+  const $remoteButton = document.querySelector(".convert-remote");
+  const $text = document.querySelector(".text");
+  const $install = document.querySelector(".install");
+  const $sourceItems = Array.from(document.querySelectorAll(".source-item"));
   const $pasteProxy = createPasteProxy();
 
-  const $local = $(".local");
-  $local.on("change", updateLocal);
-
-  const $fileButton = $(".btn-file");
-  if ($fileButton) {
-    $fileButton.on("click", () => $local.click());
-  }
-
-  const $dropWidget = $(".drop-widget");
-  if ($dropWidget) {
-    $dropWidget.on("click", () => $local.click());
-  }
-
-  const $remote = $(".remote");
-  $remote.on("input", scheduleRemoteFetch);
-  $remote.on("blur", () => triggerRemoteFetch(true));
-
-  const $text = $(".text");
-  $text.on("input", scheduleTextUpdate);
-  $text.on("blur", () => triggerTextUpdate(true));
-
-  const $drop = $(".drop");
-  $drop.on("drop", updateFileDrop);
-
-  function updateLocal(e) {
-    const file = $local.files[0];
-    updateFile(file);
-  }
-  let remoteDebounceId = null;
+  const sourceRevisions = createRevisionTracker();
+  let activeReader = null;
   let remoteAbortController = null;
   let textDebounceId = null;
+  let pendingTextRevision = null;
+  let previewIdleId = null;
+  let previewTimeoutId = null;
+  let activePreviewObjectURL = null;
+  let statusTimeoutId = null;
+  let copyTimeoutId = null;
+  let pasteFallbackPreviousFocus = null;
+  let deferredPrompt = null;
+  let lastDataURI = "";
 
-  function scheduleRemoteFetch() {
-    clearTimeout(remoteDebounceId);
-    remoteDebounceId = setTimeout(() => {
-      remoteDebounceId = null;
-      triggerRemoteFetch(false);
-    }, 250);
-  }
-
-  function scheduleTextUpdate() {
-    clearTimeout(textDebounceId);
-    textDebounceId = setTimeout(() => {
-      textDebounceId = null;
-      triggerTextUpdate(false);
-    }, 200);
-  }
-
-  function triggerTextUpdate(immediate) {
-    if (immediate) {
-      clearTimeout(textDebounceId);
-      textDebounceId = null;
+  $local.addEventListener("change", () => {
+    const file = $local.files && $local.files[0];
+    if (file) {
+      void convertBlobSource(file, "local", `Local file: ${file.name}`, { keepLocal: true });
     }
-    updateText();
-  }
+  });
 
-  function triggerRemoteFetch(immediate) {
-    if (immediate) {
-      clearTimeout(remoteDebounceId);
-      remoteDebounceId = null;
+  $fileButton.addEventListener("click", () => $local.click());
+  $dropWidget.addEventListener("click", () => $local.click());
+
+  $remote.addEventListener("input", handleRemoteInput);
+  $remote.addEventListener("keydown", event => {
+    if (event.key === "Enter" && !$remoteButton.disabled) {
+      event.preventDefault();
+      void convertRemote();
     }
+  });
+  $remoteButton.addEventListener("click", () => void convertRemote());
+
+  $text.addEventListener("input", scheduleTextUpdate);
+  $text.addEventListener("blur", flushTextUpdate);
+
+  $drop.addEventListener("drop", event => void updateFileDrop(event));
+  $drop.addEventListener("dragover", dragover);
+  $drop.addEventListener("dragleave", () => $drop.classList.remove("dropover"));
+
+  document.addEventListener("paste", event => void pasteFromClipboard(event, { showFeedback: false }));
+  $pasteButton.addEventListener("click", event => {
+    void pasteFromClipboard(event, { force: true, showFeedback: true, allowFallback: true });
+  });
+
+  // Intentional app behavior: once a Data URI exists, Ctrl+C anywhere copies it.
+  document.addEventListener("copy", copyDataURI, false);
+  $copyButton.addEventListener("click", () => void copyFromButton(), false);
+
+  window.addEventListener("beforeunload", releasePreviewObjectURL);
+
+  function beginSourceUpdate(source, options) {
+    const opts = options || {};
+    const revision = sourceRevisions.next();
 
     if (remoteAbortController) {
       remoteAbortController.abort();
       remoteAbortController = null;
     }
 
-    const rawUrl = ($remote.value || "").trim();
+    if (activeReader) {
+      const reader = activeReader;
+      activeReader = null;
+      if (reader.readyState === FileReader.LOADING) {
+        reader.abort();
+      }
+    }
+
+    clearTimeout(textDebounceId);
+    textDebounceId = null;
+    pendingTextRevision = null;
+    cancelScheduledPreview();
+    releasePreviewObjectURL();
+    clearOtherSourceInputs(opts);
+    setActiveSource(source);
+    clearOutput("Preparing a new conversion…");
+    clearStatus();
+
+    return revision;
+  }
+
+  function clearOtherSourceInputs(options) {
+    const opts = options || {};
+    if (!opts.keepText) {
+      $text.value = "";
+    }
+    if (!opts.keepRemote) {
+      $remote.value = "";
+    }
+    if (!opts.keepLocal) {
+      $local.value = "";
+    }
+    updateRemoteButtonState();
+  }
+
+  function setActiveSource(source) {
+    $sourceItems.forEach(item => {
+      item.classList.toggle("is-active", item.dataset.source === source);
+    });
+  }
+
+  function handleRemoteInput() {
+    const hasValue = Boolean($remote.value.trim());
+    beginSourceUpdate("remote", { keepRemote: true });
+    updateRemoteButtonState();
+
+    if (hasValue) {
+      showStatus("URL ready. Choose Convert URL or press Enter.", { type: "info", timeout: 3000 });
+    } else {
+      setActiveSource(null);
+      clearOutput("No preview yet. Choose a source on the left.");
+    }
+  }
+
+  function updateRemoteButtonState() {
+    $remoteButton.disabled = !$remote.value.trim();
+  }
+
+  async function convertRemote() {
+    const rawUrl = $remote.value.trim();
+    const revision = beginSourceUpdate("remote", { keepRemote: true });
+    updateRemoteButtonState();
+
     if (!rawUrl) {
-      clearStatus();
+      setActiveSource(null);
+      clearOutput("No preview yet. Choose a source on the left.");
       return;
     }
 
     const parsedUrl = parseRemoteUrl(rawUrl);
     if (!parsedUrl) {
-      clearStatus();
+      showStatus("Enter a complete http:// or https:// URL.", { type: "error", timeout: 4000 });
       return;
     }
 
-    remoteAbortController = new AbortController();
-    showStatus("Fetching remote file...", { type: "info", loading: true, persist: true });
-    fetchRemote(parsedUrl.href, remoteAbortController.signal);
+    const controller = new AbortController();
+    remoteAbortController = controller;
+    showStatus("Fetching the remote file…", { type: "info", loading: true, persist: true });
+
+    try {
+      const response = await fetch(parsedUrl.href, {
+        signal: controller.signal,
+        credentials: "omit",
+        referrerPolicy: "no-referrer",
+        cache: "no-store"
+      });
+
+      if (!response.ok) {
+        throw new Error(`Request failed with HTTP ${response.status}`);
+      }
+
+      const blob = await response.blob();
+      if (!sourceRevisions.isCurrent(revision)) return;
+
+      const label = `Remote URL: ${parsedUrl.hostname}`;
+      await convertBlob(blob, revision, label, response.headers.get("content-type"));
+    } catch (error) {
+      if (error.name !== "AbortError" && sourceRevisions.isCurrent(revision)) {
+        showStatus(`Could not fetch the remote file. ${error.message}`, { type: "error", timeout: 5000 });
+        showPreviewPlaceholder("The remote file could not be loaded.");
+      }
+    } finally {
+      if (remoteAbortController === controller) {
+        remoteAbortController = null;
+      }
+    }
   }
 
   function parseRemoteUrl(value) {
@@ -99,248 +204,371 @@
         return null;
       }
       return parsed;
-    } catch (err) {
+    } catch (error) {
       return null;
     }
   }
 
-  async function fetchRemote(url, signal) {
-    try {
-      const res = await fetch(url, { signal });
-      if (!res.ok) throw new Error("Network response was not ok");
-      const blob = await res.blob();
-      updateFile(blob);
-      showStatus("Remote file loaded.", { type: "info", timeout: 1500 });
-    } catch (err) {
-      if (err.name !== "AbortError") {
-        showStatus("Failed to fetch remote file: " + err.message, { type: "error", timeout: 4000 });
-      }
-    }
-  }
+  function scheduleTextUpdate() {
+    const revision = beginSourceUpdate("text", { keepText: true });
 
-  function updateText(e) {
-    const type = "text/plain";
-    const result = textToDataURI($text.value || "", type);
-    warnLargeFile(result.size);
-    updateDataURI(result.uri, type, { size: result.size });
-  }
-
-  function textToDataURI(text, type) {
-    const bytes = new TextEncoder().encode(text);
-    const base64 = bytesToBase64(bytes);
-    return {
-      uri: `data:${type};charset=utf-8;base64,${base64}`,
-      size: bytes.length
-    };
-  }
-
-  function bytesToBase64(bytes) {
-    let binary = "";
-    const chunkSize = 0x8000;
-    for (let i = 0; i < bytes.length; i += chunkSize) {
-      const chunk = bytes.subarray(i, i + chunkSize);
-      binary += String.fromCharCode.apply(null, chunk);
-    }
-    return btoa(binary);
-  }
-
-  function updateFileDrop(e) {
-    e.preventDefault();
-
-    const dt = e.dataTransfer;
-    const file =
-      dt.items && e.dataTransfer.items[0].kind === "file"
-        ? e.dataTransfer.items[0].getAsFile()
-        : e.dataTransfer.files[0];
-    updateFile(file);
-  }
-
-  const dragover = (function() {
-    var t;
-
-    return function(e) {
-      e.preventDefault();
-
-      $drop.classList.add("dropover");
-
-      clearTimeout(t);
-      t = setTimeout(() => $drop.classList.remove("dropover"), 100);
-    };
-  })();
-  $drop.on("dragover", dragover);
-  $drop.on("dragleave", () => $drop.classList.remove("dropover"));
-
-  function updateFile(file) {
-    if (!file) {
-      showStatus("No file selected.", { type: "error", timeout: 2000 });
+    if ($text.value.length === 0) {
+      setActiveSource(null);
+      clearOutput("No preview yet. Choose a source on the left.");
       return;
     }
-    warnLargeFile(file.size);
-    const reader = new FileReader();
-    reader.addEventListener(
-      "load",
-      () => updateDataURI(reader.result, file.type, { size: file.size }),
-      false
-    );
 
-    if (file) {
-      reader.readAsDataURL(file);
+    pendingTextRevision = revision;
+    textDebounceId = setTimeout(() => {
+      textDebounceId = null;
+      pendingTextRevision = null;
+      updateText(revision, "Text");
+    }, 250);
+  }
+
+  function flushTextUpdate() {
+    if (textDebounceId === null || pendingTextRevision === null) return;
+    const revision = pendingTextRevision;
+    clearTimeout(textDebounceId);
+    textDebounceId = null;
+    pendingTextRevision = null;
+    updateText(revision, "Text");
+  }
+
+  function updateText(revision, sourceLabel) {
+    if (!sourceRevisions.isCurrent(revision)) return false;
+
+    const value = $text.value;
+    if (value.length === 0) {
+      clearOutput("No preview yet. Choose a source on the left.");
+      return false;
     }
+
+    const type = "text/plain;charset=utf-8";
+    const sourceBlob = new Blob([value], { type });
+    const isLarge = warnLargeFile(sourceBlob.size);
+    const result = textToDataURI(value, "text/plain");
+
+    if (!sourceRevisions.isCurrent(revision)) return false;
+    updateDataURI(result.uri, type, {
+      size: result.size,
+      sourceLabel,
+      preview: { kind: "text", text: value, truncated: false },
+      revision
+    });
+    showReadyStatus(isLarge);
+    return true;
+  }
+
+  async function updateFileDrop(event) {
+    event.preventDefault();
+    $drop.classList.remove("dropover");
+
+    const transfer = event.dataTransfer;
+    const item = transfer.items
+      ? Array.from(transfer.items).find(candidate => candidate.kind === "file")
+      : null;
+    const file = item ? item.getAsFile() : transfer.files && transfer.files[0];
+
+    if (!file) {
+      showStatus("No file was included in the drop.", { type: "error", timeout: 2500 });
+      return;
+    }
+
+    await convertBlobSource(file, "drop", `Dropped file: ${file.name}`);
+  }
+
+  let dragTimeoutId = null;
+  function dragover(event) {
+    event.preventDefault();
+    $drop.classList.add("dropover");
+    clearTimeout(dragTimeoutId);
+    dragTimeoutId = setTimeout(() => $drop.classList.remove("dropover"), 120);
+  }
+
+  async function convertBlobSource(blob, source, sourceLabel, beginOptions) {
+    if (!blob) {
+      showStatus("No file selected.", { type: "error", timeout: 2000 });
+      return false;
+    }
+
+    const revision = beginSourceUpdate(source, beginOptions);
+    return convertBlob(blob, revision, sourceLabel);
+  }
+
+  async function convertBlob(blob, revision, sourceLabel, fallbackType) {
+    if (!sourceRevisions.isCurrent(revision)) return false;
+
+    const type = normalizeMimeType(blob.type || fallbackType) || "application/octet-stream";
+    const isLarge = warnLargeFile(blob.size);
+    if (!isLarge) {
+      showStatus("Converting in your browser…", { type: "info", loading: true, persist: true });
+    }
+    $preview.setAttribute("aria-busy", "true");
+    showPreviewPlaceholder("Preparing a safe preview…", true);
+
+    const [uri, preview] = await Promise.all([
+      readBlobAsDataURL(blob, revision),
+      prepareBlobPreview(blob, type)
+    ]);
+
+    if (!uri || !sourceRevisions.isCurrent(revision)) {
+      disposePreparedPreview(preview);
+      return false;
+    }
+
+    updateDataURI(uri, type, {
+      size: blob.size,
+      sourceLabel,
+      preview,
+      revision
+    });
+    showReadyStatus(isLarge);
+    return true;
+  }
+
+  function readBlobAsDataURL(blob, revision) {
+    return new Promise(resolve => {
+      const reader = new FileReader();
+      activeReader = reader;
+
+      const finish = value => {
+        if (activeReader === reader) {
+          activeReader = null;
+        }
+        resolve(value);
+      };
+
+      reader.addEventListener("load", () => {
+        const result = typeof reader.result === "string" ? reader.result : null;
+        finish(sourceRevisions.isCurrent(revision) ? result : null);
+      });
+      reader.addEventListener("abort", () => finish(null));
+      reader.addEventListener("error", () => {
+        if (sourceRevisions.isCurrent(revision)) {
+          showStatus("The file could not be read.", { type: "error", timeout: 4000 });
+        }
+        finish(null);
+      });
+
+      try {
+        reader.readAsDataURL(blob);
+      } catch (error) {
+        showStatus("The file could not be read.", { type: "error", timeout: 4000 });
+        finish(null);
+      }
+    });
+  }
+
+  async function prepareBlobPreview(blob, type) {
+    const kind = getPreviewKind(type);
+
+    if (kind === "image" || kind === "audio" || kind === "video") {
+      return { kind, url: URL.createObjectURL(blob) };
+    }
+
+    if (kind === "text") {
+      const truncated = blob.size > TEXT_PREVIEW_LIMIT_BYTES;
+      const previewBlob = truncated ? blob.slice(0, TEXT_PREVIEW_LIMIT_BYTES) : blob;
+      const text = await previewBlob.text();
+      return { kind, text, truncated };
+    }
+
+    return { kind: "unsupported" };
   }
 
   function updateDataURI(uri, type, options) {
     if (!uri) return;
-    if (uri === lastDataURI && type === lastDataType) {
+    const opts = options || {};
+    if (!sourceRevisions.isCurrent(opts.revision)) {
+      disposePreparedPreview(opts.preview);
       return;
     }
+
+    cancelScheduledPreview();
+    releasePreviewObjectURL();
+
     lastDataURI = uri;
-    lastDataType = type;
-    $dataURI.setAttribute("href", uri);
+    $dataURI.value = uri;
+    $copyButton.disabled = false;
+    $outputMeta.textContent = `${opts.sourceLabel || "Source"} • ${type || "Unknown type"} • ${formatBytes(opts.size || 0)}`;
 
-    const size = options && options.size ? options.size : uri.length;
-    const $preview = $(".preview");
-    $preview.innerHTML = "";
-
-    if (size >= LARGE_PREVIEW_BYTES) {
-      showPreviewPlaceholder("Rendering preview...");
-      schedulePreviewRender(uri, type, size);
-    } else {
-      schedulePreviewRender(uri, type, size);
+    if (opts.preview && opts.preview.url) {
+      activePreviewObjectURL = opts.preview.url;
     }
+    schedulePreviewRender(opts.preview, type, opts.size || 0, opts.revision);
   }
 
-  function schedulePreviewRender(uri, type, size) {
-    const render = () => renderPreview(uri, type);
+  function schedulePreviewRender(preview, type, size, revision) {
+    const render = () => renderPreview(preview, type, revision);
     if (size >= LARGE_PREVIEW_BYTES && "requestIdleCallback" in window) {
-      requestIdleCallback(render, { timeout: 700 });
+      previewIdleId = window.requestIdleCallback(render, { timeout: 700 });
     } else {
-      setTimeout(render, 0);
+      previewTimeoutId = window.setTimeout(render, 0);
     }
   }
 
-  function renderPreview(uri, type) {
-    const $preview = $(".preview");
-    $preview.innerHTML = "";
-    $preview.classList.remove("preview-media", "preview-audio", "preview-image", "preview-video", "preview-text");
-    const safeType = type || "application/octet-stream";
-    const baseType = safeType.split("/")[0];
+  function cancelScheduledPreview() {
+    if (previewIdleId !== null && "cancelIdleCallback" in window) {
+      window.cancelIdleCallback(previewIdleId);
+    }
+    if (previewTimeoutId !== null) {
+      window.clearTimeout(previewTimeoutId);
+    }
+    previewIdleId = null;
+    previewTimeoutId = null;
+  }
 
-    switch (baseType) {
-      case "video":
-        $preview.classList.add("preview-media", "preview-video");
-        const $video = $("<video controls />");
-        $video.src = uri;
-        $preview.append($video);
-        break;
-      case "audio":
-        $preview.classList.add("preview-audio");
-        const $audio = $("<audio controls />");
-        $audio.src = uri;
-        $preview.append($audio);
-        break;
-      case "image":
-        $preview.classList.add("preview-media", "preview-image");
-        const $img = $("<img>");
-        $img.src = uri;
-        $preview.append($img);
-        break;
-      case "text":
-      default:
-        $preview.classList.add("preview-text");
-        const $iframe = $("<iframe/>");
-        $iframe.setAttribute("sandbox", "allow-same-origin");
-        $iframe.src = uri;
-        $iframe.onload = () => resizeIframe($iframe);
-        $preview.append($iframe);
-        break;
+  function renderPreview(preview, type, revision) {
+    previewIdleId = null;
+    previewTimeoutId = null;
+    if (!sourceRevisions.isCurrent(revision) || !preview) return;
+
+    $preview.replaceChildren();
+    $preview.className = "preview";
+    $preview.setAttribute("aria-busy", "false");
+
+    if (preview.kind === "image") {
+      $preview.classList.add("preview-media", "preview-image");
+      const image = document.createElement("img");
+      image.src = preview.url;
+      image.alt = "Preview of the converted image";
+      image.decoding = "async";
+      $preview.appendChild(image);
+      return;
+    }
+
+    if (preview.kind === "audio") {
+      $preview.classList.add("preview-audio");
+      const audio = document.createElement("audio");
+      audio.src = preview.url;
+      audio.controls = true;
+      audio.preload = "metadata";
+      audio.setAttribute("aria-label", "Audio preview");
+      $preview.appendChild(audio);
+      return;
+    }
+
+    if (preview.kind === "video") {
+      $preview.classList.add("preview-media", "preview-video");
+      const video = document.createElement("video");
+      video.src = preview.url;
+      video.controls = true;
+      video.preload = "metadata";
+      video.setAttribute("aria-label", "Video preview");
+      $preview.appendChild(video);
+      return;
+    }
+
+    if (preview.kind === "text") {
+      $preview.classList.add("preview-text");
+      const pre = document.createElement("pre");
+      pre.textContent = preview.truncated
+        ? `${preview.text}\n\n… Preview truncated at ${formatBytes(TEXT_PREVIEW_LIMIT_BYTES)}. The complete Data URI is still available.`
+        : preview.text;
+      $preview.appendChild(pre);
+      return;
+    }
+
+    showPreviewPlaceholder(
+      `Preview disabled for ${type || "this file type"}. You can still copy the complete Data URI.`
+    );
+  }
+
+  function showPreviewPlaceholder(message, busy) {
+    $preview.className = "preview";
+    $preview.setAttribute("aria-busy", busy ? "true" : "false");
+    const placeholder = document.createElement("span");
+    placeholder.className = "preview-placeholder";
+    placeholder.textContent = message || "No preview yet. Choose a source on the left.";
+    $preview.replaceChildren(placeholder);
+  }
+
+  function disposePreparedPreview(preview) {
+    if (preview && preview.url) {
+      URL.revokeObjectURL(preview.url);
     }
   }
 
-  function resizeIframe(iframe) {
-    try {
-      const doc = iframe.contentDocument || iframe.contentWindow.document;
-      iframe.width = doc.body.scrollWidth;
-      iframe.height = doc.body.scrollHeight;
-    } catch (e) {
-      // Ignore cross-origin errors
+  function releasePreviewObjectURL() {
+    if (activePreviewObjectURL) {
+      URL.revokeObjectURL(activePreviewObjectURL);
+      activePreviewObjectURL = null;
     }
   }
 
-  // Improved copy-to-clipboard logic with visual feedback
-  function copyDataURI(e) {
+  function clearOutput(previewMessage) {
+    lastDataURI = "";
+    $dataURI.value = "";
+    $copyButton.disabled = true;
+    $outputMeta.textContent = "";
+    $copyMessage.textContent = "";
+    showPreviewPlaceholder(previewMessage);
+  }
+
+  function copyDataURI(event) {
     const uri = getDataURI();
-    if (!uri) return;
-    if (e && e.clipboardData) {
-      e.clipboardData.setData("text/plain", uri);
-      e.preventDefault();
-      showCopySuccess();
-    }
+    if (!uri || !event.clipboardData) return;
+    event.clipboardData.setData("text/plain", uri);
+    event.preventDefault();
+    showCopySuccess();
   }
-  $(document).on("copy", copyDataURI, false);
-  $(".copy").on("click", async () => {
+
+  async function copyFromButton() {
     const uri = getDataURI();
     if (!uri) {
-      showCopyError("No data URI to copy.");
+      showStatus("There is no Data URI to copy yet.", { type: "error", timeout: 2500 });
       return;
     }
+
     if (navigator.clipboard && window.isSecureContext) {
       try {
         await navigator.clipboard.writeText(uri);
         showCopySuccess();
         return;
-      } catch (err) {
-        // Fall back to execCommand below.
+      } catch (error) {
+        // Fall through to the copy event fallback.
       }
     }
-    const ok = document.execCommand("copy");
-    if (ok) {
-      showCopySuccess();
-    } else {
-      showCopyError("Copy failed.");
-    }
-  }, false);
 
-  function showCopySuccess() {
-    const btn = $(".copy");
-    const msg = document.querySelector('.copy-message');
-    btn.classList.add('copy-success');
-    if (msg) {
-      msg.textContent = "Copied!";
-      msg.style.display = "inline";
+    const copied = document.execCommand("copy");
+    if (!copied) {
+      showStatus("Copy failed. Select the Data URI field and try again.", { type: "error", timeout: 3500 });
     }
-    setTimeout(() => {
-      btn.classList.remove('copy-success');
-      if (msg) msg.style.display = "none";
-    }, 1200);
   }
 
-  function showCopyError(text) {
-    showStatus(text, { type: "error", timeout: 2500 });
+  function showCopySuccess() {
+    clearTimeout(copyTimeoutId);
+    $copyButton.classList.add("copy-success");
+    $copyMessage.textContent = "Copied to clipboard.";
+    copyTimeoutId = setTimeout(() => {
+      $copyButton.classList.remove("copy-success");
+      $copyMessage.textContent = "";
+    }, 1600);
   }
 
   function getDataURI() {
-    return $dataURI.getAttribute("href") || "";
+    return lastDataURI || $dataURI.value || "";
   }
 
   function warnLargeFile(size) {
-    if (!size || size < LARGE_FILE_WARNING_BYTES) return;
-    const label = formatBytes(size);
-    showStatus(`Large file (${label}) may be slow to convert.`, { type: "info", timeout: 4000 });
+    if (!size || size < LARGE_FILE_WARNING_BYTES) return false;
+    showStatus(`Large source (${formatBytes(size)}). Conversion may take a moment.`, {
+      type: "info",
+      loading: true,
+      persist: true
+    });
+    return true;
   }
 
-  function formatBytes(bytes) {
-    const units = ["B", "KB", "MB", "GB"];
-    let value = bytes;
-    let unit = units[0];
-    for (let i = 1; i < units.length && value >= 1024; i++) {
-      value /= 1024;
-      unit = units[i];
-    }
-    return `${value.toFixed(value >= 10 || unit === "B" ? 0 : 1)} ${unit}`;
+  function showReadyStatus(wasLarge) {
+    showStatus(wasLarge ? "Large Data URI ready to copy." : "Data URI ready to copy.", {
+      type: "info",
+      timeout: 2500
+    });
   }
 
   function showStatus(message, options) {
-    if (!$status) return;
     const opts = options || {};
     const type = opts.type || "info";
     const loading = Boolean(opts.loading);
@@ -350,112 +578,108 @@
     clearTimeout(statusTimeoutId);
     $status.textContent = message || "";
     $status.className = "status-message";
-    $status.classList.add(type === "error" ? "is-error" : "is-info");
+    $status.setAttribute("role", type === "error" ? "alert" : "status");
+    if (message) {
+      $status.classList.add(type === "error" ? "is-error" : "is-info");
+    }
     if (loading) {
       $status.classList.add("is-loading");
     }
 
     if (!persist && message) {
-      statusTimeoutId = setTimeout(() => {
-        $status.textContent = "";
-        $status.className = "status-message";
-      }, timeout);
+      statusTimeoutId = setTimeout(clearStatus, timeout);
     }
   }
 
   function clearStatus() {
-    if (!$status) return;
     clearTimeout(statusTimeoutId);
     $status.textContent = "";
     $status.className = "status-message";
+    $status.setAttribute("role", "status");
   }
 
-  async function pasteText(e, options) {
-    const force = options && options.force;
-    const showFeedback = options && options.showFeedback;
-    const allowFallback = options && options.allowFallback;
-
-    if (e && e.type === "paste" && !force && isEditableTarget(e.target)) {
+  async function pasteFromClipboard(event, options) {
+    const opts = options || {};
+    if (event && event.type === "paste" && !opts.force && isEditableTarget(event.target)) {
       return;
     }
 
     let handled = false;
-
-    if (showFeedback) {
-      showStatus("Reading clipboard...", { type: "info", loading: true, persist: true });
+    if (opts.showFeedback) {
+      showStatus("Reading the clipboard…", { type: "info", loading: true, persist: true });
     }
 
-    if (e && e.clipboardData) {
-      const items = Array.from(e.clipboardData.items || []);
+    if (event && event.clipboardData) {
+      const items = Array.from(event.clipboardData.items || []);
       const fileItem = items.find(item => item.kind === "file");
-      if (fileItem) {
-        const file = fileItem.getAsFile();
-        if (file) {
-          updateFile(file);
-          handled = true;
-        }
-      }
+      const file = fileItem ? fileItem.getAsFile() : event.clipboardData.files && event.clipboardData.files[0];
 
-      if (!handled && e.clipboardData.files && e.clipboardData.files.length > 0) {
-        updateFile(e.clipboardData.files[0]);
-        handled = true;
-      }
-
-      if (!handled) {
-        const data = e.clipboardData.getData("text/plain");
-        if (data) {
-          $text.value = data;
-          updateText();
-          handled = true;
-        }
-      }
-    }
-
-    if (!handled) {
-      if (navigator.clipboard && window.isSecureContext) {
-        try {
-          const binaryHandled = await tryReadClipboardBinary();
-          if (binaryHandled) {
-            handled = true;
-          } else {
-            const data = await navigator.clipboard.readText();
-            if (data) {
-              $text.value = data;
-              updateText();
-              handled = true;
-            }
-          }
-        } catch (err) {
-          showCopyError("Clipboard access denied.");
-          return;
-        }
+      if (file) {
+        handled = await convertBlobSource(file, "clipboard", "Clipboard file");
       } else {
-        showCopyError("Clipboard access denied.");
-        return;
+        const data = event.clipboardData.getData("text/plain");
+        if (data) {
+          handled = convertClipboardText(data);
+        }
       }
     }
 
-    if (handled && showFeedback) {
-      showStatus("Clipboard pasted.", { type: "info", timeout: 1500 });
-    }
-
-    if (!handled && allowFallback) {
-      const triggered = attemptPasteFallback();
-      if (triggered) {
-        return;
+    if (!handled && navigator.clipboard && window.isSecureContext) {
+      try {
+        const blob = await readClipboardBlob();
+        if (blob) {
+          handled = await convertBlobSource(blob, "clipboard", "Clipboard file");
+        } else {
+          const data = await navigator.clipboard.readText();
+          if (data) {
+            handled = convertClipboardText(data);
+          }
+        }
+      } catch (error) {
+        // Continue to the keyboard paste fallback when available.
       }
     }
 
-    if (!handled && showFeedback) {
-      showStatus("Press Ctrl+V to paste from the clipboard.", { type: "info", timeout: 3000 });
+    if (!handled && opts.allowFallback && attemptPasteFallback()) {
+      return;
     }
 
-    if (e && handled) {
-      e.preventDefault();
+    if (!handled && opts.showFeedback) {
+      showStatus("Clipboard access was unavailable. Press Ctrl+V to paste.", { type: "info", timeout: 3500 });
+    }
+
+    if (event && handled) {
+      event.preventDefault();
     }
   }
-  $(document).on("paste", e => pasteText(e, { showFeedback: false }));
-  $(".btn-paste").on("click", e => pasteText(e, { force: true, showFeedback: true, allowFallback: true }));
+
+  function convertClipboardText(data) {
+    $text.value = data;
+    const revision = beginSourceUpdate("clipboard", { keepText: true });
+    return updateText(revision, "Clipboard text");
+  }
+
+  async function readClipboardBlob() {
+    if (!navigator.clipboard || !navigator.clipboard.read) return null;
+
+    let items;
+    try {
+      items = await navigator.clipboard.read();
+    } catch (error) {
+      return null;
+    }
+
+    for (const item of items) {
+      const types = item.types || [];
+      const preferredType =
+        types.find(type => type.startsWith("image/")) ||
+        types.find(type => type === "application/octet-stream");
+      if (preferredType) {
+        return item.getType(preferredType);
+      }
+    }
+    return null;
+  }
 
   function isEditableTarget(target) {
     if (!target) return false;
@@ -469,158 +693,81 @@
     return false;
   }
 
-  async function tryReadClipboardBinary() {
-    if (!navigator.clipboard || !navigator.clipboard.read) {
-      return false;
-    }
-    let items;
-    try {
-      items = await navigator.clipboard.read();
-    } catch (err) {
-      return false;
-    }
-    for (const item of items) {
-      const types = item.types || [];
-      const imageType = types.find(type => type.startsWith("image/"));
-      if (imageType) {
-        const blob = await item.getType(imageType);
-        updateFile(blob);
-        return true;
-      }
-      const octet = types.find(type => type === "application/octet-stream");
-      if (octet) {
-        const blob = await item.getType(octet);
-        updateFile(blob);
-        return true;
-      }
-    }
-    return false;
-  }
-
   function createPasteProxy() {
     const proxy = document.createElement("textarea");
     proxy.className = "paste-proxy";
     proxy.setAttribute("aria-hidden", "true");
     proxy.tabIndex = -1;
     document.body.appendChild(proxy);
-    proxy.addEventListener("paste", e => pasteText(e, { force: true, showFeedback: true }));
+    proxy.addEventListener("paste", event => {
+      void pasteFromClipboard(event, { force: true, showFeedback: true }).finally(restorePasteFallbackFocus);
+    });
     return proxy;
   }
 
   function attemptPasteFallback() {
-    if (!$pasteProxy) return false;
+    const previousFocus = document.activeElement;
+    pasteFallbackPreviousFocus = previousFocus;
     $pasteProxy.value = "";
     $pasteProxy.focus({ preventScroll: true });
+
     try {
-      return document.execCommand("paste");
-    } catch (err) {
+      const triggered = document.execCommand("paste");
+      if (!triggered && previousFocus && typeof previousFocus.focus === "function") {
+        previousFocus.focus({ preventScroll: true });
+        pasteFallbackPreviousFocus = null;
+      }
+      return triggered;
+    } catch (error) {
+      if (previousFocus && typeof previousFocus.focus === "function") {
+        previousFocus.focus({ preventScroll: true });
+      }
+      pasteFallbackPreviousFocus = null;
       return false;
     }
   }
 
-  /* Register the service worker */
+  function restorePasteFallbackFocus() {
+    const previousFocus = pasteFallbackPreviousFocus;
+    pasteFallbackPreviousFocus = null;
+    if (previousFocus && typeof previousFocus.focus === "function") {
+      previousFocus.focus({ preventScroll: true });
+    }
+  }
+
+  window.addEventListener("beforeinstallprompt", event => {
+    event.preventDefault();
+    deferredPrompt = event;
+    $install.hidden = false;
+  });
+
+  window.addEventListener("appinstalled", () => {
+    deferredPrompt = null;
+    $install.hidden = true;
+    showStatus("App installed.", { type: "info", timeout: 2500 });
+  });
+
+  $install.addEventListener("click", async () => {
+    if (!deferredPrompt) {
+      $install.hidden = true;
+      return;
+    }
+
+    const prompt = deferredPrompt;
+    deferredPrompt = null;
+    $install.hidden = true;
+    await prompt.prompt();
+    await prompt.userChoice;
+  });
+
   if ("serviceWorker" in navigator) {
     try {
-      const reg = await navigator.serviceWorker.register("sw.js", {
-        scope: "./"
-      });
-      if (reg.installing) {
-        console.log("Service worker installing");
-      } else if (reg.waiting) {
-        console.log("Service worker installed");
-      } else if (reg.active) {
-        console.log("Service worker active");
-      }
-    } catch (e) {
-      console.log(`Registration failed with ${e}`);
+      await navigator.serviceWorker.register("sw.js", { scope: "./" });
+    } catch (error) {
+      console.warn("Service worker registration failed.", error);
     }
   }
 
-  /* Enable installing PWA */
-  let deferredPrompt;
-
-  window.addEventListener("beforeinstallprompt", function(e) {
-    e.preventDefault();
-    deferredPrompt = e;
-    $install.style.display = 'block';
-  });
-
-  const $install = $(".install");
-  $install.addEventListener("click", e => {
-    deferredPrompt.prompt();
-    deferredPrompt.userChoice.then(choiceResult => {
-      if (choiceResult.outcome === "accepted") {
-        console.log("User accepted the A2HS prompt");
-      } else {
-        console.log("User dismissed the A2HS prompt");
-      }
-      deferredPrompt = null;
-    });
-  });
-
-  // jQuery-like syntactic sugar. Only queries for one element. Does not loop over multiple like jQuery
-  function $(query, baseElement) {
-    var el;
-    if (typeof query.nodeType === "string") {
-      el = query;
-    } else if (query[0] === "<") {
-      const container = document.createElement("div");
-      container.innerHTML = query;
-      el = container.firstChild;
-    } else if (typeof query === "string") {
-      el = document.querySelector.apply(document, arguments);
-    } else {
-      el = query;
-    }
-
-    function addSugar(el) {
-      if (el) {
-        el.on = function $on(e, fn, ...args) {
-          if (args.length > 0) {
-            return el.addEventListener(e, fn, ...args);
-          } else {
-            return el.addEventListener(e, fn, false);
-          }
-        };
-
-        el.trigger = (eventType, detail) => {
-          detail = detail ? { detail: detail } : undefined;
-          const e = new CustomEvent(eventType, detail);
-          el.dispatchEvent(e);
-        };
-
-        el.hasClass = c => el.classList.contains(c);
-        el.append = element => el.appendChild($(element));
-        el.remove = () => el.parentNode.removeChild(el);
-        el.find = q => $(q, el);
-      }
-      return el;
-    }
-
-    return addSugar(el);
-  }
-
-  // Show preview placeholder if no preview content
-  function showPreviewPlaceholder(message) {
-    const $preview = $(".preview");
-    if ($preview && $preview.children.length === 0) {
-      let placeholder = $preview.querySelector('.preview-placeholder');
-      if (!placeholder) {
-        placeholder = document.createElement('span');
-        placeholder.className = 'preview-placeholder';
-        placeholder.style.color = '#888';
-        placeholder.textContent = 'No preview available. Select or drop a file above.';
-        $preview.appendChild(placeholder);
-      }
-      if (message) {
-        placeholder.textContent = message;
-      } else {
-        placeholder.textContent = 'No preview available. Select or drop a file above.';
-      }
-      placeholder.style.display = '';
-    }
-  }
-
-  // Call showPreviewPlaceholder on load
-  document.addEventListener("DOMContentLoaded", showPreviewPlaceholder);
-})(this);
+  updateRemoteButtonState();
+  showPreviewPlaceholder("No preview yet. Choose a source on the left.");
+})();

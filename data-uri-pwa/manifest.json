@@ -1,22 +1,27 @@
 {
+  "id": "./",
   "short_name": "Data URI",
-  "name": "Data URI PWA",
-  "description": "This web app will create a data URI of the contents of any local file, text, or CORS-enabled remote URL. All processing is done on the client - no information is ever sent to a server.",
-  "background_color": "#FFFFFF",
-  "theme_color": "#CCEBFF",
+  "name": "Data URI Generator",
+  "description": "Privately convert local files, clipboard content, text, or a CORS-enabled remote URL into a Data URI in your browser.",
+  "background_color": "#F9F9F9",
+  "theme_color": "#1D6FA8",
   "icons": [
     {
       "src": "favicon.png",
       "type": "image/png",
-      "sizes": "256x256"
+      "sizes": "256x256",
+      "purpose": "any"
     },
     {
       "src": "favicon.svg",
       "type": "image/svg+xml",
-      "sizes": "any"
+      "sizes": "any",
+      "purpose": "any"
     }
   ],
   "display": "standalone",
+  "orientation": "any",
+  "categories": ["developer", "utilities"],
   "start_url": "./",
   "scope": "./"
 }

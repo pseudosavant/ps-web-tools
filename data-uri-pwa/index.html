@@ -2,130 +2,208 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Data URI PWA</title>
-    <link rel="stylesheet" href="style.css" />
-    <link rel="icon" href="favicon.svg" type="image/svg+xml">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css" integrity="sha384-rWj9FmWWt3OMqd9vBkWRhFavvVUYalYqGPoMdL1brs/qvvqz88gvLShYa4hKNyqb" crossorigin="anonymous" referrerpolicy="no-referrer">
-    <link rel="manifest" href="manifest.json">
-    <meta name="license" content="MIT">
+    <title>Data URI Generator</title>
+    <meta
+      name="description"
+      content="Convert local files, clipboard content, text, or a remote URL into a Data URI entirely in your browser."
+    />
+    <meta name="theme-color" content="#f9f9f9" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#081521" media="(prefers-color-scheme: dark)" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="license" content="MIT" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' blob: data:; media-src 'self' blob: data:; connect-src http: https:; font-src 'none'; object-src 'none'; frame-src 'none'; worker-src 'self'; manifest-src 'self'; base-uri 'none'; form-action 'none'"
+    />
+
+    <link rel="stylesheet" href="style.css?v=7" />
+    <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href="favicon.png" type="image/png" />
+    <link rel="apple-touch-icon" href="favicon.png" />
+    <link rel="manifest" href="manifest.json?v=7" />
   </head>
   <body>
-    <h1>
-      Create Data URIs
-    </h1>
-    <div class="panels">
-      <div class="sources drop" aria-label="Source selection area">
-        <h2>
-          Sources
-        </h2>
-        <ul>
-          <li class="source-item">
+    <a class="skip-link" href="#main-content">Skip to the converter</a>
+
+    <header class="app-header">
+      <img class="app-icon" src="favicon.svg" alt="" width="56" height="56" />
+      <div>
+        <h1>Data URI Generator</h1>
+        <p class="lede">Turn a file, clipboard item, URL, or text into a copy-ready Data URI.</p>
+      </div>
+    </header>
+
+    <main id="main-content" class="panels">
+      <section class="sources drop card" aria-labelledby="sources-heading">
+        <div class="section-heading">
+          <div>
+            <p class="step-label">Step 1</p>
+            <h2 id="sources-heading">Choose a source</h2>
+          </div>
+        </div>
+
+        <ul class="source-list">
+          <li class="source-item" data-source="drop">
             <div class="source-row">
               <div class="source-meta">
                 <label for="drop-target">Drag and drop</label>
-                <p class="help" id="drop-help">Drop files here to generate a data URI.</p>
+                <p class="help" id="drop-help">Drop one file here to convert it.</p>
               </div>
               <div class="source-control">
-                <button type="button" id="drop-target" class="drop-widget source-button source-action" aria-label="Drop file here or click to browse" aria-describedby="drop-help">
-                  Drop Here <i class="fa-solid fa-bullseye" aria-hidden="true"></i>
+                <button
+                  type="button"
+                  id="drop-target"
+                  class="drop-widget source-action"
+                  aria-label="Drop a file here or click to browse"
+                  aria-describedby="drop-help"
+                >
+                  <svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                    <path d="M12 15V4m0 0L7.5 8.5M12 4l4.5 4.5M5 15.5v2.75A1.75 1.75 0 0 0 6.75 20h10.5A1.75 1.75 0 0 0 19 18.25V15.5" />
+                  </svg>
+                  Drop file
                 </button>
               </div>
             </div>
           </li>
-          <li class="source-item">
+
+          <li class="source-item" data-source="clipboard">
             <div class="source-row">
               <div class="source-meta">
                 <label for="paste-button">Paste from clipboard</label>
-                <p class="help" id="paste-help">Paste images or files from the clipboard to generate a data URI.</p>
+                <p class="help" id="paste-help">Read an image, file, or plain text from the clipboard.</p>
               </div>
               <div class="source-control">
-                <button type="button" id="paste-button" class="btn-paste source-button source-action" aria-label="Paste from clipboard" aria-describedby="paste-help" tabindex="0">
-                  Paste from Clipboard <i class="fa-solid fa-clipboard" aria-hidden="true"></i>
+                <button
+                  type="button"
+                  id="paste-button"
+                  class="btn-paste source-action"
+                  aria-describedby="paste-help"
+                >
+                  <svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                    <path d="M9 6.5h6m-4-3h2a2 2 0 0 1 2 2v1H9v-1a2 2 0 0 1 2-2Zm-3 2H6.75A1.75 1.75 0 0 0 5 7.25v12A1.75 1.75 0 0 0 6.75 21h10.5A1.75 1.75 0 0 0 19 19.25v-12a1.75 1.75 0 0 0-1.75-1.75H16" />
+                  </svg>
+                  Paste from clipboard
                 </button>
               </div>
             </div>
           </li>
-          <li class="source-item">
+
+          <li class="source-item" data-source="local">
             <div class="source-row">
               <div class="source-meta">
                 <label for="local">Local file</label>
-                <p class="help" id="local-help">Choose a file from your device.</p>
+                <p class="help" id="local-help">Choose a file from this device. It is never uploaded.</p>
               </div>
               <div class="source-control">
-                <button type="button" class="btn-file source-button source-action" aria-label="Open file" aria-describedby="local-help" tabindex="0">
-                  Open file <i class="fa-solid fa-folder-open" aria-hidden="true"></i>
+                <button type="button" class="btn-file source-action" aria-describedby="local-help">
+                  <svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                    <path d="M3.5 18.5 5 9.5h14l1.5 9a1.75 1.75 0 0 1-1.73 2H5.23a1.75 1.75 0 0 1-1.73-2ZM5 9.5V6.75A1.75 1.75 0 0 1 6.75 5H10l2 2h5.25A1.75 1.75 0 0 1 19 8.75v.75" />
+                  </svg>
+                  Choose file
                 </button>
-                <input type="file" id="local" class="local" tabindex="0" />
+                <input type="file" id="local" class="local" aria-describedby="local-help" tabindex="-1" />
               </div>
             </div>
           </li>
-          <li class="source-item">
+
+          <li class="source-item" data-source="remote">
             <div class="source-row">
               <div class="source-meta">
                 <label for="remote">Remote file URL</label>
-                <p class="help" id="remote-help">Remote URLs must allow CORS requests.</p>
+                <p class="help" id="remote-help">
+                  Fetched only after you choose Convert. The server must allow CORS.
+                </p>
               </div>
-              <div class="source-control">
+              <div class="source-control remote-control">
                 <input
                   type="url"
                   id="remote"
                   class="remote"
-                  placeholder="e.g. https://www.website.com"
-                  tabindex="0"
+                  placeholder="https://example.com/file.png"
+                  autocomplete="off"
+                  inputmode="url"
                   aria-describedby="remote-help"
                 />
+                <button type="button" class="convert-remote source-action" disabled>
+                  Convert URL
+                </button>
               </div>
             </div>
           </li>
-          <li class="source-item">
+
+          <li class="source-item" data-source="text">
             <div class="source-row">
               <div class="source-meta">
                 <label for="text">Text</label>
-                <p class="help" id="text-help">Type or paste text to generate a data URI.</p>
+                <p class="help" id="text-help">Type or paste text. Conversion happens as you pause.</p>
               </div>
               <div class="source-control">
                 <textarea
                   id="text"
                   class="text"
-                  placeholder="Paste text here"
+                  placeholder="Type or paste text here"
                   autocorrect="off"
-                  rows="3"
+                  spellcheck="false"
+                  rows="4"
                   aria-describedby="text-help"
                 ></textarea>
               </div>
             </div>
           </li>
         </ul>
-      </div>
-      <div class="output" aria-label="Output area">
-        <h2>
-          Output
-        </h2>
-        <a href="" class="data-uri" target="" aria-label="Data URI link">Data URI</a>
-        <button type="button" class="copy" aria-label="Copy Data URI" tabindex="0">Copy Data URI</button>
-        <span class="copy-message" aria-live="polite" style="display:none;"></span>
-        <div class="status-message" role="status" aria-live="polite" aria-atomic="true"></div>
-        <h3>
-          Preview
-        </h3>
-        <div class="preview" sandbox>
-          <span class="preview-placeholder" style="color:#888;">No preview available. Select or drop a file above.</span>
+      </section>
+
+      <section class="output card" aria-labelledby="output-heading">
+        <div class="section-heading">
+          <div>
+            <p class="step-label">Step 2</p>
+            <h2 id="output-heading">Copy the result</h2>
+          </div>
         </div>
-      </div>
-    </div>
+
+        <button type="button" class="copy primary-action" disabled>
+          <svg class="button-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <rect x="8" y="8" width="11" height="12" rx="2" />
+            <path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h2" />
+          </svg>
+          Copy Data URI
+        </button>
+        <span class="copy-message" aria-live="polite"></span>
+
+        <div class="output-field">
+          <label for="data-uri-output">Generated Data URI</label>
+          <input
+            type="text"
+            id="data-uri-output"
+            class="data-uri"
+            readonly
+            spellcheck="false"
+            placeholder="Choose a source to generate a Data URI"
+          />
+        </div>
+
+        <p class="output-meta" aria-live="polite"></p>
+        <div class="status-message" role="status" aria-live="polite" aria-atomic="true"></div>
+
+        <h3>Preview</h3>
+        <div class="preview" aria-busy="false">
+          <span class="preview-placeholder">No preview yet. Choose a source on the left.</span>
+        </div>
+      </section>
+    </main>
+
     <footer>
       <p>
-        This simple web app will create a data URI of the contents of any local
-        file, text, or CORS-enabled remote URL. <br />
-        All processing is done on the client - no information is ever sent to a
-        server.
+        <strong>Private by design.</strong> Local files, clipboard content, and text stay in your browser and are
+        never uploaded. Remote URLs are requested directly by your browser only when you choose Convert URL.
       </p>
+      <p>This app contains no analytics, trackers, advertisements, or third-party assets.</p>
       <p>&copy; 2026 Paul Ellis</p>
     </footer>
-    <button type="button" class="install" aria-label="Install app" tabindex="0">Install</button>
-    <script src="script.js" defer></script>
+
+    <button type="button" class="install" hidden>Install app</button>
+    <script type="module" src="script.js?v=5"></script>
   </body>
 </html>
