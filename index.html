@@ -3,6 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#f9f9f9" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#081521" media="(prefers-color-scheme: dark)">
   <title>ps-web-tools</title>
   <link rel="icon" href="favicon-32.png" type="image/png" sizes="32x32">
   <link rel="icon" href="favicon-192.png" type="image/png" sizes="192x192">
@@ -13,66 +15,192 @@
         href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.0/css/all.min.css"
         crossorigin="anonymous" referrerpolicy="no-referrer" />
   <style>
+    :root {
+      color-scheme: light dark;
+      --accent: #1d6fa8;
+      --accent-strong: #145a8a;
+      --accent-soft: #eef8ff;
+      --accent-ring: rgba(29, 111, 168, 0.24);
+      --secondary: #ff6392;
+      --secondary-strong: #a3204c;
+      --sunshine: #ffe45e;
+      --sunshine-soft: #fff8d5;
+      --background: #f9f9f9;
+      --surface: #ffffff;
+      --surface-subtle: #f3faff;
+      --text: #10263f;
+      --text-muted: #355a78;
+      --border: #b9daf2;
+      --glow-primary: rgba(127, 200, 248, 0.68);
+      --glow-secondary: rgba(255, 99, 146, 0.42);
+      --glow-sunshine: rgba(255, 228, 94, 0.66);
+      --shadow: 0 8px 26px rgba(15, 56, 120, 0.09);
+      --shadow-hover: 0 16px 36px rgba(15, 56, 120, 0.16);
+    }
     *, *::before, *::after { box-sizing: border-box; }
-    body { font-family: system-ui, sans-serif; margin: 0; padding: 0; background: #f9f9f9; }
-    header { background: #333; color: #fff; padding: 1rem; text-align: center; }
-    header h1 { margin: 0; font-size: 1.5rem; }
-    header p { margin: 0.25rem 0 0; font-size: 1rem; }
+    body {
+      min-height: 100vh;
+      margin: 0;
+      background:
+        radial-gradient(circle at 12% 0%, var(--glow-primary) 0, transparent 34%),
+        radial-gradient(circle at 90% 2%, var(--glow-sunshine) 0, transparent 28%),
+        radial-gradient(circle at 86% 8%, var(--glow-secondary) 0, transparent 22%),
+        var(--background);
+      background-attachment: fixed;
+      color: var(--text);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.5;
+    }
+    .skip-link {
+      position: fixed;
+      z-index: 100;
+      top: 0.75rem;
+      left: 0.75rem;
+      padding: 0.65rem 0.9rem;
+      transform: translateY(-200%);
+      border-radius: 0.5rem;
+      background: var(--text);
+      color: var(--surface);
+      font-weight: 700;
+    }
+    .skip-link:focus { transform: translateY(0); }
+    header {
+      position: relative;
+      padding: clamp(2rem, 6vw, 4rem) 1rem clamp(1.5rem, 4vw, 2.5rem);
+      text-align: center;
+    }
+    header h1 {
+      margin: 0;
+      background: linear-gradient(110deg, var(--text) 12%, var(--accent-strong) 66%, var(--secondary-strong));
+      background-clip: text;
+      color: transparent;
+      font-size: clamp(2rem, 6vw, 3.5rem);
+      letter-spacing: -0.045em;
+      line-height: 1.05;
+    }
+    header p { margin: 0.5rem 0 0; color: var(--text-muted); font-size: clamp(1rem, 2vw, 1.15rem); }
     .tools-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(150px, 220px));
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, 190px), 230px));
       justify-content: center;
-      gap: 1rem;
-      padding: 1rem;
+      gap: 1.15rem;
+      width: min(100% - 2rem, 78rem);
+      margin-inline: auto;
+      padding: 0 0 2rem;
     }
     .tool-card {
-      display: block;
-      background: #fff;
-      border-radius: 8px;
-      padding: 1.5rem;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 14rem;
+      padding: 1.5rem 1.25rem;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      border-radius: 1rem;
+      background: var(--surface);
       text-decoration: none;
-      color: inherit;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-      transition: transform 0.1s ease, box-shadow 0.1s ease;
+      color: var(--text);
+      box-shadow: var(--shadow);
+      transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease, background-color 160ms ease;
       text-align: center;
       width: 100%;
     }
-    .tool-card:hover {
+    .tool-card::before {
+      position: absolute;
+      top: 0;
+      right: 1rem;
+      left: 1rem;
+      height: 2px;
+      border-radius: 999px;
+      background: linear-gradient(90deg, var(--accent), var(--secondary), var(--sunshine), transparent 94%);
+      content: "";
+    }
+    .tool-card:hover,
+    .tool-card:focus-visible {
       transform: translateY(-3px);
-      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      border-color: var(--accent);
+      background: linear-gradient(145deg, var(--surface), var(--accent-soft));
+      box-shadow: var(--shadow-hover);
+    }
+    .tool-card:focus-visible {
+      outline: 3px solid var(--accent);
+      outline-offset: 3px;
+      box-shadow: 0 0 0 5px var(--accent-ring), var(--shadow-hover);
     }
     .tool-card img, .tool-card .fa-icon {
       width: 48px;
       height: 48px;
       margin-bottom: 0.75rem;
+      color: var(--accent);
     }
     .tool-card .fa-icon {
-      font-size: 2rem;
+      display: grid;
+      place-items: center;
+      font-size: 2.15rem;
       width: auto;
       height: auto;
     }
+    .tool-card:nth-child(3n + 2) .fa-icon { color: var(--secondary-strong); }
+    .tool-card:nth-child(3n) .fa-icon { color: #8a6500; }
     .tool-card h2 {
       margin: 0.5rem 0 0.5rem;
       font-size: 1.25rem;
+      line-height: 1.2;
     }
     .tool-card p {
       margin: 0;
       font-size: 0.9rem;
-      color: #555;
+      color: var(--text-muted);
     }
-    footer { text-align: center; padding: 0.5rem; font-size: 0.8rem; color: #666; }
-    footer a { color: inherit; text-decoration: none; }
+    footer { padding: 1rem 1rem 2.5rem; color: var(--text-muted); font-size: 0.85rem; text-align: center; }
+    footer a { color: var(--accent-strong); text-underline-offset: 0.2em; }
     footer a:hover { text-decoration: underline; }
+    @media (max-width: 32rem) {
+      .tools-grid { width: min(100% - 1rem, 78rem); }
+      .tool-card { min-height: 0; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { transition-duration: 0.01ms !important; }
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --accent: #7fc8f8;
+        --accent-strong: #a9ddff;
+        --accent-soft: #133452;
+        --accent-ring: rgba(127, 200, 248, 0.3);
+        --secondary: #ff6392;
+        --secondary-strong: #ff9abd;
+        --sunshine: #ffe45e;
+        --sunshine-soft: #332f14;
+        --background: #081521;
+        --surface: #10263f;
+        --surface-subtle: #0c1f33;
+        --text: #f5fbff;
+        --text-muted: #a9c7dc;
+        --border: #315b78;
+        --glow-primary: rgba(127, 200, 248, 0.17);
+        --glow-secondary: rgba(255, 99, 146, 0.13);
+        --glow-sunshine: rgba(255, 228, 94, 0.1);
+        --shadow: 0 16px 42px rgba(0, 0, 0, 0.32);
+        --shadow-hover: 0 20px 46px rgba(0, 0, 0, 0.4);
+      }
+      .tool-card:nth-child(3n) .fa-icon { color: var(--sunshine); }
+    }
+    @media (forced-colors: active) {
+      header h1 { background: none; color: CanvasText; }
+    }
   </style>
 </head>
 <body>
+  <a class="skip-link" href="#tools">Skip to tools</a>
   <header>
     <h1>ps-web-tools</h1>
     <p>My static HTML/CSS/JS toolkit</p>
   </header>
 
   <main>
-    <section class="tools-grid">
+    <section class="tools-grid" id="tools" aria-label="Web tools">
       <!-- Primary tools -->
       <a href="wordle-solver/" class="tool-card">
         <img src="https://www.nytimes.com/games-assets/v2/metadata/wordle-apple-touch-icon.png?v=v2506061303" alt="Wordle Solver icon">
