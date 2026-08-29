@@ -305,19 +305,25 @@ document.addEventListener('DOMContentLoaded', () => {
             right: 20px;
             padding: 15px 20px;
             border-radius: 8px;
-            color: white;
+            border: 1px solid var(--border);
+            border-left-width: 4px;
+            background: var(--surface-raised);
+            color: var(--text);
             font-weight: 600;
             z-index: 1000;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+            box-shadow: var(--shadow);
             animation: slideIn 0.3s ease;
             display: flex;
             align-items: center;
             gap: 10px;
         }
 
-        .message-success { background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); }
-        .message-error { background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%); }
-        .message-warning { background: linear-gradient(135deg, #feca57 0%, #ff9ff3 100%); }
+        .message-success { border-left-color: var(--success); }
+        .message-success i { color: var(--success); }
+        .message-error { border-left-color: var(--error); }
+        .message-error i { color: var(--error); }
+        .message-warning { border-left-color: var(--warning); }
+        .message-warning i { color: var(--warning); }
 
         @keyframes slideIn {
             from { transform: translateX(100%); opacity: 0; }
