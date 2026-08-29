@@ -20,6 +20,7 @@ The page must be served over HTTPS or from `localhost` for browser microphone ac
 - Full-screen spectrum display with an in-view exit control
 - Mouse, touch, and keyboard spectrum inspection
 - Responsive axis labels and high-DPI canvas rendering
+- Theme-aware canvas, overlays, tooltips, and controls for light and dark mode
 - Throttled screen-reader summary of the strongest detected frequency
 
 ## Usage

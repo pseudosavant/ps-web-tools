@@ -1,5 +1,5 @@
-import { frequencyToX, xToFrequency, findNearestNote } from './utils.js?v=4';
-import { REFERENCE_LINES, CANVAS_BG } from './constants.js?v=4';
+import { frequencyToX, xToFrequency, findNearestNote } from './utils.js?v=5';
+import { REFERENCE_LINES } from './constants.js?v=5';
 
 export function setupVisualization(analyzer) {
     setupCanvas(analyzer);
@@ -7,6 +7,8 @@ export function setupVisualization(analyzer) {
 }
 
 function setupCanvas(analyzer) {
+    updateCanvasPalette(analyzer);
+
     const resize = () => {
         const canvas = analyzer.elements.canvas;
         const rect = canvas.getBoundingClientRect();
@@ -36,6 +38,29 @@ function setupCanvas(analyzer) {
     } else {
         window.addEventListener('resize', resize);
     }
+
+    const colorScheme = window.matchMedia('(prefers-color-scheme: dark)');
+    colorScheme.addEventListener?.('change', () => {
+        requestAnimationFrame(() => {
+            updateCanvasPalette(analyzer);
+            renderCurrentVisualization(analyzer);
+        });
+    });
+}
+
+function updateCanvasPalette(analyzer) {
+    const styles = getComputedStyle(analyzer.elements.visualizerContainer);
+    const color = (property, fallback) => styles.getPropertyValue(property).trim() || fallback;
+
+    analyzer.canvasPalette = {
+        background: color('--visualizer-bg', '#f3faff'),
+        spectrumLow: color('--visualizer-spectrum-low', '#1d6fa8'),
+        spectrumHigh: color('--visualizer-spectrum-high', '#a3204c'),
+        peak: color('--visualizer-peak', '#8a6500'),
+        noteLine: color('--visualizer-note-line', 'rgba(29, 111, 168, 0.58)'),
+        noteText: color('--visualizer-note-text', '#145a8a'),
+        labelOutline: color('--visualizer-label-outline', 'rgba(243, 250, 255, 0.94)')
+    };
 }
 
 function setupTooltip(analyzer) {
@@ -171,9 +196,7 @@ function drawFrame(analyzer, timestamp, deltaSeconds) {
     aggregateSpectrum(analyzer, layout);
     const gainOffset = updateAutoGain(analyzer, analyzer.pixelData, deltaSeconds);
 
-    clearVisualization(analyzer);
-    drawSpectrum(analyzer, analyzer.pixelData, analyzer.peakPixelData, gainOffset);
-    drawOverlays(analyzer);
+    renderCurrentVisualization(analyzer, gainOffset);
     updateAccessibleSummary(analyzer, timestamp, gainOffset);
 }
 
@@ -290,26 +313,39 @@ export function resetPeakHold(analyzer) {
 export function clearVisualization(analyzer) {
     const width = analyzer.elements.canvas.clientWidth || 1;
     const height = analyzer.elements.canvas.clientHeight || 1;
-    analyzer.canvasCtx.fillStyle = CANVAS_BG;
+    analyzer.canvasCtx.fillStyle = analyzer.canvasPalette?.background || '#f3faff';
     analyzer.canvasCtx.fillRect(0, 0, width, height);
+}
+
+function renderCurrentVisualization(analyzer, gainOffset = analyzer.currentGainOffset) {
+    clearVisualization(analyzer);
+    if (!analyzer.pixelData || !analyzer.peakPixelData) return;
+
+    drawSpectrum(analyzer, analyzer.pixelData, analyzer.peakPixelData, gainOffset);
+    drawOverlays(analyzer);
 }
 
 function drawSpectrum(analyzer, data, peakData, gainOffset) {
     const height = analyzer.elements.canvas.clientHeight;
     const dbRange = analyzer.maxDb - analyzer.minDb;
+    const spectrumGradient = analyzer.canvasCtx.createLinearGradient(0, height, 0, 0);
+    spectrumGradient.addColorStop(0, analyzer.canvasPalette.spectrumLow);
+    spectrumGradient.addColorStop(1, analyzer.canvasPalette.spectrumHigh);
+    analyzer.canvasCtx.fillStyle = spectrumGradient;
 
     for (let x = 0; x < data.length; x++) {
         const displayDb = Math.max(analyzer.minDb, Math.min(analyzer.maxDb, data[x] + gainOffset));
         const normalized = (displayDb - analyzer.minDb) / dbRange;
         const y = height - (normalized * height);
-        const hue = 240 - (normalized * 60);
-        analyzer.canvasCtx.fillStyle = `hsl(${hue}, 100%, 50%)`;
         analyzer.canvasCtx.fillRect(x, y, 1, height - y);
+    }
 
-        if (analyzer.showPeakHold && Number.isFinite(peakData[x])) {
+    if (analyzer.showPeakHold) {
+        analyzer.canvasCtx.fillStyle = analyzer.canvasPalette.peak;
+        for (let x = 0; x < peakData.length; x++) {
+            if (!Number.isFinite(peakData[x])) continue;
             const peakDb = Math.max(analyzer.minDb, Math.min(analyzer.maxDb, peakData[x] + gainOffset));
             const peakY = height - (((peakDb - analyzer.minDb) / dbRange) * height);
-            analyzer.canvasCtx.fillStyle = 'rgba(255, 255, 255, 0.85)';
             analyzer.canvasCtx.fillRect(x, peakY, 1, 2);
         }
     }
@@ -336,17 +372,17 @@ function drawNoteOverlay(analyzer) {
 
         analyzer.canvasCtx.beginPath();
         analyzer.canvasCtx.setLineDash([2, 2]);
-        analyzer.canvasCtx.strokeStyle = 'rgba(125, 211, 252, 0.8)';
+        analyzer.canvasCtx.strokeStyle = analyzer.canvasPalette.noteLine;
         analyzer.canvasCtx.moveTo(x, 0);
         analyzer.canvasCtx.lineTo(x, height);
         analyzer.canvasCtx.stroke();
         analyzer.canvasCtx.setLineDash([]);
 
         analyzer.canvasCtx.lineWidth = 3;
-        analyzer.canvasCtx.strokeStyle = 'rgba(15, 23, 42, 0.9)';
+        analyzer.canvasCtx.strokeStyle = analyzer.canvasPalette.labelOutline;
         analyzer.canvasCtx.strokeText(note, x, 15);
         analyzer.canvasCtx.lineWidth = 1;
-        analyzer.canvasCtx.fillStyle = '#7dd3fc';
+        analyzer.canvasCtx.fillStyle = analyzer.canvasPalette.noteText;
         analyzer.canvasCtx.fillText(note, x, 15);
         lastX = x;
     });
@@ -358,8 +394,8 @@ function drawReferenceLines(analyzer) {
 
     REFERENCE_LINES.forEach(line => {
         const y = height * (1 - (line.db - analyzer.minDb) / (analyzer.maxDb - analyzer.minDb));
-        const lineColor = ensureContrast(line.color, CANVAS_BG, 3);
-        const labelColor = ensureContrast(line.color, CANVAS_BG, 4.5);
+        const lineColor = ensureContrast(line.color, analyzer.canvasPalette.background, 3);
+        const labelColor = ensureContrast(line.color, analyzer.canvasPalette.background, 4.5);
 
         analyzer.canvasCtx.beginPath();
         analyzer.canvasCtx.setLineDash([5, 5]);
@@ -373,7 +409,7 @@ function drawReferenceLines(analyzer) {
 
         analyzer.canvasCtx.font = '10px sans-serif';
         analyzer.canvasCtx.lineWidth = 3;
-        analyzer.canvasCtx.strokeStyle = 'rgba(15, 23, 42, 0.9)';
+        analyzer.canvasCtx.strokeStyle = analyzer.canvasPalette.labelOutline;
         analyzer.canvasCtx.textAlign = 'left';
         analyzer.canvasCtx.strokeText(line.label, 5, y - 2);
         analyzer.canvasCtx.lineWidth = 1;

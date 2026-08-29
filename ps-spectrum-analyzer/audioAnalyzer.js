@@ -4,7 +4,7 @@ import {
     setupVisualization,
     startDrawing,
     stopDrawing
-} from './visualization.js?v=5';
+} from './visualization.js?v=6';
 import { setupUI } from './ui.js?v=5';
 import { calculateNoteFrequencies } from './utils.js?v=5';
 
