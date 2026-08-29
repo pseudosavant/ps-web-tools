@@ -4,7 +4,8 @@
 <head>
 	<meta charset="utf-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
-	<meta name="theme-color" content="#1d3557">
+	<meta name="theme-color" content="#f9f9f9" media="(prefers-color-scheme: light)">
+	<meta name="theme-color" content="#081521" media="(prefers-color-scheme: dark)">
 	<meta name="license" content="MIT License">
 	<link rel="manifest" href="manifest.json">
 	<link rel="license" href="LICENSE">
@@ -13,7 +14,7 @@
 	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 	<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.0/css/all.min.css" integrity="sha512-9xKTRVabjVeZmc+GUW8GgSmcREDunMM+Dt/GrzchfN8tkwHizc5RP4Ok/MXFFy5rIjJjzhndFScTceq5e6GvVQ==" crossorigin="anonymous" referrerpolicy="no-referrer">
-	<link rel="stylesheet" href="styles.css">
+	<link rel="stylesheet" href="styles.css?v=2">
 	<title>Image to PDF</title>
 </head>
 
@@ -24,7 +25,7 @@
 			<p class="subtitle">Reorder, optimize, and download a multi-page PDF without leaving your browser.</p>
 		</div>
 		<button id="installButton" class="ghost-button" type="button" hidden>
-			<i class="fa-solid fa-download"></i>
+			<i class="fa-solid fa-download" aria-hidden="true"></i>
 			<span>Install App</span>
 		</button>
 	</header>
@@ -35,9 +36,9 @@
 				<h2 id="import-heading">Add Images</h2>
 				<p>Drop PNG/JPEG files here or use the picker. Nothing ever leaves this device.</p>
 			</div>
-			<div id="dropZone" class="drop-zone" tabindex="0">
+			<div id="dropZone" class="drop-zone" role="button" tabindex="0" aria-label="Choose PNG or JPEG images">
 				<input id="fileInput" class="sr-only" type="file" accept="image/png,image/jpeg" multiple>
-				<i class="fa-regular fa-images"></i>
+				<i class="fa-regular fa-images" aria-hidden="true"></i>
 				<p><strong>Drag &amp; drop</strong> or click to browse</p>
 				<button id="browseButton" type="button" class="primary ghost">Choose Files</button>
 			</div>
@@ -64,11 +65,11 @@
 
 		<section class="panel actions" aria-label="Actions">
 			<button id="downloadButton" class="primary" type="button" disabled>
-				<i class="fa-solid fa-file-arrow-down"></i>
+				<i class="fa-solid fa-file-arrow-down" aria-hidden="true"></i>
 				<span>Download PDF</span>
 			</button>
 			<button id="resetButton" class="secondary" type="button">
-				<i class="fa-solid fa-rotate"></i>
+				<i class="fa-solid fa-rotate" aria-hidden="true"></i>
 				<span>Reset</span>
 			</button>
 			<span id="statusText" class="status" role="status" aria-live="polite"></span>
@@ -80,7 +81,7 @@
 				<p>Drag tiles to reorder pages. First page starts at the top-left.</p>
 			</div>
 			<div id="emptyState" class="empty-state">
-				<i class="fa-regular fa-clone"></i>
+				<i class="fa-regular fa-clone" aria-hidden="true"></i>
 				<p>No images yet. Add some to get started.</p>
 			</div>
 			<div id="gallery" class="image-grid" aria-live="polite" aria-relevant="additions removals"></div>

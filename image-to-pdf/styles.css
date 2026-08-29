@@ -310,3 +310,176 @@ footer {
         align-items: stretch;
     }
 }
+
+/* Pseudosavant light/dark theme */
+:root {
+    color-scheme: light dark;
+    --bg: #f9f9f9;
+    --panel: #ffffff;
+    --primary: #1d6fa8;
+    --primary-hover: #145a8a;
+    --accent: #1d6fa8;
+    --accent-strong: #145a8a;
+    --accent-soft: #eef8ff;
+    --accent-ring: rgba(29, 111, 168, 0.24);
+    --secondary: #ff6392;
+    --secondary-strong: #a3204c;
+    --sunshine: #ffe45e;
+    --sunshine-soft: #fff8d5;
+    --border: #b9daf2;
+    --border-strong: #78acd0;
+    --text: #10263f;
+    --muted: #355a78;
+    --surface-subtle: #f3faff;
+    --glow-primary: rgba(127, 200, 248, 0.68);
+    --glow-secondary: rgba(255, 99, 146, 0.42);
+    --glow-sunshine: rgba(255, 228, 94, 0.66);
+    --shadow: 0 8px 26px rgba(15, 56, 120, 0.09);
+}
+
+body {
+    background:
+        radial-gradient(circle at 12% 0%, var(--glow-primary) 0, transparent 34%),
+        radial-gradient(circle at 90% 2%, var(--glow-sunshine) 0, transparent 28%),
+        radial-gradient(circle at 86% 8%, var(--glow-secondary) 0, transparent 22%),
+        var(--bg);
+    background-attachment: fixed;
+}
+
+.app-header {
+    max-width: 1100px;
+    margin: 0 auto;
+}
+
+.title-block h1 {
+    background: linear-gradient(110deg, var(--text) 12%, var(--accent-strong) 66%, var(--secondary-strong));
+    background-clip: text;
+    color: transparent;
+    letter-spacing: -0.035em;
+}
+
+.panel,
+.image-card {
+    border: 1px solid var(--border);
+    background: var(--panel);
+    box-shadow: var(--shadow);
+}
+
+.panel {
+    position: relative;
+    overflow: hidden;
+}
+
+.panel::before {
+    position: absolute;
+    top: 0;
+    right: 1.25rem;
+    left: 1.25rem;
+    height: 2px;
+    border-radius: 999px;
+    background: linear-gradient(90deg, var(--accent), var(--secondary), var(--sunshine), transparent 94%);
+    content: '';
+}
+
+.drop-zone {
+    background: var(--surface-subtle);
+}
+
+.drop-zone:focus-visible,
+.drop-zone.dragover {
+    border-color: var(--accent);
+    background: var(--accent-soft);
+    box-shadow: 0 0 0 5px var(--accent-ring);
+}
+
+button {
+    min-height: 2.75rem;
+    border: 1px solid var(--border);
+    border-radius: 0.6rem;
+}
+
+button:focus-visible,
+input:focus-visible,
+.toggle:has(input:focus-visible) .toggle-indicator {
+    outline: 3px solid var(--accent);
+    outline-offset: 3px;
+    box-shadow: 0 0 0 5px var(--accent-ring);
+}
+
+.primary {
+    border-color: transparent;
+    background: linear-gradient(135deg, #1d6fa8, #145a8a);
+}
+
+.primary:hover:not(:disabled) {
+    background: linear-gradient(135deg, #175e8f, #0f4b75);
+}
+
+.primary.ghost,
+.secondary,
+.ghost-button {
+    background: var(--surface-subtle);
+    color: var(--accent-strong);
+}
+
+.primary.ghost:hover:not(:disabled),
+.secondary:hover:not(:disabled),
+.ghost-button:hover:not(:disabled) {
+    border-color: var(--accent);
+    background: var(--accent-soft);
+}
+
+.toggle-indicator {
+    background: var(--border-strong);
+}
+
+.image-card img {
+    background: var(--surface-subtle);
+}
+
+footer a {
+    color: var(--accent-strong);
+    text-underline-offset: 0.2em;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        transition-duration: 0.01ms !important;
+        animation-duration: 0.01ms !important;
+    }
+}
+
+@media (prefers-color-scheme: dark) {
+    :root {
+        --bg: #081521;
+        --panel: #10263f;
+        --primary: #1d6fa8;
+        --primary-hover: #277fbc;
+        --accent: #7fc8f8;
+        --accent-strong: #a9ddff;
+        --accent-soft: #133452;
+        --accent-ring: rgba(127, 200, 248, 0.3);
+        --secondary: #ff6392;
+        --secondary-strong: #ff9abd;
+        --sunshine: #ffe45e;
+        --sunshine-soft: #332f14;
+        --border: #315b78;
+        --border-strong: #4f7fa1;
+        --text: #f5fbff;
+        --muted: #a9c7dc;
+        --surface-subtle: #0c1f33;
+        --glow-primary: rgba(127, 200, 248, 0.17);
+        --glow-secondary: rgba(255, 99, 146, 0.13);
+        --glow-sunshine: rgba(255, 228, 94, 0.1);
+        --shadow: 0 16px 42px rgba(0, 0, 0, 0.32);
+    }
+}
+
+@media (forced-colors: active) {
+    .title-block h1 {
+        background: none;
+        color: CanvasText;
+    }
+}
