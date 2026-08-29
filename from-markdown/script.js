@@ -99,8 +99,8 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
         const frameCss = prefersDark
-            ? 'body{background:#2a2a2a;color:#e0e0e0;}a{color:#7db8ff;}code,pre{background:#1f1f1f;color:#e0e0e0;border:1px solid #3a3a3a;}blockquote{border-left:4px solid #555;color:#cfcfcf;}table,th,td{border:1px solid #555;}th{background:#333;}'
-            : 'body{background:#f5f5f5;color:#333;}a{color:#0066cc;}code,pre{background:#f0f0f0;color:#222;border:1px solid #ddd;}blockquote{border-left:4px solid #ccc;color:#555;}table,th,td{border:1px solid #ccc;}th{background:#f2f2f2;}';
+            ? 'body{background:#0c1f33;color:#f5fbff;}a{color:#7fc8f8;}code,pre{background:#081521;color:#f5fbff;border:1px solid #315b78;}blockquote{border-left:4px solid #ff6392;color:#a9c7dc;}table,th,td{border:1px solid #315b78;}th{background:#16324d;}'
+            : 'body{background:#f3faff;color:#10263f;}a{color:#1d6fa8;}code,pre{background:#ffffff;color:#10263f;border:1px solid #b9daf2;}blockquote{border-left:4px solid #a3204c;color:#355a78;}table,th,td{border:1px solid #b9daf2;}th{background:#eef8ff;}';
 
         const srcDoc = `<!doctype html><html><head><meta charset="utf-8"><style>
             *{box-sizing:border-box}

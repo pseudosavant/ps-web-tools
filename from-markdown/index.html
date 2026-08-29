@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Markdown to HTML Converter</title>
     <meta name="description" content="Convert Markdown into rendered HTML with automatic conversion and safe preview support">
-    <meta name="application-name" content="Markdown to HTML Converter v1.0.0">
-    <meta name="version" content="v1.0.0">
+    <meta name="application-name" content="Markdown to HTML Converter v1.1.0">
+    <meta name="version" content="v1.1.0">
     <link rel="icon" href="icon.svg" type="image/svg+xml">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js"
         integrity="sha512-xeUh+KxNyTufZOje++oQHstlMQ8/rpyzPuM+gjMFYK3z5ILJGE7l2NvYL+XfliKURMpBIKKp1XoPN/qswlSMFA=="
@@ -19,24 +19,25 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.0/css/all.min.css"
         integrity="sha512-9xKTRVabjVeZmc+GUW8GgSmcREDunMM+Dt/GrzchfN8tkwHizc5RP4Ok/MXFFy5rIjJjzhndFScTceq5e6GvVQ=="
         crossorigin="anonymous">
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="styles.css?v=2">
     <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#0066cc">
+    <meta name="theme-color" content="#f9f9f9" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#081521" media="(prefers-color-scheme: dark)">
 </head>
 <body>
     <div class="container">
-        <h1><i class="fab fa-markdown"></i> Markdown to HTML Converter</h1>
+        <h1><i class="fab fa-markdown" aria-hidden="true"></i> Markdown to HTML Converter</h1>
 
         <div class="section controls">
             <div class="button-group">
-                <button id="convertClipboardBtn" class="success"><i class="fas fa-wand-magic-sparkles"></i> Convert to HTML</button>
-                <button id="pasteBtn" class="secondary"><i class="fas fa-paste"></i> Paste</button>
-                <button id="copyHtmlBtn" class="secondary"><i class="fas fa-file-code"></i> Copy HTML</button>
-                <button id="clearBtn" class="danger"><i class="fas fa-trash"></i> Clear</button>
+                <button id="convertClipboardBtn" class="success"><i class="fas fa-wand-magic-sparkles" aria-hidden="true"></i> Convert to HTML</button>
+                <button id="pasteBtn" class="secondary"><i class="fas fa-paste" aria-hidden="true"></i> Paste</button>
+                <button id="copyHtmlBtn" class="secondary"><i class="fas fa-file-code" aria-hidden="true"></i> Copy HTML</button>
+                <button id="clearBtn" class="danger"><i class="fas fa-trash" aria-hidden="true"></i> Clear</button>
                 <div class="mode-switches">
                     <div class="mode-switch">
                         <label class="switch">
-                            <input type="checkbox" id="sanitizedToggle" checked>
+                            <input type="checkbox" id="sanitizedToggle" aria-label="Sanitize rendered HTML" checked>
                             <span class="slider"></span>
                         </label>
                         <span>Sanitized</span>
@@ -48,17 +49,17 @@
 
         <div class="workspace">
             <div class="section pane input-pane">
-                <h2><i class="fas fa-edit"></i> Input Markdown</h2>
-                <textarea id="editor" spellcheck="false" placeholder="Paste your markdown here... Auto-converts as you type!"></textarea>
+                <h2 id="inputHeading"><i class="fas fa-edit" aria-hidden="true"></i> Input Markdown</h2>
+                <textarea id="editor" aria-labelledby="inputHeading" spellcheck="false" placeholder="Paste your markdown here... Auto-converts as you type!"></textarea>
                 <div id="pasteError" class="error-message">Please use Ctrl/Cmd+V to paste content</div>
             </div>
 
             <div class="section pane output-pane">
-                <h2><i class="fas fa-globe"></i> Output HTML</h2>
+                <h2><i class="fas fa-globe" aria-hidden="true"></i> Output HTML</h2>
                 <iframe id="previewFrame" title="Rendered HTML output preview" sandbox=""></iframe>
             </div>
         </div>
-        <footer class="app-footer" aria-label="App version">v1.0.0</footer>
+        <footer class="app-footer" aria-label="App version">v1.1.0</footer>
     </div>
 
     <script src="script.js"></script>
