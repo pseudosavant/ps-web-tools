@@ -2,14 +2,17 @@
   'use strict';
   
   // Remove any filtering/toggling logic, just show all images
-  var gamertag = document.querySelector('.gamertag').value;
-  updateImages(gamertag);
+  let currentGamertag = document.querySelector('.gamertag').value;
+  const status = document.getElementById('avatar-status');
+  let failedImages = 0;
+  updateImages(currentGamertag);
 
-  document.querySelector('.gamertag').addEventListener('keyup', throttle(update, 500), false);
+  document.querySelector('.gamertag').addEventListener('input', throttle(update, 500), false);
 
   // Add error handler for all images
   document.querySelectorAll('img').forEach(img => {
     img.addEventListener('error', failedToLoadImage, false);
+    img.addEventListener('load', loadedImage, false);
   });
 
   function update(e) {
@@ -19,14 +22,27 @@
   }
   
   function failedToLoadImage(e) {
+    failedImages += 1;
     e.target.classList.add('failed-to-load');
     // Also add to parent figure to hide label if desired
     if (e.target.parentElement && e.target.parentElement.parentElement && e.target.parentElement.parentElement.tagName === 'FIGURE') {
       e.target.parentElement.parentElement.classList.add('failed-to-load');
     }
+    if (failedImages === 6) {
+      status.textContent = `No avatar images were found for ${currentGamertag}.`;
+    }
+  }
+
+  function loadedImage() {
+    status.textContent = `Showing available avatars for ${currentGamertag}.`;
   }
 
   function updateImages(gamertag) {  
+    gamertag = gamertag.trim();
+    currentGamertag = gamertag;
+    failedImages = 0;
+    status.textContent = gamertag ? `Loading avatars for ${gamertag}…` : 'Enter a gamertag to load avatars.';
+    if (!gamertag) return;
     const types = ['small', 'large', 'extra-large', 'body', 'head', 'default'];
     types.forEach(type => {
       const img = document.querySelector(`img.${type}`);
@@ -56,7 +72,7 @@
   function avatar(avatarType, gamertag) {
     if (typeof avatarType !== 'string' || typeof gamertag !== 'string') return undefined;
 
-    const base = `https://avatar-ssl.xboxlive.com/avatar/${gamertag}`;
+    const base = `https://avatar-ssl.xboxlive.com/avatar/${encodeURIComponent(gamertag.trim())}`;
     switch(avatarType) {
       case 'large':
         return `${base}/avatarpic-l.png`;
