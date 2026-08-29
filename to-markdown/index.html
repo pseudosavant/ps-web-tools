@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Rich Text to Markdown Converter</title>
     <meta name="description" content="Convert rich text content to clean Markdown format with automatic conversion and dark mode support">
-    <meta name="version" content="v1.1.0">
+    <meta name="version" content="v1.2.0">
     <link rel="icon" href="icon.svg" type="image/svg+xml">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/turndown/7.1.2/turndown.min.js"
         integrity="sha512-7V0hFVI06CJbkXSOgZtdqg40iSPxK+a9nEehUcp299C0elYdeNG+w7ceJ1Ko6WPrLjERkC5pnriiylQWM9Vnpg=="
@@ -13,24 +13,25 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.0/css/all.min.css"
         integrity="sha512-9xKTRVabjVeZmc+GUW8GgSmcREDunMM+Dt/GrzchfN8tkwHizc5RP4Ok/MXFFy5rIjJjzhndFScTceq5e6GvVQ=="
         crossorigin="anonymous">
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="styles.css?v=2">
     <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#0066cc">
+    <meta name="theme-color" content="#f9f9f9" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#081521" media="(prefers-color-scheme: dark)">
 </head>
 <body>
     <div class="container">
-        <h1><i class="fab fa-markdown"></i> Rich Text to Markdown Converter</h1>
+        <h1><i class="fab fa-markdown" aria-hidden="true"></i> Rich Text to Markdown Converter</h1>
         
         <div class="section controls">
             <div class="button-group">
-                <button id="convertClipboardBtn" class="success"><i class="fas fa-wand-magic-sparkles"></i> Convert to Markdown</button>
-                <button id="pasteBtn" class="secondary"><i class="fas fa-paste"></i> Paste</button>
-                <button id="copyMarkdownBtn" class="secondary"><i class="fab fa-markdown"></i> Copy Markdown</button>
-                <button id="clearBtn" class="danger"><i class="fas fa-trash"></i> Clear</button>
+                <button id="convertClipboardBtn" class="success"><i class="fas fa-wand-magic-sparkles" aria-hidden="true"></i> Convert to Markdown</button>
+                <button id="pasteBtn" class="secondary"><i class="fas fa-paste" aria-hidden="true"></i> Paste</button>
+                <button id="copyMarkdownBtn" class="secondary"><i class="fab fa-markdown" aria-hidden="true"></i> Copy Markdown</button>
+                <button id="clearBtn" class="danger"><i class="fas fa-trash" aria-hidden="true"></i> Clear</button>
                 <div class="mode-switches">
                     <div class="mode-switch">
                         <label class="switch">
-                            <input type="checkbox" id="simpleModeToggle" checked>
+                            <input type="checkbox" id="simpleModeToggle" aria-label="Use simplified Markdown conversion" checked>
                             <span class="slider"></span>
                         </label>
                         <span>Simplified</span>
@@ -42,18 +43,18 @@
 
         <div class="workspace">
             <div class="section pane input-pane">
-                <h2><i class="fas fa-edit"></i> Input</h2>
-                <div id="editor" contenteditable="true"></div>
+                <h2 id="inputHeading"><i class="fas fa-edit" aria-hidden="true"></i> Input</h2>
+                <div id="editor" contenteditable="true" role="textbox" aria-multiline="true" aria-labelledby="inputHeading"></div>
                 <div id="pasteError" class="error-message">Please use Ctrl/Cmd+V to paste content</div>
             </div>
 
             <div class="section pane output-pane">
-                <h2><i class="fas fa-file-code"></i> Output Markdown</h2>
-                <div id="output"></div>
+                <h2 id="outputHeading"><i class="fas fa-file-code" aria-hidden="true"></i> Output Markdown</h2>
+                <div id="output" role="region" aria-labelledby="outputHeading" aria-live="polite"></div>
             </div>
         </div>
 
-        <footer class="app-footer" aria-label="App version">v1.1.0</footer>
+        <footer class="app-footer" aria-label="App version">v1.2.0</footer>
     </div>
 
     <script src="script.js"></script>
