@@ -141,7 +141,14 @@
     const cancelEditBtn=document.getElementById('cancelEditBtn');
     const submitBtn=document.getElementById('submitBtn');
     const resetBtn=document.getElementById('resetBtn');
-    toggleBtn.addEventListener('click', ()=> { const hidden=section.hasAttribute('hidden'); if(hidden){ section.removeAttribute('hidden'); toggleBtn.textContent='Hide Form'; } else { section.setAttribute('hidden',''); toggleBtn.textContent='Add Payment'; clearEditState(); } });
+    toggleBtn.addEventListener('click', ()=> {
+      const hidden=section.hasAttribute('hidden');
+      section.toggleAttribute('hidden', !hidden);
+      toggleBtn.setAttribute('aria-expanded', String(hidden));
+      const label=toggleBtn.querySelector('.btn-text');
+      if(label) label.textContent=hidden?'Hide Form':'Add Payment';
+      if(!hidden) clearEditState();
+    });
     cancelEditBtn.addEventListener('click', ()=> { clearEditState(); form.reset(); messageEl.textContent='Edit cancelled.'; });
     form.addEventListener('submit', (e)=>{
       e.preventDefault();
@@ -162,9 +169,9 @@
       rebuildURL(); render(); if(editIndex==null) form.reset(); if(editIndex!=null) clearEditState();
     });
     resetBtn.addEventListener('click', ()=> { if(editIndex!=null){ messageEl.textContent='Cleared (editing). Set new values or cancel.'; } });
-    function clearEditState(){ editIndex=null; submitBtn.textContent='Add'; cancelEditBtn.hidden=true; document.querySelector('#paymentForm legend').textContent='Add Payment'; }
+    function clearEditState(){ editIndex=null; const submitLabel=submitBtn.querySelector('.btn-text'); if(submitLabel) submitLabel.textContent='Add'; cancelEditBtn.hidden=true; document.querySelector('#paymentForm legend').textContent='Add Payment'; }
   }
-  function beginEditPayment(index){ const form=document.getElementById('paymentForm'); if(!form) return; const section=document.getElementById('addPaymentSection'); const toggleBtn=document.getElementById('toggleFormBtn'); const submitBtn=document.getElementById('submitBtn'); const cancelEditBtn=document.getElementById('cancelEditBtn'); const messageEl=document.getElementById('formMessage'); if(index<0 || index>=paymentSpecs.length) return; editIndex=index; section.removeAttribute('hidden'); toggleBtn.textContent='Hide Form'; submitBtn.textContent='Save'; cancelEditBtn.hidden=false; document.querySelector('#paymentForm legend').textContent='Edit Payment'; messageEl.textContent='Editing payment #' + (index+1); const spec=paymentSpecs[index]; const map={}; spec.split('|').forEach(p=>{ const idx=p.indexOf(':'); if(idx!==-1){ const k=p.slice(0,idx); const v=p.slice(idx+1); map[k]=v; }}); form.name.value=decodeURIComponent(map.name||''); form.amount.value=map.amount||''; form.day.value=map.day||''; form.end.value=map.end||''; form.start.value=map.start||''; window.scrollTo({top:0, behavior:'smooth'}); }
+  function beginEditPayment(index){ const form=document.getElementById('paymentForm'); if(!form) return; const section=document.getElementById('addPaymentSection'); const toggleBtn=document.getElementById('toggleFormBtn'); const submitBtn=document.getElementById('submitBtn'); const cancelEditBtn=document.getElementById('cancelEditBtn'); const messageEl=document.getElementById('formMessage'); if(index<0 || index>=paymentSpecs.length) return; editIndex=index; section.removeAttribute('hidden'); toggleBtn.setAttribute('aria-expanded','true'); const toggleLabel=toggleBtn.querySelector('.btn-text'); if(toggleLabel) toggleLabel.textContent='Hide Form'; const submitLabel=submitBtn.querySelector('.btn-text'); if(submitLabel) submitLabel.textContent='Save'; cancelEditBtn.hidden=false; document.querySelector('#paymentForm legend').textContent='Edit Payment'; messageEl.textContent='Editing payment #' + (index+1); const spec=paymentSpecs[index]; const map={}; spec.split('|').forEach(p=>{ const idx=p.indexOf(':'); if(idx!==-1){ const k=p.slice(0,idx); const v=p.slice(idx+1); map[k]=v; }}); form.name.value=decodeURIComponent(map.name||''); form.amount.value=map.amount||''; form.day.value=map.day||''; form.end.value=map.end||''; form.start.value=map.start||''; window.scrollTo({top:0, behavior:'smooth'}); }
   function deletePayment(index){ if(index<0 || index>=paymentSpecs.length) return; paymentSpecs.splice(index,1); if(editIndex!=null){ if(index===editIndex){ editIndex=null; } else if(index<editIndex){ editIndex -= 1; } } rebuildURL(); render(); }
   window.beginEditPayment = beginEditPayment;
   // Maintain legacy global name for any external references

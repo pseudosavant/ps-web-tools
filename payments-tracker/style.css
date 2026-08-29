@@ -112,3 +112,190 @@ footer ul { list-style:disc; margin:.4rem 0 0 1.1rem; padding:0; display:flex; f
   #payments { grid-template-columns: 1fr; }
   .field-group { grid-template-columns:1fr 1fr; }
 }
+
+/* Pseudosavant light/dark theme */
+:root {
+  color-scheme: light dark;
+  --bg: #f9f9f9;
+  --fg: #10263f;
+  --surface: #ffffff;
+  --surface-subtle: #f3faff;
+  --surface-raised: #ffffff;
+  --accent: #1d6fa8;
+  --accent-strong: #145a8a;
+  --accent-bg: #eef8ff;
+  --accent-ring: rgba(29, 111, 168, 0.24);
+  --secondary: #ff6392;
+  --secondary-strong: #a3204c;
+  --sunshine: #ffe45e;
+  --border: #b9daf2;
+  --border-strong: #78acd0;
+  --muted: #355a78;
+  --danger: #b42318;
+  --icon-remaining: #a3204c;
+  --icon-remaining-amount: #b52b5d;
+  --icon-paid: #1f7a58;
+  --icon-paid-amount: #278a66;
+  --icon-progress: #1f7a58;
+  --glow-primary: rgba(127, 200, 248, 0.68);
+  --glow-secondary: rgba(255, 99, 146, 0.42);
+  --glow-sunshine: rgba(255, 228, 94, 0.66);
+  --shadow: 0 8px 26px rgba(15, 56, 120, 0.09);
+}
+
+html {
+  min-height: 100%;
+  background:
+    radial-gradient(circle at 12% 0%, var(--glow-primary) 0, transparent 34%),
+    radial-gradient(circle at 90% 2%, var(--glow-sunshine) 0, transparent 28%),
+    radial-gradient(circle at 86% 8%, var(--glow-secondary) 0, transparent 22%),
+    var(--bg);
+  background-attachment: fixed;
+}
+
+body {
+  min-height: 100vh;
+  background: transparent;
+}
+
+.skip-link {
+  position: fixed;
+  z-index: 1000;
+  top: 0.75rem;
+  left: 0.75rem;
+  padding: 0.65rem 0.9rem;
+  transform: translateY(-200%);
+  border-radius: 0.5rem;
+  background: var(--fg);
+  color: var(--surface);
+  font-weight: 700;
+}
+
+.skip-link:focus { transform: translateY(0); }
+
+h1 {
+  background: linear-gradient(110deg, var(--fg) 12%, var(--accent-strong) 66%, var(--secondary-strong));
+  background-clip: text;
+  color: transparent;
+  letter-spacing: -0.035em;
+}
+
+#addPaymentSection,
+.payment-card,
+.metric,
+.empty {
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+#addPaymentSection,
+.payment-card {
+  position: relative;
+  overflow: hidden;
+}
+
+#addPaymentSection::before,
+.payment-card::before {
+  position: absolute;
+  top: 0;
+  right: 1rem;
+  left: 1rem;
+  height: 2px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--accent), var(--secondary), var(--sunshine), transparent 94%);
+  content: '';
+}
+
+.metric,
+.empty {
+  background: var(--surface-subtle);
+  box-shadow: none;
+}
+
+.field-group label {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.field-group input {
+  min-height: 2.65rem;
+  border-color: var(--border);
+  border-radius: 0.5rem;
+  background: var(--surface-raised);
+}
+
+button,
+.toolbar button {
+  min-height: 2.65rem;
+  border-color: transparent;
+  border-radius: 0.55rem;
+  background: linear-gradient(135deg, #1d6fa8, #145a8a);
+  font-weight: 700;
+}
+
+button.secondary {
+  border-color: var(--border);
+  background: var(--surface-subtle);
+  color: var(--accent-strong);
+}
+
+.icon-btn {
+  min-height: 2.25rem;
+  border-color: transparent;
+  background: transparent;
+  color: var(--muted);
+}
+
+:where(button, input, a):focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 3px;
+  box-shadow: 0 0 0 5px var(--accent-ring);
+}
+
+.progress-bar {
+  background: var(--border);
+}
+
+.progress-bar-fill {
+  background: linear-gradient(90deg, var(--accent), var(--secondary));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition-duration: 0.01ms !important; }
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #081521;
+    --fg: #f5fbff;
+    --surface: #10263f;
+    --surface-subtle: #0c1f33;
+    --surface-raised: #16324d;
+    --accent: #7fc8f8;
+    --accent-strong: #a9ddff;
+    --accent-bg: #133452;
+    --accent-ring: rgba(127, 200, 248, 0.3);
+    --secondary: #ff6392;
+    --secondary-strong: #ff9abd;
+    --sunshine: #ffe45e;
+    --border: #315b78;
+    --border-strong: #4f7fa1;
+    --muted: #a9c7dc;
+    --danger: #ffb4ab;
+    --icon-remaining: #ff9abd;
+    --icon-remaining-amount: #ff7ba7;
+    --icon-paid: #72d7ad;
+    --icon-paid-amount: #72d7ad;
+    --icon-progress: #72d7ad;
+    --glow-primary: rgba(127, 200, 248, 0.17);
+    --glow-secondary: rgba(255, 99, 146, 0.13);
+    --glow-sunshine: rgba(255, 228, 94, 0.1);
+    --shadow: 0 16px 42px rgba(0, 0, 0, 0.32);
+  }
+}
+
+@media (forced-colors: active) {
+  h1 { background: none; color: CanvasText; }
+}
