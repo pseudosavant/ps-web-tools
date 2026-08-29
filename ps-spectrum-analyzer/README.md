@@ -1,48 +1,58 @@
-# Hello website!
+# PS Spectrum Analyzer
 
-This is a basic HTML starter project you can build on however you like. No need to save. While you develop your site, your changes will happen ✨ immediately in the preview window. On the left you'll see the files that make up your site, including HTML, JavaScript, and CSS. You can upload assets like images or audio in `assets`. The rest is up to you and your imagination. 🦄
+A dependency-free, client-side microphone spectrum analyzer built with the Web Audio API and Canvas.
 
-_Last updated: 28 Feb 2023_
+## Privacy
 
-## What's in this project?
+Microphone audio is processed entirely in the browser. Audio is not recorded, uploaded, stored, or sent to a server, and the tool includes no third-party tracking.
 
-← `README.md`: That's this file, where you can tell people what your cool website does and how you built it.
+The page must be served over HTTPS or from `localhost` for browser microphone access.
 
-← `index.html`: This is the main web page for your site. The HTML defines the structure and content of the page using _elements_. You'll see references in the HTML to the JS and CSS files. Try clicking the image in the center of the page!
+## Features
 
-← `style.css`: CSS files add styling rules to your content. The CSS applies styles to the elements in your HTML page. The style rules also make the image move when you click it.
+- Selectable microphone input
+- Full 20 Hz–20 kHz and focused 20 Hz–500 Hz ranges
+- Logarithmic frequency axis
+- Reference dB lines and optional musical-note overlay
+- Auto-gain with the applied display gain reported in tooltips and the accessible summary
+- Time-based peak hold with a manual reset
+- Freeze and resume controls
+- Full-screen spectrum display with an in-view exit control
+- Mouse, touch, and keyboard spectrum inspection
+- Responsive axis labels and high-DPI canvas rendering
+- Throttled screen-reader summary of the strongest detected frequency
 
-← `script.js`: If you're feeling fancy you can add interactivity to your site with JavaScript. The code in the JavaScript file runs when the page loads, and when the visitor clicks the button you can add using the code in the TODO.
+## Usage
 
-Open each file and check out the comments (in gray) for more info.
+1. Serve the repository locally or open the deployed HTTPS site.
+2. Choose a microphone.
+3. Select **Start Microphone** and allow browser access.
+4. Adjust the frequency range and display options as needed.
+5. Select **Full Screen** on the spectrum display for an expanded view; select **Exit Full Screen** or press Escape to return.
+6. Select **Stop** when finished to release the microphone.
 
-## Try this next 🏗️
+When the canvas has keyboard focus, use Left/Right Arrow to inspect nearby frequencies, Shift+Arrow for larger steps, and Home/End to jump to the range boundaries.
 
-Take a look in `TODO.md` for next steps you can try out in your new site!
+## Development
 
-___Want a minimal version of this project to build your own website? Check out [Blank Website](https://glitch.com/edit/#!/remix/glitch-blank-website)!___
+This tool has no build step or package dependencies. From the repository root:
 
-## Ready to share your site?
+~~~powershell
+python -m http.server 4173 --bind 127.0.0.1
+~~~
 
-Add these meta tags for SEO and social sharing between your page `<head></head>` tags, changing the values for your site:
+Then open `http://127.0.0.1:4173/ps-spectrum-analyzer/`.
 
-```
-<link rel="canonical" href="https://glitch-hello-website.glitch.me/" />
-<meta name="description" content="A simple website, built with Glitch. Remix it to get your own."/>
-<meta name="robots" content="index,follow" />
-<meta property="og:title" content="Hello World!" />
-<meta property="og:type" content="article" />
-<meta property="og:url" content="https://glitch-hello-website.glitch.me/" />
-<meta property="og:description" content="A simple website, built with Glitch. Remix it to get your own."/>
-<meta property="og:image" content="https://cdn.glitch.com/605e2a51-d45f-4d87-a285-9410ad350515%2Fhello-website-social.png?v=1616712748147"/>
-<meta name="twitter:card" content="summary" />
-```
+## File structure
 
-![Glitch](https://cdn.glitch.com/a9975ea6-8949-4bab-addb-8a95021dc2da%2FLogo_Color.svg?v=1602781328576)
+- `index.html` — semantic controls and spectrum display
+- `audioAnalyzer.js` — microphone, AudioContext, device, and lifecycle management
+- `visualization.js` — FFT aggregation, canvas rendering, peak hold, auto-gain, and inspection
+- `ui.js` — controls and responsive axes
+- `utils.js` — frequency/note conversion helpers
+- `constants.js` — frequency labels and reference-line data
+- `styles.css` — responsive light/dark presentation
 
-## You built this with Glitch!
+## Browser support
 
-[Glitch](https://glitch.com) is a friendly community where millions of people come together to build web apps and websites.
-
-- Need more help? [Check out our Help Center](https://help.glitch.com/) for answers to any common questions.
-- Ready to make it official? [Become a paid Glitch member](https://glitch.com/pricing) to boost your app with private sharing, more storage and memory, domains and more.
+A current Chromium, Firefox, or Safari release with `navigator.mediaDevices`, `getUserMedia`, the Web Audio API, the Fullscreen API, Canvas, and ES modules is recommended. Exact device labels may remain hidden until microphone permission is granted.

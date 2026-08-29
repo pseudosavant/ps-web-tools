@@ -1,59 +1,111 @@
-import { AXIS_LABELS, FREQUENCY_LABELS } from './constants.js';
-import { frequencyToX } from './utils.js';
+import { AXIS_LABELS, FREQUENCY_LABELS } from './constants.js?v=5';
+import { frequencyToX } from './utils.js?v=5';
 
 export function setupUI(analyzer) {
     setupEventListeners(analyzer);
+    setupFullscreen(analyzer);
     analyzer.updateAxes = () => createAxisLabels(analyzer);
     createAxisLabels(analyzer);
+}
+
+function setupFullscreen(analyzer) {
+    const { fullscreenButton, visualizerContainer } = analyzer.elements;
+    const isSupported = Boolean(document.fullscreenEnabled && visualizerContainer?.requestFullscreen);
+    let isFullscreen = false;
+
+    if (!isSupported) {
+        fullscreenButton.disabled = true;
+        fullscreenButton.title = 'Full-screen mode is not supported by this browser.';
+        return;
+    }
+
+    fullscreenButton.addEventListener('click', async () => {
+        try {
+            if (document.fullscreenElement === visualizerContainer) {
+                await document.exitFullscreen();
+            } else {
+                await visualizerContainer.requestFullscreen();
+            }
+        } catch (error) {
+            analyzer.elements.status.textContent = `Unable to change full-screen mode: ${error.message}`;
+        }
+    });
+
+    const syncFullscreenState = () => {
+        const nextIsFullscreen = document.fullscreenElement === visualizerContainer;
+        if (nextIsFullscreen === isFullscreen) return;
+
+        isFullscreen = nextIsFullscreen;
+        fullscreenButton.textContent = isFullscreen ? 'Exit Full Screen' : 'Full Screen';
+        fullscreenButton.setAttribute('aria-pressed', String(isFullscreen));
+        visualizerContainer.classList.toggle('is-fullscreen', isFullscreen);
+        analyzer.spectrumLayout = null;
+        requestAnimationFrame(() => createAxisLabels(analyzer));
+
+        analyzer.elements.status.textContent = isFullscreen
+            ? 'Spectrum display is full screen. Press Escape to exit.'
+            : 'Exited full-screen spectrum display.';
+    };
+
+    document.addEventListener('fullscreenchange', syncFullscreenState);
+
+    // Fullscreen transitions resize the panel. This also keeps the toggle state
+    // accurate in browsers that occasionally miss a fullscreenchange event.
+    const fullscreenResizeObserver = new ResizeObserver(syncFullscreenState);
+    fullscreenResizeObserver.observe(visualizerContainer);
+
+    document.addEventListener('fullscreenerror', () => {
+        analyzer.elements.status.textContent = 'The browser could not open the spectrum display full screen.';
+    });
 }
 
 function setupEventListeners(analyzer) {
     const { elements } = analyzer;
 
-    elements.startButton?.addEventListener('click', () => {
-        if (analyzer.isRunning) {
-            analyzer.stop();
-        } else {
-            analyzer.start();
-        }
+    elements.startButton.addEventListener('click', async () => {
+        if (analyzer.isRunning) await analyzer.stop();
+        else await analyzer.start();
     });
 
-    elements.freezeButton?.addEventListener('click', () => {
-        analyzer.isFrozen = !analyzer.isFrozen;
-        elements.freezeButton.textContent = analyzer.isFrozen ? 'Resume Display' : 'Freeze Display';
+    elements.freezeButton.addEventListener('click', () => {
+        analyzer.toggleFreeze();
     });
 
-    elements.showReferenceLines?.addEventListener('change', (e) => {
-        analyzer.showReferenceLines = e.target.checked;
+    elements.deviceSelect.addEventListener('change', () => {
+        void analyzer.switchDevice();
     });
 
-    elements.showNoteOverlay?.addEventListener('change', (e) => {
-        analyzer.showNoteOverlay = e.target.checked;
+    elements.showReferenceLines.addEventListener('change', event => {
+        analyzer.showReferenceLines = event.target.checked;
     });
 
-    elements.showPeakHold?.addEventListener('change', (e) => {
-        analyzer.showPeakHold = e.target.checked;
-        if (analyzer.showPeakHold && analyzer.peakHoldData) {
-            analyzer.peakHoldData.fill(-Infinity);
-            analyzer.lastPeakResetTime = performance.now();
-        }
+    elements.showNoteOverlay.addEventListener('change', event => {
+        analyzer.showNoteOverlay = event.target.checked;
     });
 
-    elements.autoGain?.addEventListener('change', (e) => {
-        analyzer.autoGain = e.target.checked;
-        if (analyzer.autoGain) {
+    elements.showPeakHold.addEventListener('change', event => {
+        analyzer.showPeakHold = event.target.checked;
+        analyzer.resetPeaks({ announce: false });
+    });
+
+    elements.resetPeaksButton.addEventListener('click', () => {
+        analyzer.resetPeaks();
+    });
+
+    elements.autoGain.addEventListener('change', event => {
+        analyzer.autoGain = event.target.checked;
+        analyzer.currentGainOffset = 0;
+    });
+
+    elements.freqRangeInputs.forEach(input => {
+        input.addEventListener('change', event => {
+            analyzer.isFullRange = event.target.value === 'full';
+            analyzer.spectrumLayout = null;
             analyzer.currentGainOffset = 0;
-        }
-    });
-
-    if (elements.freqRangeInputs) {
-        elements.freqRangeInputs.forEach(input => {
-            input?.addEventListener('change', (e) => {
-                analyzer.isFullRange = e.target.value === 'full';
-                createAxisLabels(analyzer);
-            });
+            analyzer.resetPeaks({ announce: false });
+            createAxisLabels(analyzer);
         });
-    }
+    });
 }
 
 function createAxisLabels(analyzer) {
@@ -63,25 +115,69 @@ function createAxisLabels(analyzer) {
 
 function updateFrequencyAxis(analyzer) {
     syncFrequencyAxisLayout(analyzer);
+    const frequencies = analyzer.isFullRange
+        ? FREQUENCY_LABELS.FULL_RANGE
+        : FREQUENCY_LABELS.LOW_RANGE;
+    const axis = analyzer.elements.freqAxis;
+    const canvas = analyzer.elements.canvas;
+    const axisWidth = canvas.clientWidth;
+    const labels = frequencies.map(({ freq, label }, index) => {
+        const element = document.createElement('span');
+        element.textContent = label;
+        element.style.position = 'absolute';
+        element.style.whiteSpace = 'nowrap';
 
-    // Get the appropriate frequency labels
-    const frequencies = analyzer.isFullRange ? 
-        FREQUENCY_LABELS.FULL_RANGE : 
-        FREQUENCY_LABELS.LOW_RANGE;
-
-    // Create label elements with precise positioning
-    const labelElements = frequencies.map(({ freq, label }) => {
-        const x = frequencyToX(freq, analyzer.elements.canvas, analyzer.isFullRange);
-        return `<span style="position: absolute; left: ${x}px; transform: translateX(-50%); white-space: nowrap">${label}</span>`;
+        if (index === 0) {
+            element.style.left = '0';
+        } else if (index === frequencies.length - 1) {
+            element.style.right = '0';
+        } else {
+            element.style.left = `${frequencyToX(freq, canvas, analyzer.isFullRange)}px`;
+            element.style.transform = 'translateX(-50%)';
+        }
+        return element;
     });
 
-    analyzer.elements.freqAxis.innerHTML = labelElements.join('');
+    axis.replaceChildren(...labels);
+    hideOverlappingLabels(labels, frequencies, canvas, axisWidth, analyzer.isFullRange);
+}
+
+function hideOverlappingLabels(labels, frequencies, canvas, axisWidth, isFullRange) {
+    if (labels.length < 3 || !axisWidth) return;
+
+    const gap = 8;
+    const metrics = labels.map((label, index) => {
+        const width = label.offsetWidth;
+        if (index === 0) return { left: 0, right: width };
+        if (index === labels.length - 1) return { left: axisWidth - width, right: axisWidth };
+
+        const x = frequencyToX(frequencies[index].freq, canvas, isFullRange);
+        return { left: x - width / 2, right: x + width / 2 };
+    });
+
+    labels.forEach(label => { label.hidden = true; });
+    labels[0].hidden = false;
+
+    let lastRight = metrics[0].right;
+    const reservedLastLeft = metrics.at(-1).left;
+    for (let index = 1; index < labels.length - 1; index++) {
+        const metric = metrics[index];
+        if (metric.left >= lastRight + gap && metric.right <= reservedLastLeft - gap) {
+            labels[index].hidden = false;
+            lastRight = metric.right;
+        }
+    }
+
+    labels.at(-1).hidden = false;
 }
 
 function updateDBAxis(analyzer) {
-    analyzer.elements.dbAxis.innerHTML = AXIS_LABELS.DB.map(label => 
-        `<span style="display: block">${label}</span>`
-    ).join('');
+    const labels = AXIS_LABELS.DB.map(label => {
+        const element = document.createElement('span');
+        element.textContent = label;
+        return element;
+    });
+    analyzer.elements.dbAxis.replaceChildren(...labels);
 }
 
 function syncFrequencyAxisLayout(analyzer) {
@@ -92,9 +188,7 @@ function syncFrequencyAxisLayout(analyzer) {
 
     const canvasRect = canvas.getBoundingClientRect();
     const containerRect = container.getBoundingClientRect();
-    const left = canvasRect.left - containerRect.left;
-
-    axis.style.left = `${left}px`;
+    axis.style.left = `${canvasRect.left - containerRect.left}px`;
     axis.style.width = `${canvasRect.width}px`;
     axis.style.right = 'auto';
     axis.style.padding = '0';

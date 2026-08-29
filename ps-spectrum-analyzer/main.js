@@ -1,4 +1,4 @@
-import { AudioAnalyzer } from './audioAnalyzer.js';
+import { AudioAnalyzer } from './audioAnalyzer.js?v=5';
 
 document.addEventListener('DOMContentLoaded', () => {
     new AudioAnalyzer();
