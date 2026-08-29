@@ -92,3 +92,187 @@ pre {
     color: #DDD;
   }
 }
+
+/* Pseudosavant light/dark theme */
+:root {
+  color-scheme: light dark;
+  --background: #f9f9f9;
+  --surface: #ffffff;
+  --surface-subtle: #f3faff;
+  --surface-raised: #ffffff;
+  --text: #10263f;
+  --text-muted: #355a78;
+  --accent: #1d6fa8;
+  --accent-strong: #145a8a;
+  --accent-soft: #eef8ff;
+  --accent-ring: rgba(29, 111, 168, 0.24);
+  --secondary: #ff6392;
+  --secondary-strong: #a3204c;
+  --sunshine: #ffe45e;
+  --border: #b9daf2;
+  --border-strong: #78acd0;
+  --success: #1f7a58;
+  --glow-primary: rgba(127, 200, 248, 0.68);
+  --glow-secondary: rgba(255, 99, 146, 0.42);
+  --glow-sunshine: rgba(255, 228, 94, 0.66);
+  --shadow: 0 8px 26px rgba(15, 56, 120, 0.09);
+}
+
+body {
+  min-height: 100vh;
+  height: auto;
+  padding: 1rem;
+  background:
+    radial-gradient(circle at 12% 0%, var(--glow-primary) 0, transparent 34%),
+    radial-gradient(circle at 90% 2%, var(--glow-sunshine) 0, transparent 28%),
+    radial-gradient(circle at 86% 8%, var(--glow-secondary) 0, transparent 22%),
+    var(--background);
+  background-attachment: fixed;
+  color: var(--text);
+  line-height: 1.5;
+}
+
+.app-card {
+  position: relative;
+  width: min(100%, 760px);
+  padding: clamp(1rem, 4vw, 2rem);
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.app-card::before {
+  position: absolute;
+  top: 0;
+  right: 1.25rem;
+  left: 1.25rem;
+  height: 2px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--accent), var(--secondary), var(--sunshine), transparent 94%);
+  content: '';
+}
+
+h1 {
+  margin: 0;
+  background: linear-gradient(110deg, var(--text) 12%, var(--accent-strong) 66%, var(--secondary-strong));
+  background-clip: text;
+  color: transparent;
+  font-size: clamp(1.9rem, 5vw, 2.6rem);
+  letter-spacing: -0.035em;
+}
+
+.lede {
+  margin: 0.35rem 0 1.25rem;
+  color: var(--text-muted);
+}
+
+#drop-zone {
+  width: 100%;
+  min-height: 16rem;
+  margin: 0;
+  border-color: var(--border-strong);
+  border-radius: 0.75rem;
+  background: var(--surface-subtle);
+  color: var(--text-muted);
+}
+
+#drop-zone.dragover {
+  border-color: var(--accent);
+  background: linear-gradient(135deg, var(--accent-soft), #fff0f5 72%, #fff8d5);
+  box-shadow: 0 0 0 5px var(--accent-ring);
+}
+
+#file-picker {
+  min-height: 2.75rem;
+  margin: 0.5rem;
+  padding: 0.65rem 1rem;
+  border: 1px solid transparent;
+  border-radius: 0.6rem;
+  background: linear-gradient(135deg, #1d6fa8, #a3204c);
+  color: #ffffff;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+}
+
+:where(button, a):focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 3px;
+  box-shadow: 0 0 0 5px var(--accent-ring);
+}
+
+#progress,
+#metadata {
+  color: var(--text-muted);
+}
+
+#progress-bar {
+  border: 1px solid var(--border);
+  background: var(--surface-subtle);
+}
+
+#progress-bar::-webkit-progress-value {
+  background: linear-gradient(90deg, var(--accent), var(--secondary));
+}
+
+#progress-bar::-moz-progress-bar {
+  background: linear-gradient(90deg, var(--accent), var(--secondary));
+}
+
+#metadata {
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 0.6rem;
+  background: var(--surface-subtle);
+}
+
+.app-card > a {
+  display: inline-block;
+  margin-top: 1rem;
+  color: var(--accent-strong);
+  font-weight: 700;
+  text-underline-offset: 0.2em;
+}
+
+@media (max-width: 600px) {
+  #drop-zone { width: 100%; min-height: 12rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition-duration: 0.01ms !important; }
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #081521;
+    --surface: #10263f;
+    --surface-subtle: #0c1f33;
+    --surface-raised: #16324d;
+    --text: #f5fbff;
+    --text-muted: #a9c7dc;
+    --accent: #7fc8f8;
+    --accent-strong: #a9ddff;
+    --accent-soft: #133452;
+    --accent-ring: rgba(127, 200, 248, 0.3);
+    --secondary: #ff6392;
+    --secondary-strong: #ff9abd;
+    --sunshine: #ffe45e;
+    --border: #315b78;
+    --border-strong: #4f7fa1;
+    --success: #72d7ad;
+    --glow-primary: rgba(127, 200, 248, 0.17);
+    --glow-secondary: rgba(255, 99, 146, 0.13);
+    --glow-sunshine: rgba(255, 228, 94, 0.1);
+    --shadow: 0 16px 42px rgba(0, 0, 0, 0.32);
+  }
+
+  #drop-zone.dragover {
+    background: linear-gradient(135deg, var(--accent-soft), #3a1629 72%, #332f14);
+  }
+}
+
+@media (forced-colors: active) {
+  h1 { background: none; color: CanvasText; }
+}

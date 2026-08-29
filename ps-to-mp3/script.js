@@ -1,5 +1,5 @@
 // Import FFmpeg WebAssembly
-import { FFmpeg } from '/ffmpeg/classes.js';
+import { FFmpeg } from './ffmpeg/classes.js';
 
 // Select DOM elements
 const dropZone = document.getElementById('drop-zone');
@@ -8,6 +8,8 @@ const fileInput = document.getElementById('file-input');
 const metadata = document.getElementById('metadata');
 const progressText = document.getElementById('progress-text');
 const progressBar = document.getElementById('progress-bar');
+const appCard = document.querySelector('.app-card');
+let outputUrl = null;
 
 async function processFile(file) {
   const ffmpeg = new FFmpeg();
@@ -21,7 +23,7 @@ async function processFile(file) {
 
   progressText.textContent = 'Loading FFmpeg...';
 progressBar.value = 0;
-  await ffmpeg.load({ classWorkerURL: '/ffmpeg/worker.js' });
+  await ffmpeg.load({ classWorkerURL: './ffmpeg/worker.js' });
 
   await ffmpeg.writeFile(inputName, new Uint8Array(await file.arrayBuffer()));
 
@@ -39,14 +41,20 @@ progressBar.value = 0;
 
   const outputData = await ffmpeg.readFile(outputName);
   const blob = new Blob([outputData], { type: 'audio/mp3' });
-  const url = URL.createObjectURL(blob);
+  if (outputUrl) {
+    URL.revokeObjectURL(outputUrl);
+  }
+  outputUrl = URL.createObjectURL(blob);
+
+  document.getElementById('download-link')?.remove();
 
   const link = document.createElement('a');
-  link.href = url;
+  link.id = 'download-link';
+  link.href = outputUrl;
   link.download = outputName;
   link.textContent = `Download ${outputName}`;
   link.style.display = 'block';
-  document.body.appendChild(link);
+  appCard.appendChild(link);
 
   metadata.textContent += `
 

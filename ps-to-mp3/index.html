@@ -3,23 +3,27 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#f9f9f9" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#081521" media="(prefers-color-scheme: dark)">
   <title>ps-to-mp3</title>
   <link rel="manifest" href="manifest.json">
-  <link rel="stylesheet" href="style.css">
-  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
-  <link rel="preload" href="/ffmpeg/ffmpeg-core.js" as="script">
-  <link rel="preload" href="/ffmpeg/ffmpeg-core.wasm" as="fetch" type="application/wasm">
+  <link rel="stylesheet" href="style.css?v=2">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="preload" href="ffmpeg/ffmpeg-core.js" as="script">
+  <link rel="preload" href="ffmpeg/ffmpeg-core.wasm" as="fetch" type="application/wasm">
 </head>
 <body>
-  <label for="file-input">
-    <div id="drop-zone">Drag and drop an audio file here, or <button id="file-picker">Choose File</button></div>
-  </label>
-  <input type="file" id="file-input" accept="audio/*" style="display: none;">
-  <div id="progress">
-    <progress id="progress-bar" value="0" max="100"></progress>
-    <div id="progress-text"></div>
-  </div>
-  <pre id="metadata"></pre>
-  <script type="module" src=".script.js"></script>
+  <main class="app-card">
+    <h1>Audio to MP3</h1>
+    <p class="lede">Convert an audio file to a high-quality MP3 entirely in your browser.</p>
+    <div id="drop-zone">Drag and drop an audio file here, or <button id="file-picker" type="button">Choose File</button></div>
+    <input type="file" id="file-input" accept="audio/*" hidden>
+    <div id="progress" role="status" aria-live="polite">
+      <progress id="progress-bar" value="0" max="100" aria-label="Conversion progress"></progress>
+      <div id="progress-text"></div>
+    </div>
+    <pre id="metadata" aria-label="Audio file details"></pre>
+  </main>
+  <script type="module" src="script.js"></script>
 </body>
 </html>
