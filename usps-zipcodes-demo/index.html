@@ -1,14 +1,60 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
-    <title>USPS Zipcode Demo</title>
+    <title>USPS ZIP Code Lookup</title>
     <meta charset="utf-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link rel="stylesheet" href="style.css">
-    <script src="script.js" defer></script>
-  </head>  
+    <meta name="description" content="Look up the USPS city and state for a US ZIP code.">
+    <meta name="theme-color" content="#f9f9f9" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#081521" media="(prefers-color-scheme: dark)">
+    <link rel="stylesheet" href="style.css?v=2">
+    <script src="script.js?v=2" defer></script>
+  </head>
   <body>
-    <ul class="console"></ul>
+    <main class="lookup-card">
+      <header>
+        <p class="eyebrow">USPS location data</p>
+        <h1>ZIP Code Lookup</h1>
+        <p class="lede">Enter a five-digit US ZIP code to find its USPS city and state.</p>
+      </header>
+
+      <form id="zip-form" class="lookup-form" novalidate>
+        <label for="zip-input">ZIP code</label>
+        <div class="input-row">
+          <input
+            id="zip-input"
+            name="zip"
+            type="text"
+            inputmode="numeric"
+            autocomplete="postal-code"
+            maxlength="10"
+            pattern="[0-9]{5}([ -]?[0-9]{4})?"
+            value="90210"
+            aria-describedby="zip-help lookup-status"
+            required>
+          <button type="submit">Look up ZIP</button>
+        </div>
+        <p id="zip-help" class="help">ZIP+4 values are accepted; only the first five digits are used.</p>
+      </form>
+
+      <div class="examples" aria-label="Example ZIP codes">
+        <span>Try:</span>
+        <button type="button" class="example" data-zip="10001">10001</button>
+        <button type="button" class="example" data-zip="90210">90210</button>
+        <button type="button" class="example" data-zip="92121">92121</button>
+      </div>
+
+      <p id="lookup-status" class="status" role="status" aria-live="polite"></p>
+
+      <section id="lookup-result" class="result" aria-labelledby="result-title" hidden>
+        <p class="result-label">USPS match</p>
+        <h2 id="result-title"></h2>
+        <dl id="result-details"></dl>
+      </section>
+
+      <footer>
+        <p>Data is loaded directly from the open-source <a href="https://github.com/pseudosavant/usps-zip-codes" target="_blank" rel="noopener noreferrer">USPS ZIP Codes dataset</a>. The lookup runs entirely in your browser.</p>
+      </footer>
+    </main>
   </body>
 </html>
