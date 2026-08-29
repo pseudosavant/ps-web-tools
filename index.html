@@ -10,10 +10,6 @@
   <link rel="icon" href="favicon-192.png" type="image/png" sizes="192x192">
   <link rel="icon" href="favicon-512.png" type="image/png" sizes="512x512">
   <link rel="apple-touch-icon" href="apple-touch-icon.png" sizes="180x180">
-  <!-- Font Awesome CDN -->
-  <link rel="stylesheet"
-        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.0/css/all.min.css"
-        crossorigin="anonymous" referrerpolicy="no-referrer" />
   <style>
     :root {
       color-scheme: light dark;
@@ -66,7 +62,7 @@
     .skip-link:focus { transform: translateY(0); }
     header {
       position: relative;
-      padding: clamp(2rem, 6vw, 4rem) 1rem clamp(1.5rem, 4vw, 2.5rem);
+      padding: 2rem 1rem;
       text-align: center;
     }
     header h1 {
@@ -81,10 +77,10 @@
     header p { margin: 0.5rem 0 0; color: var(--text-muted); font-size: clamp(1rem, 2vw, 1.15rem); }
     .tools-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(min(100%, 190px), 230px));
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, 190px), 220px));
       justify-content: center;
       gap: 1.15rem;
-      width: min(100% - 2rem, 78rem);
+      width: calc(100% - 2rem);
       margin-inline: auto;
       padding: 0 0 2rem;
     }
@@ -128,21 +124,19 @@
       outline-offset: 3px;
       box-shadow: 0 0 0 5px var(--accent-ring), var(--shadow-hover);
     }
-    .tool-card img, .tool-card .fa-icon {
+    .tool-icon {
       width: 48px;
       height: 48px;
       margin-bottom: 0.75rem;
       color: var(--accent);
+      fill: none;
+      stroke: currentColor;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      stroke-width: 1.8;
     }
-    .tool-card .fa-icon {
-      display: grid;
-      place-items: center;
-      font-size: 2.15rem;
-      width: auto;
-      height: auto;
-    }
-    .tool-card:nth-child(3n + 2) .fa-icon { color: var(--secondary-strong); }
-    .tool-card:nth-child(3n) .fa-icon { color: #8a6500; }
+    .tool-card:nth-child(3n + 2) .tool-icon { color: var(--secondary-strong); }
+    .tool-card:nth-child(3n) .tool-icon { color: #8a6500; }
     .tool-card h2 {
       margin: 0.5rem 0 0.5rem;
       font-size: 1.25rem;
@@ -185,7 +179,7 @@
         --shadow: 0 16px 42px rgba(0, 0, 0, 0.32);
         --shadow-hover: 0 20px 46px rgba(0, 0, 0, 0.4);
       }
-      .tool-card:nth-child(3n) .fa-icon { color: var(--sunshine); }
+      .tool-card:nth-child(3n) .tool-icon { color: var(--sunshine); }
     }
     @media (forced-colors: active) {
       header h1 { background: none; color: CanvasText; }
@@ -194,6 +188,36 @@
 </head>
 <body>
   <a class="skip-link" href="#tools">Skip to tools</a>
+  <svg width="0" height="0" aria-hidden="true" focusable="false" style="position:absolute;overflow:hidden">
+    <defs>
+      <symbol id="icon-wordle" viewBox="0 0 24 24">
+        <rect x="3" y="3" width="5" height="5" rx="1"/><rect x="9.5" y="3" width="5" height="5" rx="1"/><rect x="16" y="3" width="5" height="5" rx="1"/>
+        <rect x="3" y="9.5" width="5" height="5" rx="1"/><rect x="9.5" y="9.5" width="5" height="5" rx="1"/><rect x="16" y="9.5" width="5" height="5" rx="1"/>
+        <rect x="3" y="16" width="5" height="5" rx="1"/><rect x="9.5" y="16" width="5" height="5" rx="1"/><rect x="16" y="16" width="5" height="5" rx="1"/>
+      </symbol>
+      <symbol id="icon-pdf" viewBox="0 0 24 24"><path d="M6 2.75h8l4 4V21.25H6z"/><path d="M14 2.75v4h4M8.5 12h7M8.5 15h7M8.5 18h4"/></symbol>
+      <symbol id="icon-film" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 5v14M17 5v14M3 9h4M3 15h4M17 9h4M17 15h4"/></symbol>
+      <symbol id="icon-markdown" viewBox="0 0 24 24"><rect x="2.5" y="5.5" width="19" height="13" rx="2"/><path d="M5.5 15v-6l3 3 3-3v6M15 12h3M16.5 9.5V15M14.5 13l2 2 2-2"/></symbol>
+      <symbol id="icon-file-code" viewBox="0 0 24 24"><path d="M6 2.75h8l4 4V21.25H6zM14 2.75v4h4"/><path d="m10.25 12-2 2 2 2M13.75 12l2 2-2 2"/></symbol>
+      <symbol id="icon-tv" viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="m8 2 4 4 4-4M8 22h8"/></symbol>
+      <symbol id="icon-calendar" viewBox="0 0 24 24"><rect x="3" y="4.5" width="18" height="16.5" rx="2"/><path d="M7 2v5M17 2v5M3 9h18M7.5 13h3v3h-3z"/></symbol>
+      <symbol id="icon-hourglass" viewBox="0 0 24 24"><path d="M6 3h12M6 21h12M7 3c0 4 1.5 6 5 9-3.5 3-5 5-5 9M17 3c0 4-1.5 6-5 9 3.5 3 5 5 5 9"/></symbol>
+      <symbol id="icon-data" viewBox="0 0 24 24"><path d="M5 2.75h8l4 4v4M13 2.75v4h4"/><path d="M11 15.5h-1a3 3 0 0 0 0 6h2M15 15.5h1a3 3 0 0 1 0 6h-2M10.5 18.5h5"/></symbol>
+      <symbol id="icon-code" viewBox="0 0 24 24"><path d="m8 7-5 5 5 5M16 7l5 5-5 5M14 4l-4 16"/></symbol>
+      <symbol id="icon-camera" viewBox="0 0 24 24"><path d="M4 7h3l1.5-2h7L17 7h3a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2Z"/><circle cx="12" cy="13" r="4"/></symbol>
+      <symbol id="icon-image" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m4 18 5-5 3 3 2-2 6 6"/></symbol>
+      <symbol id="icon-dollar" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M15.5 8.5c-.75-1-2-1.5-3.5-1.5-2 0-3.5 1-3.5 2.5s1.25 2.2 3.5 2.5 3.5 1 3.5 2.5S14 17 12 17c-1.5 0-2.75-.5-3.5-1.5M12 4.5v15"/></symbol>
+      <symbol id="icon-branch" viewBox="0 0 24 24"><circle cx="7" cy="5" r="2"/><circle cx="17" cy="8" r="2"/><circle cx="7" cy="19" r="2"/><path d="M7 7v10M9 7h3a5 5 0 0 1 5 5v-2"/></symbol>
+      <symbol id="icon-exchange" viewBox="0 0 24 24"><path d="M4 7h14M15 4l3 3-3 3M20 17H6M9 14l-3 3 3 3"/></symbol>
+      <symbol id="icon-wave" viewBox="0 0 24 24"><path d="M2 12h3l2-7 4 14 3-11 3 8 2-4h3"/></symbol>
+      <symbol id="icon-music" viewBox="0 0 24 24"><path d="M9 18V6l10-2v12"/><circle cx="6" cy="18" r="3"/><circle cx="16" cy="16" r="3"/><path d="M9 9l10-2"/></symbol>
+      <symbol id="icon-stopwatch" viewBox="0 0 24 24"><circle cx="12" cy="13" r="8"/><path d="M9 2h6M12 5V2M18 7l2-2M12 9v4l3 2"/></symbol>
+      <symbol id="icon-chip" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/><rect x="9" y="9" width="6" height="6" rx="1"/><path d="M9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4"/></symbol>
+      <symbol id="icon-map" viewBox="0 0 24 24"><path d="m3 6 6-3 6 3 6-3v15l-6 3-6-3-6 3zM9 3v15M15 6v15"/><circle cx="15" cy="10" r="2"/></symbol>
+      <symbol id="icon-xbox" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M7 7c2.5.5 4.2 2 5 3.5C12.8 9 14.5 7.5 17 7M6.5 17c1.5-3 3.3-5.1 5.5-6.5 2.2 1.4 4 3.5 5.5 6.5"/></symbol>
+      <symbol id="icon-payment" viewBox="0 0 24 24"><rect x="2.5" y="5" width="19" height="14" rx="2"/><path d="M2.5 9h19M6 14h5M15 15l1.5 1.5L20 13"/></symbol>
+    </defs>
+  </svg>
   <header>
     <h1>ps-web-tools</h1>
     <p>My static HTML/CSS/JS toolkit</p>
@@ -203,116 +227,116 @@
     <section class="tools-grid" id="tools" aria-label="Web tools">
       <!-- Primary tools -->
       <a href="wordle-solver/" class="tool-card">
-        <img src="https://www.nytimes.com/games-assets/v2/metadata/wordle-apple-touch-icon.png?v=v2506061303" alt="Wordle Solver icon">
+        <svg class="tool-icon" aria-hidden="true"><use href="#icon-wordle"></use></svg>
         <h2>Wordle Solver</h2>
         <p>Algorithmic assistant for your daily Wordle puzzle.</p>
       </a>
       <a href="image-to-pdf/" class="tool-card">
-        <i class="fa-solid fa-file-pdf fa-icon"></i>
+        <svg class="tool-icon" aria-hidden="true"><use href="#icon-pdf"></use></svg>
         <h2>Image to PDF</h2>
         <p>Arrange, optimize, and export PNG/JPEG images into a multi-page PDF.</p>
       </a>
       <a href="frame-count/" class="tool-card">
-        <i class="fa-solid fa-film fa-icon"></i>
+        <svg class="tool-icon" aria-hidden="true"><use href="#icon-film"></use></svg>
         <h2>Frame Count</h2>
         <p>Frame data to measure latency between two displays (e.g. wired vs AirPlay/TV).</p>
       </a>
       <a href="to-markdown/" class="tool-card">
-        <i class="fa-brands fa-markdown fa-icon"></i>
+        <svg class="tool-icon" aria-hidden="true"><use href="#icon-markdown"></use></svg>
         <h2>To Markdown</h2>
         <p>Convert content to Markdown format.</p>
       </a>
       <a href="from-markdown/" class="tool-card">
-        <i class="fa-solid fa-file-code fa-icon"></i>
+        <svg class="tool-icon" aria-hidden="true"><use href="#icon-file-code"></use></svg>
         <h2>From Markdown</h2>
         <p>Render Markdown to HTML and copy source output.</p>
       </a>
       <a href="dvd-player-screensaver/" class="tool-card">
-        <i class="fa-solid fa-tv fa-icon"></i>
+        <svg class="tool-icon" aria-hidden="true"><use href="#icon-tv"></use></svg>
         <h2>DVD Screensaver</h2>
         <p>Classic DVD logo screensaver.</p>
       </a>
       <a href="days-since/" class="tool-card">
-        <i class="fa-solid fa-calendar-day fa-icon"></i>
+        <svg class="tool-icon" aria-hidden="true"><use href="#icon-calendar"></use></svg>
         <h2>Days Since</h2>
         <p>Calculate days since a date.</p>
       </a>
       <a href="days-until/" class="tool-card">
-        <i class="fa-solid fa-hourglass-end fa-icon"></i>
+        <svg class="tool-icon" aria-hidden="true"><use href="#icon-hourglass"></use></svg>
         <h2>Days Until</h2>
         <p>Calculate days until a date.</p>
       </a>
       <a href="data-uri-pwa/" class="tool-card">
-        <i class="fa-solid fa-file-code fa-icon"></i>
+        <svg class="tool-icon" aria-hidden="true"><use href="#icon-data"></use></svg>
         <h2>Data URI PWA</h2>
         <p>Generate data URIs for PWA assets.</p>
       </a>
       <a href="encoder/" class="tool-card">
-        <i class="fa-solid fa-code fa-icon"></i>
+        <svg class="tool-icon" aria-hidden="true"><use href="#icon-code"></use></svg>
         <h2>String Encoder/Decoder</h2>
         <p>Encode/decode strings and generate hashes.</p>
       </a>
       <a href="recall/" class="tool-card">
-        <i class="fa-solid fa-camera-retro fa-icon"></i>
+        <svg class="tool-icon" aria-hidden="true"><use href="#icon-camera"></use></svg>
         <h2>Frame Recall</h2>
         <p>Capture and display the last few seconds of video.</p>
       </a>
 
       <!-- Easy Image -->
       <a href="easy-image/" class="tool-card">
-        <i class="fa-solid fa-image fa-icon"></i>
+        <svg class="tool-icon" aria-hidden="true"><use href="#icon-image"></use></svg>
         <h2>Easy Image</h2>
         <p>Convert images to PNG or JPEG in your browser.</p>
       </a>
 
       <!-- Other tools -->
       <a href="dollars-and-cents-mpge/" class="tool-card">
-        <i class="fa-solid fa-dollar-sign fa-icon"></i>
+        <svg class="tool-icon" aria-hidden="true"><use href="#icon-dollar"></use></svg>
         <h2>Dollars & Cents MPGe</h2>
         <p>Convert MPGe to dollars and cents.</p>
       </a>
       <a href="dom-event-css-custom-properties/" class="tool-card">
-        <i class="fa-solid fa-code-branch fa-icon"></i>
+        <svg class="tool-icon" aria-hidden="true"><use href="#icon-branch"></use></svg>
         <h2>DOM Event CSS Custom Properties</h2>
         <p>Bind DOM events to CSS custom properties.</p>
       </a>
       <a href="dom-event-to-css-variable/" class="tool-card">
-        <i class="fa-solid fa-exchange-alt fa-icon"></i>
+        <svg class="tool-icon" aria-hidden="true"><use href="#icon-exchange"></use></svg>
         <h2>DOM Event to CSS Variable</h2>
         <p>Sync DOM events with CSS variables.</p>
       </a>
       <a href="ps-spectrum-analyzer/" class="tool-card">
-        <i class="fa-solid fa-wave-square fa-icon"></i>
+        <svg class="tool-icon" aria-hidden="true"><use href="#icon-wave"></use></svg>
         <h2>PS Spectrum Analyzer</h2>
         <p>Real-time audio spectrum analyzer.</p>
       </a>
       <a href="ps-to-mp3/" class="tool-card">
-        <i class="fa-solid fa-music fa-icon"></i>
+        <svg class="tool-icon" aria-hidden="true"><use href="#icon-music"></use></svg>
         <h2>PS to MP3</h2>
         <p>Convert audio to MP3.</p>
       </a>
       <a href="worth-it/" class="tool-card">
-        <i class="fa-solid fa-stopwatch fa-icon"></i>
+        <svg class="tool-icon" aria-hidden="true"><use href="#icon-stopwatch"></use></svg>
         <h2>Worth‑the‑Time Table</h2>
         <p>Automation payoff table (XKCD #1205).</p>
       </a>
       <a href="local-llm-throughput/" class="tool-card">
-        <i class="fa-solid fa-microchip fa-icon"></i>
+        <svg class="tool-icon" aria-hidden="true"><use href="#icon-chip"></use></svg>
         <h2>Local LLM Throughput</h2>
         <p>Estimate model fit and ideal local token-generation speed.</p>
       </a>
       <a href="usps-zipcodes-demo/" class="tool-card">
-        <i class="fa-solid fa-map-marked-alt fa-icon"></i>
+        <svg class="tool-icon" aria-hidden="true"><use href="#icon-map"></use></svg>
         <h2>USPS Zipcodes Demo</h2>
         <p>Lookup US zip codes.</p>
       </a>
       <a href="xbox-avatar/" class="tool-card">
-        <i class="fa-brands fa-xbox fa-icon"></i>
+        <svg class="tool-icon" aria-hidden="true"><use href="#icon-xbox"></use></svg>
         <h2>Xbox Avatar</h2>
         <p>View your Xbox avatar.</p>
       </a>
       <a href="payments-tracker/" class="tool-card">
-        <i class="fa-solid fa-money-check-dollar fa-icon"></i>
+        <svg class="tool-icon" aria-hidden="true"><use href="#icon-payment"></use></svg>
         <h2>Payments Tracker</h2>
         <p>Track recurring payment progress & remaining amount.</p>
       </a>
