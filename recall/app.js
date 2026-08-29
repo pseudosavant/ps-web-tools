@@ -103,6 +103,10 @@ class FrameRecall {
     
     toggleSettings() {
         this.settingsPanel.classList.toggle('collapsed');
+        this.settingsToggle.setAttribute(
+            'aria-expanded',
+            String(!this.settingsPanel.classList.contains('collapsed'))
+        );
         const icon = this.settingsToggle.querySelector('i');
         if (this.settingsPanel.classList.contains('collapsed')) {
             icon.className = 'fas fa-cog';

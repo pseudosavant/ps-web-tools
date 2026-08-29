@@ -5,10 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Frame Recall PWA</title>
     <link rel="icon" type="image/svg+xml" href="favicon.svg">
-    <link rel="manifest" href="manifest.json">
-    <link rel="stylesheet" href="styles.css">
+    <link rel="manifest" href="manifest.json?v=2">
+    <link rel="stylesheet" href="styles.css?v=2">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.0/css/all.min.css">
-    <meta name="theme-color" content="#000000">
+    <meta name="theme-color" content="#f9f9f9" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#081521" media="(prefers-color-scheme: dark)">
 </head>
 <body>
     <div class="container">
@@ -20,28 +21,28 @@
             <div class="video-container">
                 <video id="videoElement" autoplay muted playsinline></video>
                 <canvas id="captureCanvas" style="display: none;"></canvas>
-                <button id="toggleBtn" disabled title="Start capturing frames continuously"><i class="fas fa-play-circle"></i> Arm Capture</button>
-                <button id="settingsToggle" type="button" title="Show/hide camera and recording settings"><i class="fas fa-cog"></i> Settings</button>
+                <button id="toggleBtn" disabled title="Start capturing frames continuously"><i class="fas fa-play-circle" aria-hidden="true"></i> Arm Capture</button>
+                <button id="settingsToggle" type="button" aria-controls="settingsPanel" aria-expanded="false" title="Show/hide camera and recording settings"><i class="fas fa-cog" aria-hidden="true"></i> Settings</button>
             </div>
             
             <div id="settingsPanel" class="settings-panel collapsed">
                 <div class="settings-content">
-                    <select id="cameraSelect" disabled title="Select which camera to use for recording">
+                    <select id="cameraSelect" aria-label="Camera" disabled title="Select which camera to use for recording">
                         <option value="">Loading cameras...</option>
                     </select>
-                    <select id="resolutionSelect" title="Choose video recording resolution">
+                    <select id="resolutionSelect" aria-label="Recording resolution" title="Choose video recording resolution">
                         <option value="480p">480p</option>
                         <option value="720p">720p</option>
                         <option value="1080p" selected>1080p</option>
                     </select>
-                    <select id="secondsSelect" title="How many seconds of frames to capture and store">
+                    <select id="secondsSelect" aria-label="Recall duration" title="How many seconds of frames to capture and store">
                         <option value="1">1 Second</option>
                         <option value="2" selected>2 Seconds</option>
                         <option value="3">3 Seconds</option>
                         <option value="5">5 Seconds</option>
                         <option value="10">10 Seconds</option>
                     </select>
-                    <select id="fpsSelect" title="Frames per second to capture at">
+                    <select id="fpsSelect" aria-label="Capture frame rate" title="Frames per second to capture at">
                         <option value="10">10 FPS</option>
                         <option value="15" selected>15 FPS</option>
                         <option value="24">24 FPS</option>
@@ -51,7 +52,7 @@
             </div>
             
             <div id="framesContainer" class="frames-grid"></div>
-            <div id="status" class="status">Select a camera to begin</div>
+            <div id="status" class="status" role="status" aria-live="polite">Select a camera to begin</div>
         </main>
     </div>
     

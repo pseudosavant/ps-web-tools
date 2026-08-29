@@ -4,8 +4,8 @@
     "description": "Capture and display frames from the last 2 seconds",
     "start_url": "./",
     "display": "standalone",
-    "background_color": "#1a1a1a",
-    "theme_color": "#4CAF50",
+    "background_color": "#F9F9F9",
+    "theme_color": "#1D6FA8",
     "orientation": "portrait-primary",
     "icons": [
         {
