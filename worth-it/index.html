@@ -3,17 +3,20 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#f9f9f9" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#081521" media="(prefers-color-scheme: dark)" />
     <title>Worth‑the‑Time Table</title>
     <meta name="description" content="Recreates XKCD #1205 table with a configurable payoff window. Compute the maximum time worth investing to automate a task." />
-    <link rel="stylesheet" href="./styles.css" />
+    <link rel="stylesheet" href="./styles.css?v=2" />
   </head>
   <body>
+    <a class="skip-link" href="#app-main">Skip to calculator</a>
     <header class="app-header">
       <h1>Worth‑the‑Time Table</h1>
       <p class="tagline">Compute the maximum time worth investing to automate or improve a task (XKCD #1205, with a configurable horizon).<br />Maximum time worth investing = saved per run × runs per year × horizon years.</p>
     </header>
 
-    <main class="app-main">
+    <main class="app-main" id="app-main">
       <section class="controls" aria-label="Controls">
         <form id="controlsForm" novalidate>
           <fieldset class="controls-group">
