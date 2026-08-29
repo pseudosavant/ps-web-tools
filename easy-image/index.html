@@ -7,6 +7,8 @@
   <meta name="author" content="John Paul Ellis">
   <meta name="copyright" content="Copyright 2025 John Paul Ellis">
   <meta name="license" content="MIT">
+  <meta name="theme-color" content="#f9f9f9" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#081521" media="(prefers-color-scheme: dark)">
   <title>Easy Image</title>
   <link rel="manifest" href="manifest.json">
   <style>
@@ -194,13 +196,177 @@
     .hidden {
       display: none
     }
+
+    /* Pseudosavant light/dark theme */
+    :root {
+      color-scheme: light dark;
+      --bg: #f9f9f9;
+      --card: #ffffff;
+      --surface-subtle: #f3faff;
+      --surface-raised: #ffffff;
+      --muted: #355a78;
+      --text: #10263f;
+      --accent: #1d6fa8;
+      --accent-strong: #145a8a;
+      --accent-soft: #eef8ff;
+      --accent-ring: rgba(29, 111, 168, 0.24);
+      --secondary: #ff6392;
+      --secondary-strong: #a3204c;
+      --sunshine: #ffe45e;
+      --border: #b9daf2;
+      --border-strong: #78acd0;
+      --glow-primary: rgba(127, 200, 248, 0.68);
+      --glow-secondary: rgba(255, 99, 146, 0.42);
+      --glow-sunshine: rgba(255, 228, 94, 0.66);
+      --shadow: 0 8px 26px rgba(15, 56, 120, 0.09);
+    }
+
+    body {
+      min-height: 100vh;
+      height: auto;
+      background:
+        radial-gradient(circle at 12% 0%, var(--glow-primary) 0, transparent 34%),
+        radial-gradient(circle at 90% 2%, var(--glow-sunshine) 0, transparent 28%),
+        radial-gradient(circle at 86% 8%, var(--glow-secondary) 0, transparent 22%),
+        var(--bg);
+      background-attachment: fixed;
+    }
+
+    .app {
+      position: relative;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      border-radius: 1rem;
+      background: var(--card);
+      box-shadow: var(--shadow);
+    }
+
+    .app::before {
+      position: absolute;
+      top: 0;
+      right: 1.25rem;
+      left: 1.25rem;
+      height: 2px;
+      border-radius: 999px;
+      background: linear-gradient(90deg, var(--accent), var(--secondary), var(--sunshine), transparent 94%);
+      content: '';
+    }
+
+    h1 {
+      background: linear-gradient(110deg, var(--text) 12%, var(--accent-strong) 66%, var(--secondary-strong));
+      background-clip: text;
+      color: transparent;
+      font-size: clamp(1.8rem, 4vw, 2.5rem);
+      letter-spacing: -0.035em;
+    }
+
+    .dropzone {
+      border-color: var(--border);
+      background: var(--surface-subtle);
+    }
+
+    .dropzone.dragover,
+    .dropzone:focus-visible {
+      border-color: var(--accent);
+      background: linear-gradient(135deg, var(--accent-soft), #fff0f5 72%, #fff8d5);
+      outline: none;
+      box-shadow: 0 0 0 5px var(--accent-ring);
+    }
+
+    .open-btn {
+      min-height: 2.75rem;
+      padding: 0.65rem 1rem;
+      border: 1px solid transparent;
+      border-radius: 0.6rem;
+      background: linear-gradient(135deg, #1d6fa8, #a3204c);
+      color: #ffffff;
+      cursor: pointer;
+      font: inherit;
+      font-weight: 700;
+    }
+
+    :where(button, input, a):focus-visible,
+    input.toggle:focus-visible + .toggle-label {
+      outline: 3px solid var(--accent);
+      outline-offset: 3px;
+      box-shadow: 0 0 0 5px var(--accent-ring);
+    }
+
+    .toggle-label {
+      background: var(--border-strong);
+    }
+
+    input[type=checkbox].toggle:checked + .toggle-label {
+      background: var(--accent);
+    }
+
+    .preview {
+      border: 1px solid var(--border);
+      background: var(--surface-subtle);
+    }
+
+    .chip {
+      border: 1px solid var(--border);
+      background: var(--surface-raised);
+    }
+
+    #copyLink,
+    a.download-link {
+      color: var(--accent-strong);
+      font-weight: 700;
+      text-decoration: underline;
+      text-underline-offset: 0.2em;
+    }
+
+    @media (max-width: 600px) {
+      body { padding: 0.75rem; }
+      .app { padding: 1rem; }
+      .controls { align-items: flex-start; flex-direction: column; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { transition-duration: 0.01ms !important; }
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #081521;
+        --card: #10263f;
+        --surface-subtle: #0c1f33;
+        --surface-raised: #16324d;
+        --muted: #a9c7dc;
+        --text: #f5fbff;
+        --accent: #7fc8f8;
+        --accent-strong: #a9ddff;
+        --accent-soft: #133452;
+        --accent-ring: rgba(127, 200, 248, 0.3);
+        --secondary: #ff6392;
+        --secondary-strong: #ff9abd;
+        --sunshine: #ffe45e;
+        --border: #315b78;
+        --border-strong: #4f7fa1;
+        --glow-primary: rgba(127, 200, 248, 0.17);
+        --glow-secondary: rgba(255, 99, 146, 0.13);
+        --glow-sunshine: rgba(255, 228, 94, 0.1);
+        --shadow: 0 16px 42px rgba(0, 0, 0, 0.32);
+      }
+
+      .dropzone.dragover,
+      .dropzone:focus-visible {
+        background: linear-gradient(135deg, var(--accent-soft), #3a1629 72%, #332f14);
+      }
+    }
+
+    @media (forced-colors: active) {
+      h1 { background: none; color: CanvasText; }
+    }
   </style>
 </head>
 
 <body>
   <div class="app" id="app">
   <h1>Easy Image</h1>
-    <div id="drop" class="dropzone" tabindex="0">
+    <div id="drop" class="dropzone" role="button" tabindex="0" aria-label="Choose an image to convert">
       <strong>Drop an image anywhere</strong>
       <div class="muted">or click the button to open a file</div>
       <div style="display:flex;gap:10px;align-items:center;margin-top:12px">
@@ -215,12 +381,12 @@
     <div class="controls" aria-hidden="false">
       <div class="field" style="align-items:center">
         <div class="muted">PNG</div>
-        <input id="jpegToggle" class="toggle" type="checkbox">
+        <input id="jpegToggle" class="toggle" type="checkbox" aria-label="Convert to JPEG instead of PNG">
         <label for="jpegToggle" class="toggle-label" title="Toggle format"></label>
         <div class="muted">JPEG</div>
       </div>
       <div id="qualityWrap" class="quality-row hidden">
-        <input id="quality" class="slider" type="range" min="0.5" max="1" step="0.01" value="0.95">
+        <input id="quality" class="slider" type="range" min="0.5" max="1" step="0.01" value="0.95" aria-label="JPEG quality">
         <div class="muted" id="qualityVal">95%</div>
       </div>
     </div>
@@ -251,7 +417,14 @@
     const downloadLink = document.getElementById('downloadLink');
     // message area (create if missing)
     let messageEl = document.getElementById('message');
-    if (!messageEl) { messageEl = document.createElement('div'); messageEl.id = 'message'; messageEl.className = 'muted'; document.getElementById('drop').appendChild(messageEl); }
+    if (!messageEl) {
+      messageEl = document.createElement('div');
+      messageEl.id = 'message';
+      messageEl.className = 'muted';
+      messageEl.setAttribute('role', 'status');
+      messageEl.setAttribute('aria-live', 'polite');
+      document.getElementById('drop').appendChild(messageEl);
+    }
 
     // State
     let originalFile = null; // File object
@@ -732,6 +905,12 @@
 
     // Accessibility: allow dropzone click to open
     drop.addEventListener('click', () => fileInput.click());
+    drop.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        fileInput.click();
+      }
+    });
 
   </script>
 </body>
