@@ -3,6 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#f9f9f9" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#081521" media="(prefers-color-scheme: dark)">
     <title>Dollars and Cents MPGe Calculator</title>
     <!-- Font Awesome 6.7 CDN -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.0/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
@@ -180,13 +182,190 @@
                 margin-bottom: 0.25em;
             }
         }
+
+        /* Pseudosavant light/dark theme */
+        :root {
+            color-scheme: light dark;
+            --background: #f9f9f9;
+            --surface: #ffffff;
+            --surface-subtle: #f3faff;
+            --surface-raised: #ffffff;
+            --text: #10263f;
+            --text-muted: #355a78;
+            --accent: #1d6fa8;
+            --accent-strong: #145a8a;
+            --accent-soft: #eef8ff;
+            --accent-ring: rgba(29, 111, 168, 0.24);
+            --secondary: #ff6392;
+            --secondary-strong: #a3204c;
+            --sunshine: #ffe45e;
+            --border: #b9daf2;
+            --border-strong: #78acd0;
+            --error: #b42318;
+            --glow-primary: rgba(127, 200, 248, 0.68);
+            --glow-secondary: rgba(255, 99, 146, 0.42);
+            --glow-sunshine: rgba(255, 228, 94, 0.66);
+            --shadow: 0 8px 26px rgba(15, 56, 120, 0.09);
+        }
+
+        body {
+            min-height: 100vh;
+            background:
+                radial-gradient(circle at 12% 0%, var(--glow-primary) 0, transparent 34%),
+                radial-gradient(circle at 90% 2%, var(--glow-sunshine) 0, transparent 28%),
+                radial-gradient(circle at 86% 8%, var(--glow-secondary) 0, transparent 22%),
+                var(--background);
+            background-attachment: fixed;
+            color: var(--text);
+        }
+
+        .container {
+            position: relative;
+            overflow: hidden;
+            border: 1px solid var(--border);
+            border-radius: 1rem;
+            background: var(--surface);
+            box-shadow: var(--shadow);
+        }
+
+        .container::before {
+            position: absolute;
+            top: 0;
+            right: 1.25rem;
+            left: 1.25rem;
+            height: 2px;
+            border-radius: 999px;
+            background: linear-gradient(90deg, var(--accent), var(--secondary), var(--sunshine), transparent 94%);
+            content: '';
+        }
+
+        h1 {
+            background: linear-gradient(110deg, var(--text) 12%, var(--accent-strong) 66%, var(--secondary-strong));
+            background-clip: text;
+            color: transparent;
+            font-size: clamp(1.7rem, 5vw, 2.25rem);
+            letter-spacing: -0.035em;
+            line-height: 1.15;
+        }
+
+        h1 .fa-gas-pump,
+        .input-icon,
+        .results .fa-solid {
+            color: var(--accent) !important;
+        }
+
+        h2,
+        h3 {
+            border-color: var(--border);
+            color: var(--text);
+        }
+
+        .input-group,
+        .results {
+            border: 1px solid var(--border);
+            background: var(--surface-subtle);
+            box-shadow: none;
+        }
+
+        .input-group:focus-within {
+            border-color: var(--accent);
+            background: var(--accent-soft);
+            box-shadow: 0 0 0 4px var(--accent-ring);
+        }
+
+        label,
+        .unit-label {
+            color: var(--text-muted);
+        }
+
+        input[type="number"] {
+            border-color: var(--border);
+            background: var(--surface-raised);
+            color: var(--text);
+        }
+
+        input[type="range"] {
+            accent-color: var(--accent);
+        }
+
+        input[type="number"]:hover,
+        input[type="range"]:hover {
+            border-color: var(--accent);
+            background: var(--accent-soft);
+        }
+
+        .preset-text {
+            display: inline-block;
+            margin-bottom: 0.35rem;
+            border: 1px solid var(--border);
+            background: var(--surface-subtle);
+            color: var(--accent-strong);
+        }
+
+        .preset-text:hover,
+        .preset-text:focus {
+            border-color: var(--accent);
+            background: var(--accent-soft);
+            color: var(--accent-strong);
+        }
+
+        input:focus-visible,
+        .preset-text:focus-visible,
+        a:focus-visible {
+            outline: 3px solid var(--accent);
+            outline-offset: 3px;
+            box-shadow: 0 0 0 5px var(--accent-ring);
+        }
+
+        .input-error {
+            color: var(--error);
+        }
+
+        a {
+            color: var(--accent-strong);
+            text-decoration: underline;
+            text-underline-offset: 0.2em;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after { transition-duration: 0.01ms !important; }
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --background: #081521;
+                --surface: #10263f;
+                --surface-subtle: #0c1f33;
+                --surface-raised: #16324d;
+                --text: #f5fbff;
+                --text-muted: #a9c7dc;
+                --accent: #7fc8f8;
+                --accent-strong: #a9ddff;
+                --accent-soft: #133452;
+                --accent-ring: rgba(127, 200, 248, 0.3);
+                --secondary: #ff6392;
+                --secondary-strong: #ff9abd;
+                --sunshine: #ffe45e;
+                --border: #315b78;
+                --border-strong: #4f7fa1;
+                --error: #ffb4ab;
+                --glow-primary: rgba(127, 200, 248, 0.17);
+                --glow-secondary: rgba(255, 99, 146, 0.13);
+                --glow-sunshine: rgba(255, 228, 94, 0.1);
+                --shadow: 0 16px 42px rgba(0, 0, 0, 0.32);
+            }
+        }
+
+        @media (forced-colors: active) {
+            h1 { background: none; color: CanvasText; }
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>
             <i class="fa-solid fa-gas-pump" style="color:#0078d4"></i>
-            Dollars and Cents MPGe<super><a href="#explanation">*</a></super> Calculator
+            Dollars and Cents MPGe<sup><a href="#explanation" aria-label="Read the MPGe explanation">*</a></sup> Calculator
         </h1>
         <div class="ev-inputs">
             <h2><i class="fa-solid fa-bolt"></i> EV Inputs</h2>
@@ -196,7 +375,7 @@
                 <input type="number" id="miles-per-kw-number" name="miles-per-kw" min="0.1" max="10.0" step="0.1" value="3.4" aria-label="Miles per Kilowatt">
                 <span class="unit-label">mi/kWh</span>
                 <input type="range" id="miles-per-kw-slider" name="miles-per-kw" min="0.1" max="10.0" step="0.1" value="3.4" aria-label="Miles per Kilowatt">
-                <span id="miles-per-kw-error" class="input-error"></span>
+                <span id="miles-per-kw-error" class="input-error" role="status"></span>
             </div>
             <div class="input-group">
                 <span class="input-icon"><i class="fa-solid fa-bolt"></i></span>
@@ -204,7 +383,7 @@
                 <input type="number" id="electricity-price-number" name="electricity-price" min="1" max="100" step="1" value="13" aria-label="Electricity Price">
                 <span class="unit-label">¢/kWh</span>
                 <input type="range" id="electricity-price-slider" name="electricity-price" min="1" max="100" step="1" value="13" aria-label="Electricity Price">
-                <span id="electricity-price-error" class="input-error"></span>
+                <span id="electricity-price-error" class="input-error" role="status"></span>
             </div>
         </div>
         <div class="gas-inputs">
@@ -215,10 +394,10 @@
                 <input type="number" id="gas-price-number" name="gas-price" min="1" max="20" step="0.01" value="3.80" aria-label="Gas Price">
                 <span class="unit-label">$ / gal</span>
                 <input type="range" id="gas-price-slider" name="gas-price" min="1" max="20" step="0.01" value="3.80" aria-label="Gas Price">
-                <span id="gas-price-error" class="input-error"></span>
+                <span id="gas-price-error" class="input-error" role="status"></span>
             </div>
         </div>
-        <div class="results">
+        <div class="results" aria-live="polite">
             <h2><i class="fa-solid fa-scale-balanced"></i> EV vs Gas Comparison</h2>
             <div><i class="fa-solid fa-gauge-high" style="color:#0078d4"></i> EV Equivalent Gas MPG by cost: <span id="mpge-result">0</span></div>
             <div><i class="fa-solid fa-road" style="color:#0078d4"></i> EV miles per dollar: <span id="miles-per-dollar">0</span></div>
@@ -262,7 +441,7 @@
         <div class="explanation" id="explanation">
           <h2><i class="fa-solid fa-circle-question"></i> What is Dollars and Cents MPGe?</h2>
           <p>
-            EV window stickers have MPGe figures, but they don't really relate to the price per mile that consumers face when choosing an EV or ICE vehcile. The dollars and cent MPGe calculator will tell you what gas MPG would be equivalent to the cost of driving an EV.
+            EV window stickers have MPGe figures, but they don't directly reflect the price per mile that consumers face when choosing an EV or ICE vehicle. The dollars and cents MPGe calculator shows what gas MPG would be equivalent to the cost of driving an EV.
           </p>
         </div>
     </div>
